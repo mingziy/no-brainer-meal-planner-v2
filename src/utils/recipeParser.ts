@@ -29,18 +29,20 @@ export function parseRecipeText(text: string): Partial<Recipe> {
   let ingredientId = 1;
 
   for (const line of lines) {
-    if (/^ingredients?:?$/i.test(line.trim())) {
+    // Support both English and Chinese keywords
+    if (/^(ingredients?|食材|材料|原料):?$/i.test(line.trim())) {
       inIngredientsSection = true;
       continue;
     }
-    if (/^(instructions?|directions?|steps?):?$/i.test(line.trim())) {
+    if (/^(instructions?|directions?|steps?|做法|步骤|制作方法|烹饪步骤):?$/i.test(line.trim())) {
       inIngredientsSection = false;
       continue;
     }
     
     if (inIngredientsSection && line.trim()) {
-      // Try to parse amount, unit, and name
-      const match = line.match(/^[•\-*]?\s*(\d+\/?\d*|\d+\.\d+)?\s*([a-z]+)?\s*(.+?)$/i);
+      // Try to parse amount, unit, and name (supports English and Chinese)
+      // Supports patterns like: "2 cups flour", "2杯 面粉", "200克 鸡肉", "适量 盐"
+      const match = line.match(/^[•\-*]?\s*(\d+\.?\d*|适量|少许)?\s*([\u4e00-\u9fa5a-z]+)?\s*(.+?)$/i);
       if (match) {
         const [, amount, unit, ingredientName] = match;
         ingredients.push({
@@ -65,11 +67,12 @@ export function parseRecipeText(text: string): Partial<Recipe> {
   let inInstructionsSection = false;
 
   for (const line of lines) {
-    if (/^(instructions?|directions?|steps?):?$/i.test(line.trim())) {
+    // Support both English and Chinese keywords
+    if (/^(instructions?|directions?|steps?|做法|步骤|制作方法|烹饪步骤):?$/i.test(line.trim())) {
       inInstructionsSection = true;
       continue;
     }
-    if (/^ingredients?:?$/i.test(line.trim())) {
+    if (/^(ingredients?|食材|材料|原料):?$/i.test(line.trim())) {
       inInstructionsSection = false;
       continue;
     }
@@ -82,48 +85,58 @@ export function parseRecipeText(text: string): Partial<Recipe> {
     }
   }
 
-  // Extract prep and cook times
+  // Extract prep and cook times (supports English and Chinese)
   let prepTime = 15; // default
   let cookTime = 30; // default
   
-  const prepMatch = text.match(/prep(?:\s+time)?:?\s*(\d+)\s*(?:min|minute)/i);
-  const cookMatch = text.match(/cook(?:\s+time)?:?\s*(\d+)\s*(?:min|minute)/i);
+  const prepMatch = text.match(/(?:prep(?:\s+time)?|准备时间|备料时间):?\s*(\d+)\s*(?:min|minute|分钟)/i);
+  const cookMatch = text.match(/(?:cook(?:\s+time)?|烹饪时间|cooking time):?\s*(\d+)\s*(?:min|minute|分钟)/i);
   
   if (prepMatch) prepTime = parseInt(prepMatch[1]);
   if (cookMatch) cookTime = parseInt(cookMatch[1]);
 
-  // Detect cuisine
+  // Detect cuisine (supports English and Chinese keywords)
   let cuisine: RecipeCuisine = 'Other';
   const textLower = text.toLowerCase();
+  
+  // Chinese cuisine detection
+  if (textLower.includes('chinese') || textLower.includes('中式') || textLower.includes('中国') ||
+      textLower.includes('stir fry') || textLower.includes('炒') || textLower.includes('爆炒') ||
+      textLower.includes('fried rice') || textLower.includes('炒饭') ||
+      textLower.includes('soy sauce') || textLower.includes('酱油') ||
+      textLower.includes('wok') || textLower.includes('锅')) {
+    cuisine = 'Chinese';
+  }
+  
+  // Other cuisines
   if (textLower.includes('italian') || textLower.includes('pasta') || textLower.includes('pizza')) cuisine = 'Italian';
-  if (textLower.includes('korean') || textLower.includes('kimchi') || textLower.includes('bulgogi')) cuisine = 'Korean';
-  if (textLower.includes('chinese') || textLower.includes('stir fry') || textLower.includes('fried rice')) cuisine = 'Chinese';
+  if (textLower.includes('korean') || textLower.includes('kimchi') || textLower.includes('bulgogi') || textLower.includes('韩式')) cuisine = 'Korean';
   if (textLower.includes('mexican') || textLower.includes('taco') || textLower.includes('burrito')) cuisine = 'Mexican';
-  if (textLower.includes('japanese') || textLower.includes('sushi') || textLower.includes('ramen')) cuisine = 'Japanese';
+  if (textLower.includes('japanese') || textLower.includes('sushi') || textLower.includes('ramen') || textLower.includes('日式')) cuisine = 'Japanese';
   if (textLower.includes('american') || textLower.includes('burger') || textLower.includes('bbq')) cuisine = 'American';
 
-  // Detect categories
+  // Detect categories (supports English and Chinese)
   const categories: RecipeCategory[] = [];
-  if (textLower.includes('breakfast')) categories.push('Breakfast');
-  if (textLower.includes('lunch')) categories.push('Lunch');
-  if (textLower.includes('dinner')) categories.push('Dinner');
-  if (textLower.includes('kid') || textLower.includes('child')) categories.push('Kid-Friendly');
-  if (textLower.includes('batch') || textLower.includes('meal prep')) categories.push('Batch-Cook Friendly');
+  if (textLower.includes('breakfast') || textLower.includes('早餐')) categories.push('Breakfast');
+  if (textLower.includes('lunch') || textLower.includes('午餐') || textLower.includes('中餐')) categories.push('Lunch');
+  if (textLower.includes('dinner') || textLower.includes('晚餐') || textLower.includes('晚饭')) categories.push('Dinner');
+  if (textLower.includes('kid') || textLower.includes('child') || textLower.includes('儿童') || textLower.includes('孩子')) categories.push('Kid-Friendly');
+  if (textLower.includes('batch') || textLower.includes('meal prep') || textLower.includes('批量') || textLower.includes('备餐')) categories.push('Batch-Cook Friendly');
   
   // Default category if none found
   if (categories.length === 0) {
     categories.push('Dinner');
   }
 
-  // Estimate nutrition based on ingredients (very rough simulation)
+  // Estimate nutrition based on ingredients (supports English and Chinese)
   const hasProtein = ingredients.some(ing => 
-    /chicken|beef|pork|fish|egg|tofu|bean/i.test(ing.name)
+    /chicken|beef|pork|fish|egg|tofu|bean|鸡|牛|猪|鱼|蛋|豆腐|肉/i.test(ing.name)
   );
   const hasVeggies = ingredients.some(ing => 
-    /vegetable|carrot|broccoli|spinach|lettuce|tomato|pepper/i.test(ing.name)
+    /vegetable|carrot|broccoli|spinach|lettuce|tomato|pepper|菜|胡萝卜|西兰花|菠菜|番茄|辣椒|蔬菜/i.test(ing.name)
   );
   const hasCarbs = ingredients.some(ing => 
-    /rice|pasta|bread|potato|noodle/i.test(ing.name)
+    /rice|pasta|bread|potato|noodle|米|面|饭|面条|馒头|土豆/i.test(ing.name)
   );
 
   return {

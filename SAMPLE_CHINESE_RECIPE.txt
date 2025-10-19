@@ -1,0 +1,161 @@
+# Sample Chinese Recipes for Testing
+
+You can copy and paste any of these recipes into the "Paste Recipe Text" field to test Chinese recipe extraction!
+
+---
+
+## Recipe 1: 宫保鸡丁 (Kung Pao Chicken)
+
+宫保鸡丁
+准备时间: 15分钟
+烹饪时间: 10分钟
+中式晚餐
+
+食材:
+- 500克 鸡胸肉
+- 适量 花生
+- 3个 干辣椒
+- 1勺 酱油
+- 1勺 料酒
+- 1勺 醋
+- 1勺 糖
+- 适量 葱姜蒜
+- 少许 花椒
+
+做法:
+1. 将鸡胸肉切成小丁，用料酒和酱油腌制10分钟
+2. 热锅倒油，爆香葱姜蒜和干辣椒
+3. 加入鸡丁翻炒至变色
+4. 加入调味料（酱油、醋、糖）继续翻炒
+5. 最后加入花生翻炒均匀即可出锅
+
+---
+
+## Recipe 2: 番茄炒蛋 (Tomato and Egg Stir-Fry)
+
+番茄炒蛋
+Prep: 5分钟
+Cook: 8分钟
+简单快手晚餐
+
+材料:
+- 3个 鸡蛋
+- 2个 番茄
+- 适量 盐
+- 1勺 糖
+- 少许 葱花
+- 适量 食用油
+
+步骤:
+1. 鸡蛋打散，加少许盐搅拌均匀
+2. 番茄切块备用
+3. 热锅倒油，倒入鸡蛋液炒至半熟盛出
+4. 锅中再倒油，加入番茄块翻炒
+5. 番茄炒出汁后加入鸡蛋，加盐和糖调味
+6. 翻炒均匀后撒上葱花即可
+
+---
+
+## Recipe 3: Mapo Tofu (麻婆豆腐)
+
+麻婆豆腐 Mapo Tofu
+准备时间: 10 minutes
+烹饪时间: 15 minutes
+中式 晚餐 儿童喜欢
+
+原料:
+- 1块 嫩豆腐
+- 100克 猪肉末
+- 2勺 豆瓣酱
+- 1勺 酱油
+- 适量 葱姜蒜
+- 少许 花椒粉
+- 1杯 高汤
+- 适量 水淀粉
+
+制作方法:
+1. 豆腐切成小块，用热水焯一下备用
+2. 热锅倒油，爆香葱姜蒜
+3. 加入猪肉末炒至变色
+4. 加入豆瓣酱炒出红油
+5. 倒入高汤和豆腐，加酱油调味
+6. 小火煮5分钟，让豆腐入味
+7. 用水淀粉勾芡，撒上花椒粉即可
+
+---
+
+## Recipe 4: Yangzhou Fried Rice
+
+扬州炒饭
+Prep time: 10 min
+Cook time: 8 min
+Chinese lunch, Kid-Friendly
+
+Ingredients:
+- 2 cups cooked rice (冷饭)
+- 2个 鸡蛋
+- 50g 虾仁 shrimp
+- 50g 火腿 ham
+- 半杯 青豆胡萝卜粒
+- 2 green onions (葱)
+- 2勺 酱油
+- Salt and pepper
+
+Instructions:
+1. Beat eggs and scramble in hot wok, set aside
+2. Add oil to wok, stir-fry shrimp until pink
+3. Add ham and vegetables, stir-fry 2 minutes
+4. 加入冷饭，用铲子压散
+5. Add soy sauce and stir-fry everything together
+6. Add scrambled eggs back, mix well
+7. Garnish with green onions and serve hot
+
+---
+
+## Recipe 5: 红烧肉 (Braised Pork Belly)
+
+红烧肉
+准备时间: 15分钟
+烹饪时间: 60分钟
+中式晚餐批量
+
+食材:
+- 800克 五花肉
+- 3勺 酱油
+- 2勺 料酒
+- 2勺 糖
+- 3片 姜
+- 2个 八角
+- 1根 葱
+- 适量 水
+
+做法:
+1. 五花肉切成2厘米见方的块
+2. 锅中加水烧开，放入肉块焯水去腥
+3. 另起锅，加少许油，放入糖炒至焦糖色
+4. 加入肉块翻炒上色
+5. 加入酱油、料酒、姜片、八角和葱段
+6. 加水没过肉块，大火烧开
+7. 转小火炖煮50分钟至肉软烂
+8. 大火收汁即可
+
+---
+
+## Tips for Chinese Recipe Parsing:
+
+✅ The parser now supports:
+- Chinese section headers: 食材、材料、原料、做法、步骤、制作方法
+- Chinese measurements: 克、勺、杯、个、适量、少许
+- Chinese time units: 分钟
+- Chinese cooking terms: 炒、煮、蒸、炖、爆炒
+- Chinese ingredient names: 鸡肉、豆腐、酱油、etc.
+- Mixed Chinese-English recipes (bilingual)
+
+✅ Cuisine auto-detection for Chinese:
+- Keywords: chinese, 中式, 中国, stir fry, 炒, soy sauce, 酱油, wok, 锅
+
+✅ Category detection:
+- 早餐 (Breakfast), 午餐 (Lunch), 晚餐 (Dinner)
+- 儿童/孩子 (Kid-Friendly)
+- 批量/备餐 (Batch-Cook Friendly)
+

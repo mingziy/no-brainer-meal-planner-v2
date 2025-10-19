@@ -9,6 +9,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Search, Plus, Heart, Clock } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { BottomNav } from '../shared/BottomNav';
+import { UserButton } from '../auth/UserButton';
 
 export function RecipeLibraryScreen() {
   const {
@@ -81,10 +82,13 @@ export function RecipeLibraryScreen() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">My Recipe Box</h1>
-          <Button onClick={handleAddRecipe} size="sm" className="shrink-0">
-            <Plus className="w-4 h-4 mr-2" />
-            Add
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleAddRecipe} size="sm" className="shrink-0">
+              <Plus className="w-4 h-4 mr-2" />
+              Add
+            </Button>
+            <UserButton />
+          </div>
         </div>
 
         {/* Search Bar */}

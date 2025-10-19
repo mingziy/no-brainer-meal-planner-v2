@@ -17,8 +17,7 @@ export function RecipeDetailsModal() {
     isRecipeDetailsModalOpen,
     setIsRecipeDetailsModalOpen,
     setIsRecipeEditFormOpen,
-    recipes,
-    setRecipes,
+    toggleFavorite,
   } = useApp();
 
   if (!selectedRecipe) return null;
@@ -28,13 +27,12 @@ export function RecipeDetailsModal() {
     setIsRecipeEditFormOpen(true);
   };
 
-  const handleToggleFavorite = () => {
-    const updatedRecipes = recipes.map((recipe) =>
-      recipe.id === selectedRecipe.id
-        ? { ...recipe, isFavorite: !recipe.isFavorite }
-        : recipe
-    );
-    setRecipes(updatedRecipes);
+  const handleToggleFavorite = async () => {
+    try {
+      await toggleFavorite(selectedRecipe.id, selectedRecipe.isFavorite);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
   };
 
   return (

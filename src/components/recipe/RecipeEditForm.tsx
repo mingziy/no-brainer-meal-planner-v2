@@ -30,8 +30,8 @@ export function RecipeEditForm() {
     setDraftRecipe,
     isRecipeEditFormOpen,
     setIsRecipeEditFormOpen,
-    recipes,
-    setRecipes,
+    addRecipe,
+    updateRecipe,
     setSelectedRecipe,
   } = useApp();
 
@@ -201,36 +201,37 @@ export function RecipeEditForm() {
     }
   };
 
-  const handleSave = () => {
-    const now = new Date();
-    const recipeData: Recipe = {
-      id: selectedRecipe?.id || `recipe-${Date.now()}`,
-      name,
-      image,
-      cuisine,
-      categories,
-      prepTime,
-      cookTime,
-      ingredients: ingredients.filter((ing) => ing.name.trim() !== ''),
-      instructions: instructions.filter((inst) => inst.trim() !== ''),
-      nutrition,
-      plateComposition,
-      portions,
-      isFavorite: selectedRecipe?.isFavorite || false,
-      createdAt: selectedRecipe?.createdAt || now,
-      updatedAt: now,
-    };
+  const handleSave = async () => {
+    try {
+      const recipeData = {
+        name,
+        image,
+        cuisine,
+        categories,
+        prepTime,
+        cookTime,
+        ingredients: ingredients.filter((ing) => ing.name.trim() !== ''),
+        instructions: instructions.filter((inst) => inst.trim() !== ''),
+        nutrition,
+        plateComposition,
+        portions,
+        isFavorite: selectedRecipe?.isFavorite || false,
+      };
 
-    if (selectedRecipe) {
-      // Update existing recipe
-      setRecipes(recipes.map((r) => (r.id === selectedRecipe.id ? recipeData : r)));
-      setSelectedRecipe(recipeData);
-    } else {
-      // Add new recipe
-      setRecipes([recipeData, ...recipes]);
+      if (selectedRecipe) {
+        // Update existing recipe in Firebase
+        await updateRecipe(selectedRecipe.id, recipeData);
+      } else {
+        // Add new recipe to Firebase
+        await addRecipe(recipeData as Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>);
+      }
+
+      setIsRecipeEditFormOpen(false);
+      setSelectedRecipe(null);
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      alert('Failed to save recipe. Please try again.');
     }
-
-    setIsRecipeEditFormOpen(false);
   };
 
   const handleImageUpload = () => {

@@ -1,4 +1,5 @@
 import { AppProvider, useApp } from './context/AppContext';
+import { SignInScreen } from './components/auth/SignInScreen';
 import { SplashScreen } from './components/onboarding/SplashScreen';
 import { WelcomeScreen } from './components/onboarding/WelcomeScreen';
 import { DietaryPreferencesScreen } from './components/onboarding/DietaryPreferencesScreen';
@@ -16,7 +17,24 @@ import { TodayScreen } from './components/daily/TodayScreen';
 import { ProfileScreen } from './components/profile/ProfileScreen';
 
 function AppContent() {
-  const { currentScreen } = useApp();
+  const { user, authLoading, currentScreen } = useApp();
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show sign-in screen if not authenticated
+  if (!user) {
+    return <SignInScreen />;
+  }
 
   const renderScreen = () => {
     switch (currentScreen) {
