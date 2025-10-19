@@ -1,0 +1,169 @@
+SAMPLE RECIPES FOR TESTING AI EXTRACTION
+=========================================
+
+Copy and paste any of these recipes into the "Paste Recipe Text" area to test the simulated AI extraction feature!
+
+---
+
+SAMPLE 1: Simple Format
+-----------------------
+
+Garlic Butter Shrimp Pasta
+Italian dinner recipe
+Prep: 10 minutes
+Cook: 15 minutes
+
+Ingredients:
+- 1 lb shrimp, peeled and deveined
+- 12 oz pasta
+- 4 cloves garlic, minced
+- 4 tbsp butter
+- 2 tbsp olive oil
+- 1/4 cup fresh parsley, chopped
+- Salt and pepper to taste
+- 1/4 cup parmesan cheese
+
+Instructions:
+1. Cook pasta according to package directions. Drain and set aside.
+2. Heat butter and olive oil in a large skillet over medium heat.
+3. Add minced garlic and cook for 1 minute until fragrant.
+4. Add shrimp and cook for 3-4 minutes until pink and cooked through.
+5. Toss cooked pasta with the shrimp and garlic butter.
+6. Season with salt and pepper.
+7. Garnish with fresh parsley and parmesan cheese.
+8. Serve immediately while hot.
+
+---
+
+SAMPLE 2: Detailed Format
+-------------------------
+
+Title: Korean Beef Bowl
+Cuisine: Korean
+Prep Time: 15 min
+Cook Time: 20 min
+Perfect for lunch or dinner, kid-friendly
+
+Ingredients
+2 lbs ground beef
+1/4 cup soy sauce
+2 tbsp brown sugar
+3 cloves garlic minced
+1 tbsp ginger minced
+1 tbsp sesame oil
+4 cups cooked rice
+2 cups steamed broccoli
+2 green onions sliced
+1 tbsp sesame seeds
+
+Directions
+Brown the ground beef in a large skillet over medium-high heat
+Drain excess fat from the pan
+Add soy sauce, brown sugar, garlic, ginger, and sesame oil to the beef
+Stir well and cook for 2-3 minutes until sauce thickens
+Serve beef over cooked rice
+Top with steamed broccoli, green onions, and sesame seeds
+
+---
+
+SAMPLE 3: Kid-Friendly Recipe
+-----------------------------
+
+Homemade Chicken Nuggets
+American cuisine, kid-friendly, batch-cook friendly
+
+Prep: 20 minutes
+Cook: 15 minutes
+
+Ingredients:
+• 2 lbs chicken breast, cut into bite-sized pieces
+• 1 cup all-purpose flour
+• 2 eggs, beaten
+• 2 cups breadcrumbs
+• 1/2 cup parmesan cheese, grated
+• 1 tsp garlic powder
+• 1 tsp paprika
+• 1/2 tsp salt
+• 1/4 tsp black pepper
+• Cooking spray
+
+Instructions:
+1. Preheat oven to 400°F (200°C) and line a baking sheet with parchment paper.
+2. Set up three shallow bowls: one with flour, one with beaten eggs, and one with breadcrumbs mixed with parmesan, garlic powder, paprika, salt, and pepper.
+3. Coat each chicken piece in flour, then dip in egg, then coat with breadcrumb mixture.
+4. Place coated chicken pieces on the prepared baking sheet.
+5. Spray lightly with cooking spray.
+6. Bake for 15-18 minutes, flipping halfway through, until golden brown and cooked through.
+7. Let cool for a few minutes before serving.
+8. Serve with your favorite dipping sauces.
+
+---
+
+SAMPLE 4: Breakfast Recipe
+--------------------------
+
+Veggie Scrambled Eggs
+Quick breakfast, prep: 5 min, cook: 10 min
+
+Ingredients
+6 eggs
+1/4 cup milk
+1 cup bell peppers, diced
+1/2 cup onion, diced
+1 cup spinach
+1/2 cup cherry tomatoes, halved
+2 tbsp butter
+Salt and pepper
+1/4 cup shredded cheese
+
+Instructions
+Beat eggs with milk in a bowl
+Melt butter in a non-stick pan over medium heat
+Add bell peppers and onion, cook for 3 minutes
+Add spinach and tomatoes, cook for 1 minute
+Pour in egg mixture
+Stir gently until eggs are just set
+Sprinkle with cheese
+Serve hot with toast
+
+---
+
+SAMPLE 5: Batch-Cook Recipe
+---------------------------
+
+Slow Cooker Chili
+Mexican-inspired, batch-cook friendly, prep: 15 min, cook: 4 hours
+
+Ingredients:
+- 2 lbs ground beef
+- 2 cans (15 oz each) kidney beans, drained
+- 2 cans (15 oz each) diced tomatoes
+- 1 can (6 oz) tomato paste
+- 1 large onion, diced
+- 3 cloves garlic, minced
+- 2 tbsp chili powder
+- 1 tbsp cumin
+- 1 tsp paprika
+- Salt and pepper to taste
+
+Instructions:
+1. Brown the ground beef in a skillet, drain fat.
+2. Transfer beef to slow cooker.
+3. Add all remaining ingredients to the slow cooker.
+4. Stir well to combine everything.
+5. Cook on low for 6-8 hours or high for 4 hours.
+6. Taste and adjust seasonings as needed.
+7. Serve hot with your favorite toppings like cheese, sour cream, and cilantro.
+8. Stores well in the fridge for up to 5 days or freeze for later.
+
+---
+
+HOW TO USE:
+1. Click the "Add" button on the Recipe screen
+2. Click "Paste Recipe Text"
+3. Copy any recipe above and paste it into the text area
+4. Click "Process with AI"
+5. Watch as the AI extracts the information and fills the form automatically!
+
+Note: This is a simulated AI parser. In a production app, this would use real AI like OpenAI GPT-4 or Claude to extract recipe information from any text format.
+

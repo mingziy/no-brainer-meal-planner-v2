@@ -19,6 +19,8 @@ interface AppContextType {
   setRecipes: (recipes: Recipe[]) => void;
   selectedRecipe: Recipe | null;
   setSelectedRecipe: (recipe: Recipe | null) => void;
+  draftRecipe: Partial<Recipe> | null;
+  setDraftRecipe: (recipe: Partial<Recipe> | null) => void;
   isAddRecipeModalOpen: boolean;
   setIsAddRecipeModalOpen: (isOpen: boolean) => void;
   isRecipeDetailsModalOpen: boolean;
@@ -38,6 +40,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedMealForSwap, setSelectedMealForSwap] = useState<{ dayIndex: number; mealType: string } | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>(mockRecipes);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [draftRecipe, setDraftRecipe] = useState<Partial<Recipe> | null>(null);
   const [isAddRecipeModalOpen, setIsAddRecipeModalOpen] = useState(false);
   const [isRecipeDetailsModalOpen, setIsRecipeDetailsModalOpen] = useState(false);
   const [isRecipeEditFormOpen, setIsRecipeEditFormOpen] = useState(false);
@@ -61,6 +64,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setRecipes,
         selectedRecipe,
         setSelectedRecipe,
+        draftRecipe,
+        setDraftRecipe,
         isAddRecipeModalOpen,
         setIsAddRecipeModalOpen,
         isRecipeDetailsModalOpen,

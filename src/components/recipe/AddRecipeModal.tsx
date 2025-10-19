@@ -9,12 +9,20 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
-import { Upload, FileText, Edit } from 'lucide-react';
+import { Upload, FileText, Edit, Loader2 } from 'lucide-react';
+import { parseRecipeText } from '../../utils/recipeParser';
 
 export function AddRecipeModal() {
-  const { isAddRecipeModalOpen, setIsAddRecipeModalOpen, setIsRecipeEditFormOpen } = useApp();
+  const { 
+    isAddRecipeModalOpen, 
+    setIsAddRecipeModalOpen, 
+    setIsRecipeEditFormOpen,
+    setDraftRecipe,
+    setSelectedRecipe
+  } = useApp();
   const [pasteText, setPasteText] = useState('');
   const [showPasteInput, setShowPasteInput] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleClose = () => {
     setIsAddRecipeModalOpen(false);
@@ -24,18 +32,36 @@ export function AddRecipeModal() {
 
   const handleUploadImage = () => {
     // In a real app, this would open the device's image picker
-    alert('Upload image functionality - would open device image picker');
-    // For now, we'll just open the edit form
-    handleClose();
-    setIsRecipeEditFormOpen(true);
+    alert('Upload image functionality - would open device image picker in a real app.\n\nFor now, try "Paste Recipe Text" to see the simulated AI extraction!');
   };
 
-  const handlePasteRecipe = () => {
+  const handlePasteRecipe = async () => {
     if (pasteText.trim()) {
-      // In a real app, this would send to AI for processing
-      alert('AI Processing would happen here. For demo, opening edit form.');
+      setIsProcessing(true);
+      
+      // Simulate AI processing delay (1.5 seconds)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Parse the recipe text using our simulated AI
+      const parsedRecipe = parseRecipeText(pasteText);
+      console.log('Parsed recipe data:', parsedRecipe);
+      
+      // Clear any selected recipe first
+      setSelectedRecipe(null);
+      
+      // Store the parsed data as a draft
+      setDraftRecipe(parsedRecipe);
+      console.log('Draft recipe set, closing modal');
+      
+      setIsProcessing(false);
       handleClose();
-      setIsRecipeEditFormOpen(true);
+      
+      // Open the edit form with pre-filled data
+      // Make sure to open it after state is updated
+      setTimeout(() => {
+        console.log('Opening edit form');
+        setIsRecipeEditFormOpen(true);
+      }, 50);
     }
   };
 
@@ -46,7 +72,7 @@ export function AddRecipeModal() {
 
   return (
     <Dialog open={isAddRecipeModalOpen} onOpenChange={setIsAddRecipeModalOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Add a New Recipe</DialogTitle>
           <DialogDescription>
@@ -80,6 +106,7 @@ export function AddRecipeModal() {
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => setShowPasteInput(true)}
+                disabled={isProcessing}
               >
                 <FileText className="mr-2 h-4 w-4" />
                 Paste Recipe Text
@@ -87,19 +114,27 @@ export function AddRecipeModal() {
             ) : (
               <div className="space-y-2">
                 <Textarea
-                  placeholder="Paste recipe URL or text here..."
+                  placeholder="Paste recipe text here (e.g., from a website or cookbook)..."
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
-                  rows={5}
-                  className="resize-none"
+                  rows={8}
+                  className="resize-none font-mono text-sm"
+                  disabled={isProcessing}
                 />
                 <div className="flex gap-2">
                   <Button
                     onClick={handlePasteRecipe}
-                    disabled={!pasteText.trim()}
+                    disabled={!pasteText.trim() || isProcessing}
                     className="flex-1"
                   >
-                    Process with AI
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing with AI...
+                      </>
+                    ) : (
+                      'Process with AI'
+                    )}
                   </Button>
                   <Button
                     variant="outline"
@@ -107,6 +142,7 @@ export function AddRecipeModal() {
                       setShowPasteInput(false);
                       setPasteText('');
                     }}
+                    disabled={isProcessing}
                   >
                     Cancel
                   </Button>

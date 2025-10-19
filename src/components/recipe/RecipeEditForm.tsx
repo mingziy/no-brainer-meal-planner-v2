@@ -6,13 +6,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
-import { ScrollArea } from '../ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -26,6 +26,8 @@ import { Badge } from '../ui/badge';
 export function RecipeEditForm() {
   const {
     selectedRecipe,
+    draftRecipe,
+    setDraftRecipe,
     isRecipeEditFormOpen,
     setIsRecipeEditFormOpen,
     recipes,
@@ -84,25 +86,62 @@ export function RecipeEditForm() {
 
   const mineralOptions = ['Low', 'Moderate', 'Good Source', 'Excellent'];
 
-  // Initialize form with selected recipe data
+  // Track if we've loaded the draft to prevent re-running
+  const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+
+  // Initialize form with selected recipe data or draft
   useEffect(() => {
-    if (selectedRecipe && isRecipeEditFormOpen) {
-      setName(selectedRecipe.name);
-      setImage(selectedRecipe.image);
-      setCuisine(selectedRecipe.cuisine);
-      setCategories(selectedRecipe.categories);
-      setPrepTime(selectedRecipe.prepTime);
-      setCookTime(selectedRecipe.cookTime);
-      setIngredients(selectedRecipe.ingredients);
-      setInstructions(selectedRecipe.instructions);
-      setNutrition(selectedRecipe.nutrition);
-      setPlateComposition(selectedRecipe.plateComposition);
-      setPortions(selectedRecipe.portions);
-    } else if (isRecipeEditFormOpen) {
-      // Reset form for new recipe
-      resetForm();
+    if (isRecipeEditFormOpen) {
+      if (draftRecipe && !hasLoadedDraft) {
+        console.log('Loading draft recipe:', draftRecipe);
+        // Use AI-extracted draft data
+        setName(draftRecipe.name || '');
+        setImage(draftRecipe.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop');
+        setCuisine(draftRecipe.cuisine || 'Other');
+        setCategories(draftRecipe.categories || []);
+        setPrepTime(draftRecipe.prepTime || 0);
+        setCookTime(draftRecipe.cookTime || 0);
+        setIngredients(draftRecipe.ingredients || [{ id: '1', amount: '', unit: '', name: '' }]);
+        setInstructions(draftRecipe.instructions || ['']);
+        setNutrition(draftRecipe.nutrition || {
+          protein: 0,
+          fiber: 0,
+          fat: 0,
+          carbs: 0,
+          iron: 'Moderate',
+          calcium: 'Moderate',
+        });
+        setPlateComposition(draftRecipe.plateComposition || { protein: 25, veggies: 25, carbs: 25, fats: 25 });
+        setPortions(draftRecipe.portions || { adult: '', child5: '', child2: '' });
+        
+        // Mark as loaded and clear draft
+        setHasLoadedDraft(true);
+        setDraftRecipe(null);
+      } else if (selectedRecipe) {
+        console.log('Loading existing recipe:', selectedRecipe);
+        // Edit existing recipe
+        setName(selectedRecipe.name);
+        setImage(selectedRecipe.image);
+        setCuisine(selectedRecipe.cuisine);
+        setCategories(selectedRecipe.categories);
+        setPrepTime(selectedRecipe.prepTime);
+        setCookTime(selectedRecipe.cookTime);
+        setIngredients(selectedRecipe.ingredients);
+        setInstructions(selectedRecipe.instructions);
+        setNutrition(selectedRecipe.nutrition);
+        setPlateComposition(selectedRecipe.plateComposition);
+        setPortions(selectedRecipe.portions);
+      } else if (!hasLoadedDraft) {
+        console.log('Resetting form for new recipe');
+        // Reset form for new manual recipe
+        resetForm();
+      }
+    } else {
+      // Reset the hasLoadedDraft flag when form closes
+      setHasLoadedDraft(false);
     }
-  }, [selectedRecipe, isRecipeEditFormOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRecipe, draftRecipe, isRecipeEditFormOpen]);
 
   const resetForm = () => {
     setName('');
@@ -200,15 +239,19 @@ export function RecipeEditForm() {
 
   return (
     <Dialog open={isRecipeEditFormOpen} onOpenChange={setIsRecipeEditFormOpen}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="recipe-form-description">
         <DialogHeader>
           <DialogTitle>
             {selectedRecipe ? 'Edit Recipe' : 'Add New Recipe'}
           </DialogTitle>
+          <DialogDescription id="recipe-form-description">
+            {selectedRecipe 
+              ? 'Update the recipe details below.' 
+              : 'Fill in the recipe information. AI-extracted data can be adjusted as needed.'}
+          </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-150px)] pr-4">
-          <div className="space-y-6 py-4">
+        <div className="space-y-4 py-4">
             {/* Recipe Name */}
             <div className="space-y-2">
               <Label htmlFor="name">Recipe Name *</Label>
@@ -519,10 +562,9 @@ export function RecipeEditForm() {
                 </div>
               </div>
             </div>
-          </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="sticky bottom-0 bg-background border-t pt-4 pb-2">
           <Button variant="outline" onClick={() => setIsRecipeEditFormOpen(false)}>
             Cancel
           </Button>

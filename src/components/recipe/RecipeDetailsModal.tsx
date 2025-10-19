@@ -4,10 +4,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ScrollArea } from '../ui/scroll-area';
 import { Edit, Clock, Heart } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
@@ -39,8 +39,8 @@ export function RecipeDetailsModal() {
 
   return (
     <Dialog open={isRecipeDetailsModalOpen} onOpenChange={setIsRecipeDetailsModalOpen}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="recipe-details-description">
+        <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
           <div className="flex items-start justify-between">
             <DialogTitle className="text-2xl pr-8">{selectedRecipe.name}</DialogTitle>
             <div className="flex gap-2">
@@ -64,10 +64,12 @@ export function RecipeDetailsModal() {
               </Button>
             </div>
           </div>
+          <DialogDescription id="recipe-details-description" className="sr-only">
+            View detailed recipe information including ingredients, instructions, and nutrition facts.
+          </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-100px)]">
-          <div className="space-y-6 pr-4">
+        <div className="space-y-6 py-4">
             {/* Recipe Image */}
             <div className="relative h-64 w-full overflow-hidden rounded-lg">
               <ImageWithFallback
@@ -221,8 +223,7 @@ export function RecipeDetailsModal() {
                 ))}
               </ol>
             </div>
-          </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
