@@ -11,11 +11,12 @@ export function SignInScreen() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
+      // This will redirect to Google sign-in page
       await signInWithGoogle();
+      // Note: setIsLoading(false) won't be reached because page will redirect
     } catch (error) {
       console.error('Failed to sign in:', error);
       alert('Failed to sign in. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };

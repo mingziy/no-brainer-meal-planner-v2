@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
-  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut, 
   onAuthStateChanged,
   User
@@ -12,6 +13,17 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check for redirect result first
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log('Successfully signed in via redirect:', result.user.email);
+        }
+      })
+      .catch((error) => {
+        console.error('Error getting redirect result:', error);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
@@ -22,7 +34,8 @@ export function useAuth() {
 
   const signInWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      // Use redirect instead of popup - more reliable
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       console.error('Error signing in with Google:', error);
       throw error;
