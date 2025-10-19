@@ -110,7 +110,9 @@ service cloud.firestore {
 
 ---
 
-## ⚙️ **Step 5: Configure Your App**
+## ⚙️ **Step 5: Configure Your App (IMPORTANT)**
+
+### 🔐 **Security First: Your credentials will NOT be committed to git!**
 
 1. **In Firebase Console**, click the gear icon (⚙️) → "Project settings"
 
@@ -133,22 +135,48 @@ const firebaseConfig = {
 };
 \`\`\`
 
-6. **Update your local config file**:
-   - Open: `/src/config/firebase.ts`
-   - Replace the placeholder values with your actual values:
+6. **Create your local Firebase config** (this file is in .gitignore):
+
+   **In your terminal, run:**
+   \`\`\`bash
+   cp src/config/firebase.example.ts src/config/firebase.ts
+   \`\`\`
+
+   This creates a copy of the template file that you can safely edit.
+
+7. **Update your config file**:
+   - Open: `src/config/firebase.ts` (the file you just created)
+   - Replace ALL the placeholder values with your actual Firebase values:
 
 \`\`\`typescript
 const firebaseConfig = {
-  apiKey: "YOUR_ACTUAL_API_KEY",
-  authDomain: "YOUR_ACTUAL_AUTH_DOMAIN",
-  projectId: "YOUR_ACTUAL_PROJECT_ID",
-  storageBucket: "YOUR_ACTUAL_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_ACTUAL_SENDER_ID",
-  appId: "YOUR_ACTUAL_APP_ID"
+  apiKey: "AIzaSyA1234567890abcdefghijk",           // ← Paste your actual apiKey
+  authDomain: "meal-planner-xxxxx.firebaseapp.com",  // ← Paste your actual authDomain
+  projectId: "meal-planner-xxxxx",                   // ← Paste your actual projectId
+  storageBucket: "meal-planner-xxxxx.appspot.com",   // ← Paste your actual storageBucket
+  messagingSenderId: "123456789012",                 // ← Paste your actual messagingSenderId
+  appId: "1:123456789012:web:abcdef1234567890"       // ← Paste your actual appId
 };
 \`\`\`
 
    - **Save the file**
+
+8. **Verify the file is ignored by git**:
+   \`\`\`bash
+   git status
+   \`\`\`
+   
+   You should **NOT** see `src/config/firebase.ts` in the list.
+   
+   ✅ **Good**: The file is being ignored (secure!)
+   ❌ **Bad**: If you see it, check your .gitignore file
+
+### 🔒 **Important Security Notes:**
+
+- ✅ `firebase.ts` is in `.gitignore` - your credentials are safe
+- ✅ `firebase.example.ts` is the template - this IS committed to git
+- ✅ Never commit `firebase.ts` to git
+- ✅ If you share your code, others will copy the example file and add their own credentials
 
 ---
 
@@ -204,20 +232,66 @@ This will install Firebase and all required packages.
 
 ## 🤝 **Sharing with Friends**
 
-Your friends can use the app too! They need to:
+Your friends can use the app in two ways:
 
-1. **Access your app URL** (when you deploy it)
-2. **Sign in with their Google account**
-3. **They'll have their own recipe collection**
+### **Option 1: Share Deployed App (Recommended)**
 
-### **To Deploy (Optional):**
+1. **Deploy your app** (free options):
+   - **Vercel**: https://vercel.com (easiest)
+   - **Netlify**: https://netlify.com
+   - **Firebase Hosting**: Already set up!
 
-You can deploy for free using:
-- **Vercel**: https://vercel.com (easiest)
-- **Netlify**: https://netlify.com
-- **Firebase Hosting**: Already set up!
+2. **Friends access your app URL**
 
-Would you like help deploying? Let me know!
+3. **They sign in with their Google account**
+
+4. **They get their own recipe collection** (completely separate from yours)
+
+### **Option 2: Share Code**
+
+If you want to share the code on GitHub:
+
+1. **Your credentials are already safe**:
+   - ✅ `firebase.ts` is in `.gitignore`
+   - ✅ Your credentials will NOT be pushed to GitHub
+
+2. **Push to GitHub**:
+   \`\`\`bash
+   git add .
+   git commit -m "Initial commit"
+   git push origin main
+   \`\`\`
+
+3. **Friends clone your repo**:
+   \`\`\`bash
+   git clone YOUR_REPO_URL
+   cd meal-planner
+   npm install
+   \`\`\`
+
+4. **They create their own Firebase config**:
+   \`\`\`bash
+   cp src/config/firebase.example.ts src/config/firebase.ts
+   \`\`\`
+   
+   Then they add their own Firebase credentials to `firebase.ts`
+
+5. **They can either**:
+   - Use YOUR Firebase project (you add them as users)
+   - Create THEIR OWN Firebase project (completely separate)
+
+### **Adding Collaborators to Your Firebase Project:**
+
+If you want friends to use YOUR Firebase project:
+
+1. **Firebase Console** → Select your project
+2. **Click gear icon** → "Users and permissions"
+3. **Click "Add member"**
+4. **Enter their email**
+5. **Choose role**: "Editor" or "Viewer"
+6. **They'll get an email invitation**
+
+They can then use YOUR Firebase config values!
 
 ---
 
