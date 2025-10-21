@@ -11,6 +11,7 @@ import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Upload, FileText, Edit, Loader2, Image as ImageIcon } from 'lucide-react';
 import { parseRecipeText } from '../../utils/recipeParser';
+import { parseRecipeWithGemini } from '../../utils/geminiRecipeParser';
 import Tesseract from 'tesseract.js';
 
 export function AddRecipeModal() {
@@ -82,8 +83,19 @@ export function AddRecipeModal() {
         return;
       }
 
-      // Parse the extracted text
-      const parsedRecipe = parseRecipeText(extractedText);
+      // Parse the extracted text with AI (fallback to local parser if fails)
+      let parsedRecipe;
+      try {
+        console.log('🤖 Attempting AI parsing with Gemini...');
+        console.log('📝 Text length:', extractedText.length, 'characters');
+        parsedRecipe = await parseRecipeWithGemini(extractedText);
+        console.log('✅ AI parsing successful!');
+      } catch (error: any) {
+        console.warn('⚠️ AI parsing failed, using local parser:', error.message);
+        console.error('Full error:', error);
+        parsedRecipe = parseRecipeText(extractedText);
+      }
+      
       parsedRecipe.originalText = extractedText;
       parsedRecipe.image = imageDataUrl; // Store full image temporarily
       
@@ -118,12 +130,16 @@ export function AddRecipeModal() {
     if (pasteText.trim()) {
       setIsProcessing(true);
       
-      // Simulate AI processing delay (1.5 seconds)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Parse the recipe text
-      const parsedRecipe = parseRecipeText(pasteText);
-      console.log('Parsed recipe data:', parsedRecipe);
+      // Parse the recipe text with AI (fallback to local parser if fails)
+      let parsedRecipe;
+      try {
+        console.log('🤖 Attempting AI parsing with Gemini...');
+        parsedRecipe = await parseRecipeWithGemini(pasteText);
+        console.log('✅ AI parsing successful!');
+      } catch (error: any) {
+        console.warn('⚠️ AI parsing failed, using local parser:', error.message);
+        parsedRecipe = parseRecipeText(pasteText);
+      }
       
       // IMPORTANT: Add the original text to the parsed recipe
       parsedRecipe.originalText = pasteText;

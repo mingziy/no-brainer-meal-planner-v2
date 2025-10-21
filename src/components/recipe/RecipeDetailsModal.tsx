@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Dialog,
@@ -22,19 +22,6 @@ export function RecipeDetailsModal() {
   } = useApp();
 
   const [showOriginalText, setShowOriginalText] = useState(false);
-  const scrollRef = useRef<HTMLTextAreaElement>(null);
-
-  // Force scroll to top when dialog opens
-  useEffect(() => {
-    if (showOriginalText && scrollRef.current && selectedRecipe) {
-      // Small delay to ensure DOM is rendered
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = 0;
-        }
-      }, 100);
-    }
-  }, [showOriginalText, selectedRecipe]);
 
   if (!selectedRecipe) return null;
 
@@ -257,35 +244,20 @@ export function RecipeDetailsModal() {
     
     {/* Original Recipe Text Dialog */}
     <Dialog open={showOriginalText} onOpenChange={setShowOriginalText}>
-      <DialogContent className="max-w-2xl" aria-describedby="original-text-description">
-        <DialogHeader>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="original-text-description">
+        <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
           <DialogTitle>Original Recipe Text</DialogTitle>
           <DialogDescription id="original-text-description">
             The raw text extracted from your uploaded image or pasted content.
           </DialogDescription>
         </DialogHeader>
         
-        <textarea 
-          ref={scrollRef}
-          readOnly
-          value={selectedRecipe.originalText || ''}
-          style={{ 
-            height: '60vh',
-            width: '100%',
-            overflowY: 'scroll',
-            border: '1px solid #e5e7eb', 
-            borderRadius: '0.375rem',
-            fontSize: '0.875rem', 
-            padding: '1rem',
-            backgroundColor: '#f9fafb',
-            fontFamily: 'monospace',
-            resize: 'none',
-            whiteSpace: 'pre-wrap',
-            wordWrap: 'break-word'
-          }}
-        />
+        <div className="py-4">
+          <pre className="whitespace-pre-wrap text-sm bg-gray-50 dark:bg-gray-900 p-4 rounded-md border font-mono">
+{selectedRecipe.originalText}</pre>
+        </div>
         
-        <div className="flex justify-end pt-4">
+        <div className="sticky bottom-0 bg-background border-t pt-4 flex justify-end">
           <Button variant="outline" onClick={() => setShowOriginalText(false)}>
             Close
           </Button>
