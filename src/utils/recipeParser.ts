@@ -9,9 +9,14 @@ import { Recipe, Ingredient, RecipeCategory, RecipeCuisine } from '../types';
 export function parseRecipeText(text: string): Partial<Recipe> {
   const lines = text.split('\n').filter(line => line.trim());
   
-  // Extract recipe name (usually first line or after "Recipe:" or "Title:")
+  // Section headers to skip when finding recipe name
+  const sectionHeaders = /^(ingredients?|instructions?|directions?|steps?|prep time|cook time|servings?|portions?|食材|材料|原料|做法|步骤|制作方法|烹饪步骤|准备时间|烹饪时间):?\s*$/i;
+  
+  // Extract recipe name (usually first non-section-header line or after "Recipe:" or "Title:")
   let name = '';
-  const namePatterns = [/^title:?\s*(.+)/i, /^recipe:?\s*(.+)/i, /^(.+?)(?:\n|$)/];
+  const namePatterns = [/^title:?\s*(.+)/i, /^recipe:?\s*(.+)/i];
+  
+  // First try explicit name patterns
   for (const pattern of namePatterns) {
     const match = text.match(pattern);
     if (match && match[1] && match[1].trim().length > 3) {
@@ -19,8 +24,21 @@ export function parseRecipeText(text: string): Partial<Recipe> {
       break;
     }
   }
-  if (!name && lines.length > 0) {
-    name = lines[0].replace(/^(recipe|title):?\s*/i, '').trim();
+  
+  // If no explicit name found, use first non-section-header line
+  if (!name) {
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!sectionHeaders.test(trimmedLine) && trimmedLine.length > 3) {
+        name = trimmedLine.replace(/^(recipe|title):?\s*/i, '').trim();
+        break;
+      }
+    }
+  }
+  
+  // Fallback to generic name if still not found
+  if (!name) {
+    name = 'Untitled Recipe';
   }
 
   // Extract ingredients

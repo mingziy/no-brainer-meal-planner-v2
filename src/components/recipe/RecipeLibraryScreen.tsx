@@ -6,7 +6,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
-import { Search, Plus, Heart, Clock } from 'lucide-react';
+import { Search, Plus, Heart, Clock, Trash2 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { BottomNav } from '../shared/BottomNav';
 import { UserButton } from '../auth/UserButton';
@@ -17,6 +17,7 @@ export function RecipeLibraryScreen() {
     setSelectedRecipe,
     setIsRecipeDetailsModalOpen,
     setIsAddRecipeModalOpen,
+    deleteRecipe,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -133,6 +134,7 @@ export function RecipeLibraryScreen() {
                 key={recipe.id}
                 recipe={recipe}
                 onClick={() => handleRecipeClick(recipe)}
+                onDelete={deleteRecipe}
               />
             ))}
           </div>
@@ -148,9 +150,23 @@ export function RecipeLibraryScreen() {
 interface RecipeCardProps {
   recipe: Recipe;
   onClick: () => void;
+  onDelete: (recipeId: string) => Promise<void>;
 }
 
-function RecipeCard({ recipe, onClick }: RecipeCardProps) {
+function RecipeCard({ recipe, onClick, onDelete }: RecipeCardProps) {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    
+    if (confirm(`Are you sure you want to delete "${recipe.name}"?`)) {
+      try {
+        await onDelete(recipe.id);
+      } catch (error) {
+        console.error('Error deleting recipe:', error);
+        alert('Failed to delete recipe. Please try again.');
+      }
+    }
+  };
+
   return (
     <Card
       className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden"
@@ -190,6 +206,17 @@ function RecipeCard({ recipe, onClick }: RecipeCardProps) {
               Prep: {recipe.prepTime}m, Cook: {recipe.cookTime}m
             </span>
           </div>
+
+          {/* Delete Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDelete}
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Recipe
+          </Button>
         </div>
       </CardContent>
     </Card>

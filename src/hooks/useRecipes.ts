@@ -33,6 +33,7 @@ export function useRecipes(userId: string | null) {
       const recipesData: Recipe[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
+        
         recipesData.push({
           id: doc.id,
           ...data,

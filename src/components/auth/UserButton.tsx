@@ -26,6 +26,18 @@ export function UserButton() {
       .slice(0, 2);
   };
 
+  const handleSignOut = async () => {
+    console.log('🚪 Sign out clicked');
+    try {
+      console.log('🔄 Calling signOut...');
+      await signOut();
+      console.log('✅ Sign out successful');
+    } catch (error) {
+      console.error('❌ Failed to sign out:', error);
+      alert('Failed to sign out. Please try again.');
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -49,7 +61,7 @@ export function UserButton() {
           <span>Profile</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={signOut}>
+        <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Sign out</span>
         </DropdownMenuItem>

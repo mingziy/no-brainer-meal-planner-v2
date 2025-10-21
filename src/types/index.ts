@@ -121,6 +121,7 @@ export interface Recipe {
     child2: string;
   };
   isFavorite: boolean;
+  originalText?: string; // Raw extracted text from OCR or pasted text
   createdAt: Date;
   updatedAt: Date;
 }

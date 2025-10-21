@@ -1,10 +1,12 @@
 import { ChevronRight, Heart, Bell, User as UserIcon, LogOut } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../hooks/useAuth';
 import { BottomNav } from '../shared/BottomNav';
 
 export function ProfileScreen() {
   const { userProfile, setCurrentScreen } = useApp();
+  const { signOut } = useAuth();
 
   const menuItems = [
     {
@@ -72,7 +74,16 @@ export function ProfileScreen() {
           })}
         </div>
 
-        <Card className="cursor-pointer hover:bg-destructive/5 transition-colors border-destructive/20">
+        <Card 
+          className="cursor-pointer hover:bg-destructive/5 transition-colors border-destructive/20"
+          onClick={async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              console.error('Failed to sign out:', error);
+            }
+          }}
+        >
           <CardContent className="p-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
               <LogOut className="w-5 h-5 text-destructive" />

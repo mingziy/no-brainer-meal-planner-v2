@@ -63,7 +63,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentWeeklyPlan, setCurrentWeeklyPlan] = useState<WeeklyPlan | null>(null);
   const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([]);
   const [prepTasks, setPrepTasks] = useState<PrepTask[]>([]);
-  const [currentScreen, setCurrentScreen] = useState('splash');
+  const [currentScreen, setCurrentScreen] = useState('home');
   const [selectedMealForSwap, setSelectedMealForSwap] = useState<{ dayIndex: number; mealType: string } | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [draftRecipe, setDraftRecipe] = useState<Partial<Recipe> | null>(null);

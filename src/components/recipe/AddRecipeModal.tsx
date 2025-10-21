@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Dialog,
@@ -9,8 +9,9 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
-import { Upload, FileText, Edit, Loader2 } from 'lucide-react';
+import { Upload, FileText, Edit, Loader2, Image as ImageIcon } from 'lucide-react';
 import { parseRecipeText } from '../../utils/recipeParser';
+import Tesseract from 'tesseract.js';
 
 export function AddRecipeModal() {
   const { 
@@ -23,6 +24,9 @@ export function AddRecipeModal() {
   const [pasteText, setPasteText] = useState('');
   const [showPasteInput, setShowPasteInput] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
 
   const handleClose = () => {
     setIsAddRecipeModalOpen(false);
@@ -31,9 +35,84 @@ export function AddRecipeModal() {
   };
 
   const handleUploadImage = () => {
-    // In a real app, this would open the device's image picker
-    alert('Upload image functionality - would open device image picker in a real app.\n\nFor now, try "Paste Recipe Text" to see the simulated AI extraction!');
+    fileInputRef.current?.click();
   };
+
+  const handleImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    setIsProcessing(true);
+    setOcrProgress(0);
+
+    try {
+      // Convert image to data URL
+      const reader = new FileReader();
+      const imageDataUrl = await new Promise<string>((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      // Extract text from image
+      const result = await Tesseract.recognize(
+        file,
+        'eng+chi_sim',
+        {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              setOcrProgress(Math.round(m.progress * 100));
+            }
+          }
+        }
+      );
+
+      const extractedText = result.data.text;
+      console.log('Extracted text from image:', extractedText);
+
+      if (!extractedText.trim()) {
+        alert('No text found in the image. Please try a clearer image or paste the recipe text manually.');
+        setIsProcessing(false);
+        setOcrProgress(0);
+        return;
+      }
+
+      // Parse the extracted text
+      const parsedRecipe = parseRecipeText(extractedText);
+      parsedRecipe.originalText = extractedText;
+      parsedRecipe.image = imageDataUrl; // Store full image temporarily
+      
+      // Store original image data for later cropping in the form
+      (parsedRecipe as any).originalImageForCropping = imageDataUrl;
+      
+      setSelectedRecipe(null);
+      setDraftRecipe(parsedRecipe);
+      
+      setIsProcessing(false);
+      setOcrProgress(0);
+      handleClose();
+      
+      setTimeout(() => {
+        setIsRecipeEditFormOpen(true);
+      }, 50);
+    } catch (error) {
+      console.error('Error processing image:', error);
+      alert('Failed to extract text from image. Please try again or paste the text manually.');
+      setIsProcessing(false);
+      setOcrProgress(0);
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
 
   const handlePasteRecipe = async () => {
     if (pasteText.trim()) {
@@ -42,9 +121,12 @@ export function AddRecipeModal() {
       // Simulate AI processing delay (1.5 seconds)
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Parse the recipe text using our simulated AI
+      // Parse the recipe text
       const parsedRecipe = parseRecipeText(pasteText);
       console.log('Parsed recipe data:', parsedRecipe);
+      
+      // IMPORTANT: Add the original text to the parsed recipe
+      parsedRecipe.originalText = pasteText;
       
       // Clear any selected recipe first
       setSelectedRecipe(null);
@@ -71,16 +153,26 @@ export function AddRecipeModal() {
   };
 
   return (
+    <>
     <Dialog open={isAddRecipeModalOpen} onOpenChange={setIsAddRecipeModalOpen}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Add a New Recipe</DialogTitle>
-          <DialogDescription>
-            Choose how you'd like to add your recipe
-          </DialogDescription>
-        </DialogHeader>
+                <DialogDescription>
+                  Choose how you'd like to add your recipe
+                </DialogDescription>
+              </DialogHeader>
 
-        <div className="space-y-4 py-4">
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelected}
+                className="hidden"
+              />
+
+              <div className="space-y-4 py-4">
           {/* Option 1: AI Extraction */}
           <div className="space-y-3">
             <h3 className="font-semibold text-sm text-gray-700">
@@ -95,9 +187,19 @@ export function AddRecipeModal() {
               variant="outline"
               className="w-full justify-start"
               onClick={handleUploadImage}
+              disabled={isProcessing}
             >
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Screenshot/Image
+              {isProcessing && ocrProgress > 0 ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Extracting text... {ocrProgress}%
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Screenshot/Image
+                </>
+              )}
             </Button>
 
             {/* Paste Recipe Text */}
@@ -178,6 +280,8 @@ export function AddRecipeModal() {
         </div>
       </DialogContent>
     </Dialog>
+
+    </>
   );
 }
 

@@ -1,9 +1,5 @@
 import { AppProvider, useApp } from './context/AppContext';
 import { SignInScreen } from './components/auth/SignInScreen';
-import { SplashScreen } from './components/onboarding/SplashScreen';
-import { WelcomeScreen } from './components/onboarding/WelcomeScreen';
-import { DietaryPreferencesScreen } from './components/onboarding/DietaryPreferencesScreen';
-import { CookingStyleScreen } from './components/onboarding/CookingStyleScreen';
 import { HomeScreen } from './components/home/HomeScreen';
 import { RecipeLibraryScreen } from './components/recipe/RecipeLibraryScreen';
 import { AddRecipeModal } from './components/recipe/AddRecipeModal';
@@ -38,14 +34,6 @@ function AppContent() {
 
   const renderScreen = () => {
     switch (currentScreen) {
-      case 'splash':
-        return <SplashScreen />;
-      case 'welcome':
-        return <WelcomeScreen />;
-      case 'dietary-preferences':
-        return <DietaryPreferencesScreen />;
-      case 'cooking-style':
-        return <CookingStyleScreen />;
       case 'home':
         return <HomeScreen />;
       case 'recipes':

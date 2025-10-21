@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Recipe, Ingredient, RecipeCategory, RecipeCuisine } from '../../types';
 import {
@@ -20,8 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { Plus, Trash2, Upload, Crop, Loader2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import Cropper from 'react-easy-crop';
+import type { Area } from 'react-easy-crop';
 
 export function RecipeEditForm() {
   const {
@@ -63,6 +65,15 @@ export function RecipeEditForm() {
     child5: '',
     child2: '',
   });
+  const [originalText, setOriginalText] = useState<string | undefined>(undefined);
+  
+  // Cropping states
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
 
   // Available options
   const cuisineOptions: RecipeCuisine[] = [
@@ -89,11 +100,15 @@ export function RecipeEditForm() {
   // Track if we've loaded the draft to prevent re-running
   const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
 
+  // Debug: Log when imageToCrop changes
+  useEffect(() => {
+    console.log('📸 imageToCrop state changed:', imageToCrop ? `Has image (${imageToCrop.substring(0, 50)}...)` : 'null');
+  }, [imageToCrop]);
+
   // Initialize form with selected recipe data or draft
   useEffect(() => {
     if (isRecipeEditFormOpen) {
       if (draftRecipe && !hasLoadedDraft) {
-        console.log('Loading draft recipe:', draftRecipe);
         // Use AI-extracted draft data
         setName(draftRecipe.name || '');
         setImage(draftRecipe.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop');
@@ -113,12 +128,17 @@ export function RecipeEditForm() {
         });
         setPlateComposition(draftRecipe.plateComposition || { protein: 25, veggies: 25, carbs: 25, fats: 25 });
         setPortions(draftRecipe.portions || { adult: '', child5: '', child2: '' });
+        setOriginalText(draftRecipe.originalText); // Capture originalText before draft is cleared
+        
+        // Store original image for cropping if available
+        if ((draftRecipe as any).originalImageForCropping) {
+          setImageToCrop((draftRecipe as any).originalImageForCropping);
+        }
         
         // Mark as loaded and clear draft
         setHasLoadedDraft(true);
         setDraftRecipe(null);
       } else if (selectedRecipe) {
-        console.log('Loading existing recipe:', selectedRecipe);
         // Edit existing recipe
         setName(selectedRecipe.name);
         setImage(selectedRecipe.image);
@@ -131,8 +151,8 @@ export function RecipeEditForm() {
         setNutrition(selectedRecipe.nutrition);
         setPlateComposition(selectedRecipe.plateComposition);
         setPortions(selectedRecipe.portions);
+        setOriginalText(selectedRecipe.originalText); // Preserve originalText when editing
       } else if (!hasLoadedDraft) {
-        console.log('Resetting form for new recipe');
         // Reset form for new manual recipe
         resetForm();
       }
@@ -162,6 +182,7 @@ export function RecipeEditForm() {
     });
     setPlateComposition({ protein: 25, veggies: 25, carbs: 25, fats: 25 });
     setPortions({ adult: '', child5: '', child2: '' });
+    setOriginalText(undefined);
   };
 
   const handleAddIngredient = () => {
@@ -203,7 +224,7 @@ export function RecipeEditForm() {
 
   const handleSave = async () => {
     try {
-      const recipeData = {
+      const recipeData: any = {
         name,
         image,
         cuisine,
@@ -217,6 +238,11 @@ export function RecipeEditForm() {
         portions,
         isFavorite: selectedRecipe?.isFavorite || false,
       };
+
+      // Only include originalText if it exists (Firestore doesn't accept undefined)
+      if (originalText) {
+        recipeData.originalText = originalText;
+      }
 
       if (selectedRecipe) {
         // Update existing recipe in Firebase
@@ -238,7 +264,77 @@ export function RecipeEditForm() {
     alert('Image upload functionality - would open device image picker');
   };
 
+  const handleCropImage = () => {
+    console.log('🖼️ imageToCrop:', imageToCrop ? 'Image available' : 'No image');
+    console.log('🖼️ imageToCrop length:', imageToCrop?.length);
+    if (imageToCrop) {
+      setShowCropModal(true);
+    } else {
+      alert('No image available to crop. Please upload an image with text extraction first.');
+    }
+  };
+
+  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const createCroppedImage = async (imageSrc: string, pixelCrop: Area): Promise<string> => {
+    const img = await new Promise<HTMLImageElement>((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.src = imageSrc;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) throw new Error('Failed to get canvas context');
+
+    ctx.drawImage(
+      img,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      pixelCrop.width,
+      pixelCrop.height
+    );
+
+    return canvas.toDataURL('image/jpeg', 0.9);
+  };
+
+  const handleCropConfirm = async () => {
+    if (!imageToCrop || !croppedAreaPixels) return;
+
+    setIsCropping(true);
+    try {
+      const croppedImageDataUrl = await createCroppedImage(imageToCrop, croppedAreaPixels);
+      setImage(croppedImageDataUrl);
+      setShowCropModal(false);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+    } catch (error) {
+      console.error('Error cropping image:', error);
+      alert('Failed to crop image. Please try again.');
+    } finally {
+      setIsCropping(false);
+    }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropModal(false);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+  };
+
   return (
+    <>
     <Dialog open={isRecipeEditFormOpen} onOpenChange={setIsRecipeEditFormOpen}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="recipe-form-description">
         <DialogHeader>
@@ -278,6 +374,12 @@ export function RecipeEditForm() {
                   <Upload className="w-4 h-4 mr-2" />
                   Upload
                 </Button>
+                {imageToCrop && (
+                  <Button variant="outline" onClick={handleCropImage}>
+                    <Crop className="w-4 h-4 mr-2" />
+                    Crop Image
+                  </Button>
+                )}
               </div>
               {image && (
                 <img
@@ -575,6 +677,81 @@ export function RecipeEditForm() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Image Cropping Modal */}
+    <Dialog open={showCropModal} onOpenChange={setShowCropModal}>
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Crop Recipe Image</DialogTitle>
+          <DialogDescription>
+            Select the area of the image you want to use as the recipe photo
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 relative bg-gray-100 rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
+          {imageToCrop ? (
+            <Cropper
+              image={imageToCrop}
+              crop={crop}
+              zoom={zoom}
+              aspect={4 / 3}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              No image to crop
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4 flex-shrink-0">
+          {/* Zoom Control */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Zoom</label>
+            <input
+              type="range"
+              min={1}
+              max={3}
+              step={0.1}
+              value={zoom}
+              onChange={(e) => setZoom(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Button
+              onClick={handleCropConfirm}
+              disabled={isCropping}
+              className="flex-1"
+            >
+              {isCropping ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cropping...
+                </>
+              ) : (
+                <>
+                  <Crop className="mr-2 h-4 w-4" />
+                  Apply Crop
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCropCancel}
+              disabled={isCropping}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

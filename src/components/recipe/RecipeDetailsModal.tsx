@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Dialog,
@@ -8,7 +9,7 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Edit, Clock, Heart } from 'lucide-react';
+import { Edit, Clock, Heart, FileText } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 export function RecipeDetailsModal() {
@@ -19,6 +20,21 @@ export function RecipeDetailsModal() {
     setIsRecipeEditFormOpen,
     toggleFavorite,
   } = useApp();
+
+  const [showOriginalText, setShowOriginalText] = useState(false);
+  const scrollRef = useRef<HTMLTextAreaElement>(null);
+
+  // Force scroll to top when dialog opens
+  useEffect(() => {
+    if (showOriginalText && scrollRef.current && selectedRecipe) {
+      // Small delay to ensure DOM is rendered
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = 0;
+        }
+      }, 100);
+    }
+  }, [showOriginalText, selectedRecipe]);
 
   if (!selectedRecipe) return null;
 
@@ -36,6 +52,7 @@ export function RecipeDetailsModal() {
   };
 
   return (
+    <>
     <Dialog open={isRecipeDetailsModalOpen} onOpenChange={setIsRecipeDetailsModalOpen}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="recipe-details-description">
         <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
@@ -65,6 +82,19 @@ export function RecipeDetailsModal() {
           <DialogDescription id="recipe-details-description" className="sr-only">
             View detailed recipe information including ingredients, instructions, and nutrition facts.
           </DialogDescription>
+          
+          {/* Original Recipe Text Button */}
+          {selectedRecipe.originalText && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowOriginalText(true)}
+              className="mt-2"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              View Original Recipe
+            </Button>
+          )}
         </DialogHeader>
 
         <div className="space-y-6 py-4">
@@ -224,6 +254,45 @@ export function RecipeDetailsModal() {
         </div>
       </DialogContent>
     </Dialog>
+    
+    {/* Original Recipe Text Dialog */}
+    <Dialog open={showOriginalText} onOpenChange={setShowOriginalText}>
+      <DialogContent className="max-w-2xl" aria-describedby="original-text-description">
+        <DialogHeader>
+          <DialogTitle>Original Recipe Text</DialogTitle>
+          <DialogDescription id="original-text-description">
+            The raw text extracted from your uploaded image or pasted content.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <textarea 
+          ref={scrollRef}
+          readOnly
+          value={selectedRecipe.originalText || ''}
+          style={{ 
+            height: '60vh',
+            width: '100%',
+            overflowY: 'scroll',
+            border: '1px solid #e5e7eb', 
+            borderRadius: '0.375rem',
+            fontSize: '0.875rem', 
+            padding: '1rem',
+            backgroundColor: '#f9fafb',
+            fontFamily: 'monospace',
+            resize: 'none',
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word'
+          }}
+        />
+        
+        <div className="flex justify-end pt-4">
+          <Button variant="outline" onClick={() => setShowOriginalText(false)}>
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

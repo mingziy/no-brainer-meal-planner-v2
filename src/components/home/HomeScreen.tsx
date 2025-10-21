@@ -3,6 +3,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useApp } from '../../context/AppContext';
 import { BottomNav } from '../shared/BottomNav';
+import { UserButton } from '../auth/UserButton';
 
 export function HomeScreen() {
   const { userProfile, currentWeeklyPlan, setCurrentScreen } = useApp();
@@ -13,9 +14,12 @@ export function HomeScreen() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="max-w-md mx-auto p-6 space-y-6">
-        <div className="space-y-2">
-          <h1>Hi {userProfile?.name || 'there'}!</h1>
-          <p className="text-muted-foreground">Ready to plan some delicious meals?</p>
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <h1>Hi {userProfile?.name || 'there'}!</h1>
+            <p className="text-muted-foreground">Ready to plan some delicious meals?</p>
+          </div>
+          <UserButton />
         </div>
 
         <Card 
