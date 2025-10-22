@@ -66,6 +66,7 @@ export function RecipeEditForm() {
     child2: '',
   });
   const [originalText, setOriginalText] = useState<string | undefined>(undefined);
+  const [sourceUrl, setSourceUrl] = useState<string | undefined>(undefined);
   
   // Cropping states
   const [showCropModal, setShowCropModal] = useState(false);
@@ -129,6 +130,7 @@ export function RecipeEditForm() {
         setPlateComposition(draftRecipe.plateComposition || { protein: 25, veggies: 25, carbs: 25, fats: 25 });
         setPortions(draftRecipe.portions || { adult: '', child5: '', child2: '' });
         setOriginalText(draftRecipe.originalText); // Capture originalText before draft is cleared
+        setSourceUrl(draftRecipe.sourceUrl); // Capture sourceUrl before draft is cleared
         
         // Store original image for cropping if available
         if ((draftRecipe as any).originalImageForCropping) {
@@ -152,6 +154,7 @@ export function RecipeEditForm() {
         setPlateComposition(selectedRecipe.plateComposition);
         setPortions(selectedRecipe.portions);
         setOriginalText(selectedRecipe.originalText); // Preserve originalText when editing
+        setSourceUrl(selectedRecipe.sourceUrl); // Preserve sourceUrl when editing
       } else if (!hasLoadedDraft) {
         // Reset form for new manual recipe
         resetForm();
@@ -183,6 +186,7 @@ export function RecipeEditForm() {
     setPlateComposition({ protein: 25, veggies: 25, carbs: 25, fats: 25 });
     setPortions({ adult: '', child5: '', child2: '' });
     setOriginalText(undefined);
+    setSourceUrl(undefined);
   };
 
   const handleAddIngredient = () => {
@@ -242,6 +246,11 @@ export function RecipeEditForm() {
       // Only include originalText if it exists (Firestore doesn't accept undefined)
       if (originalText) {
         recipeData.originalText = originalText;
+      }
+      
+      // Only include sourceUrl if it exists (Firestore doesn't accept undefined)
+      if (sourceUrl) {
+        recipeData.sourceUrl = sourceUrl;
       }
 
       if (selectedRecipe) {

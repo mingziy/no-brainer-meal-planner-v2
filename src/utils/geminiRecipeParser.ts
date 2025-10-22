@@ -20,7 +20,7 @@ export async function parseRecipeWithGemini(text: string): Promise<Partial<Recip
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Use gemini-2.5-flash for faster and more cost-effective parsing
+    // Use gemini-2.5-flash for improved parsing
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `You are a recipe parsing assistant. Extract recipe information from the text below and return ONLY valid JSON (no markdown, no explanations).

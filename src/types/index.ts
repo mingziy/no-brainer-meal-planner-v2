@@ -122,6 +122,7 @@ export interface Recipe {
   };
   isFavorite: boolean;
   originalText?: string; // Raw extracted text from OCR or pasted text
+  sourceUrl?: string; // Original recipe URL for attribution and linking back
   createdAt: Date;
   updatedAt: Date;
 }

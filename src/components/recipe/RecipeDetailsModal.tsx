@@ -9,7 +9,7 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Edit, Clock, Heart, FileText } from 'lucide-react';
+import { Edit, Clock, Heart, FileText, ExternalLink } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 export function RecipeDetailsModal() {
@@ -70,17 +70,36 @@ export function RecipeDetailsModal() {
             View detailed recipe information including ingredients, instructions, and nutrition facts.
           </DialogDescription>
           
-          {/* Original Recipe Text Button */}
-          {selectedRecipe.originalText && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setShowOriginalText(true)}
-              className="mt-2"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              View Original Recipe
-            </Button>
+          {/* Action Buttons - Below Title */}
+          {(selectedRecipe.originalText || selectedRecipe.sourceUrl) && (
+            <div className="flex gap-2 mt-3">
+              {selectedRecipe.originalText && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowOriginalText(true)}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  View Extracted Text
+                </Button>
+              )}
+              {selectedRecipe.sourceUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                >
+                  <a
+                    href={selectedRecipe.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Open Original Website
+                  </a>
+                </Button>
+              )}
+            </div>
           )}
         </DialogHeader>
 
