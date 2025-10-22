@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { Recipe, RecipeCategory, RecipeCuisine } from '../../types';
 import { Input } from '../ui/input';
@@ -10,8 +11,10 @@ import { Search, Plus, Heart, Clock, Trash2 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { BottomNav } from '../shared/BottomNav';
 import { UserButton } from '../auth/UserButton';
+import { LanguageSwitcher } from '../shared/LanguageSwitcher';
 
 export function RecipeLibraryScreen() {
+  const { t, i18n } = useTranslation('recipe');
   const {
     recipes,
     setSelectedRecipe,
@@ -19,22 +22,42 @@ export function RecipeLibraryScreen() {
     setIsAddRecipeModalOpen,
     deleteRecipe,
   } = useApp();
+  
+  // Helper function to translate category names
+  const translateCategory = (category: string): string => {
+    const categoryMap: { [key: string]: string } = {
+      'Korean': t('categories.korean'),
+      'Chinese': t('categories.chinese'),
+      'Italian': t('categories.italian'),
+      'American': t('categories.american'),
+      'Mexican': t('categories.mexican'),
+      'Japanese': t('categories.japanese'),
+      'Other': t('categories.other'),
+      'Kid-Friendly': t('categories.kidFriendly'),
+      'Breakfast': t('categories.breakfast'),
+      'Lunch': t('categories.lunch'),
+      'Dinner': t('categories.dinner'),
+      'Snack': t('categories.snack'),
+      'Batch-Cook Friendly': t('categories.batchCook'),
+    };
+    return categoryMap[category] || category;
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
   // Define categories with "All" and "Favorites" first
-  const categories: string[] = [
-    'All',
-    'Favorites ❤️',
-    'Korean',
-    'Chinese',
-    'Italian',
-    'Kid-Friendly',
-    'Breakfast',
-    'Lunch',
-    'Dinner',
-    'Batch-Cook Friendly',
+  const categories: Array<{ key: string; label: string }> = [
+    { key: 'All', label: t('categories.all') },
+    { key: 'Favorites ❤️', label: t('categories.favorites') },
+    { key: 'Korean', label: t('categories.korean') },
+    { key: 'Chinese', label: t('categories.chinese') },
+    { key: 'Italian', label: t('categories.italian') },
+    { key: 'Kid-Friendly', label: t('categories.kidFriendly') },
+    { key: 'Breakfast', label: t('categories.breakfast') },
+    { key: 'Lunch', label: t('categories.lunch') },
+    { key: 'Dinner', label: t('categories.dinner') },
+    { key: 'Batch-Cook Friendly', label: t('categories.batchCook') },
   ];
 
   // Filter recipes based on search and category
@@ -82,12 +105,13 @@ export function RecipeLibraryScreen() {
       <div className="max-w-md mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">My Recipe Box</h1>
+          <h1 className="text-3xl font-bold">{t('library.title')}</h1>
           <div className="flex items-center gap-2">
             <Button onClick={handleAddRecipe} size="sm" className="shrink-0">
               <Plus className="w-4 h-4 mr-2" />
-              Add
+              {t('library.addButton')}
             </Button>
+            <LanguageSwitcher />
             <UserButton />
           </div>
         </div>
@@ -97,7 +121,7 @@ export function RecipeLibraryScreen() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <Input
             type="text"
-            placeholder="Search my recipes (e.g., 'Chicken', 'Pasta')"
+            placeholder={t('library.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -109,13 +133,13 @@ export function RecipeLibraryScreen() {
           <div className="flex gap-2">
             {categories.map((category) => (
               <Button
-                key={category}
-                variant={selectedCategory === category ? 'default' : 'outline'}
+                key={category.key}
+                variant={selectedCategory === category.key ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => setSelectedCategory(category.key)}
                 className="shrink-0"
               >
-                {category}
+                {category.label}
               </Button>
             ))}
           </div>
@@ -124,8 +148,8 @@ export function RecipeLibraryScreen() {
         {/* Recipe List */}
         {filteredRecipes.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
-            <p className="text-lg">No recipes found</p>
-            <p className="text-sm mt-2">Try adjusting your search or filters</p>
+            <p className="text-lg">{t('library.noRecipesFound')}</p>
+            <p className="text-sm mt-2">{t('library.tryAdjusting')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -135,6 +159,8 @@ export function RecipeLibraryScreen() {
                 recipe={recipe}
                 onClick={() => handleRecipeClick(recipe)}
                 onDelete={deleteRecipe}
+                t={t}
+                currentLanguage={i18n.language}
               />
             ))}
           </div>
@@ -151,18 +177,22 @@ interface RecipeCardProps {
   recipe: Recipe;
   onClick: () => void;
   onDelete: (recipeId: string) => Promise<void>;
+  t: any; // i18n translation function
+  currentLanguage: string; // Current language for bilingual support
 }
 
-function RecipeCard({ recipe, onClick, onDelete }: RecipeCardProps) {
+function RecipeCard({ recipe, onClick, onDelete, t, currentLanguage }: RecipeCardProps) {
+  // Bilingual support: use Chinese name if available and language is Chinese
+  const displayName = (currentLanguage === 'zh' && recipe.nameZh) ? recipe.nameZh : recipe.name;
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     
-    if (confirm(`Are you sure you want to delete "${recipe.name}"?`)) {
+    if (confirm(t('library.deleteConfirm', { name: recipe.name }))) {
       try {
         await onDelete(recipe.id);
       } catch (error) {
         console.error('Error deleting recipe:', error);
-        alert('Failed to delete recipe. Please try again.');
+        alert(t('library.deleteFailed'));
       }
     }
   };
@@ -189,7 +219,7 @@ function RecipeCard({ recipe, onClick, onDelete }: RecipeCardProps) {
 
         {/* Recipe Info */}
         <div className="p-4 space-y-3">
-          <h3 className="font-semibold text-lg line-clamp-2">{recipe.name}</h3>
+          <h3 className="font-semibold text-lg line-clamp-2">{displayName}</h3>
 
           {/* Tags */}
           <div className="flex flex-wrap gap-1.5">
@@ -203,7 +233,7 @@ function RecipeCard({ recipe, onClick, onDelete }: RecipeCardProps) {
           {/* Time */}
           <div className="flex items-center text-sm text-muted-foreground">
             <span>
-              Prep: {recipe.prepTime}m, Cook: {recipe.cookTime}m
+              {t('library.prepTime')}: {recipe.prepTime}m, {t('library.cookTime')}: {recipe.cookTime}m
             </span>
           </div>
 
@@ -215,7 +245,7 @@ function RecipeCard({ recipe, onClick, onDelete }: RecipeCardProps) {
             className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="w-4 h-4 mr-2" />
-            Delete Recipe
+            {t('library.deleteButton')}
           </Button>
         </div>
       </CardContent>

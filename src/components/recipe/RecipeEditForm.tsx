@@ -68,6 +68,11 @@ export function RecipeEditForm() {
   const [originalText, setOriginalText] = useState<string | undefined>(undefined);
   const [sourceUrl, setSourceUrl] = useState<string | undefined>(undefined);
   
+  // Bilingual support - Chinese versions
+  const [nameZh, setNameZh] = useState<string | undefined>(undefined);
+  const [ingredientsZh, setIngredientsZh] = useState<Ingredient[] | undefined>(undefined);
+  const [instructionsZh, setInstructionsZh] = useState<string[] | undefined>(undefined);
+  
   // Cropping states
   const [showCropModal, setShowCropModal] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -132,6 +137,11 @@ export function RecipeEditForm() {
         setOriginalText(draftRecipe.originalText); // Capture originalText before draft is cleared
         setSourceUrl(draftRecipe.sourceUrl); // Capture sourceUrl before draft is cleared
         
+        // Load bilingual Chinese versions if available
+        setNameZh(draftRecipe.nameZh);
+        setIngredientsZh(draftRecipe.ingredientsZh);
+        setInstructionsZh(draftRecipe.instructionsZh);
+        
         // Store original image for cropping if available
         if ((draftRecipe as any).originalImageForCropping) {
           setImageToCrop((draftRecipe as any).originalImageForCropping);
@@ -155,6 +165,11 @@ export function RecipeEditForm() {
         setPortions(selectedRecipe.portions);
         setOriginalText(selectedRecipe.originalText); // Preserve originalText when editing
         setSourceUrl(selectedRecipe.sourceUrl); // Preserve sourceUrl when editing
+        
+        // Load bilingual Chinese versions if available
+        setNameZh(selectedRecipe.nameZh);
+        setIngredientsZh(selectedRecipe.ingredientsZh);
+        setInstructionsZh(selectedRecipe.instructionsZh);
       } else if (!hasLoadedDraft) {
         // Reset form for new manual recipe
         resetForm();
@@ -187,6 +202,9 @@ export function RecipeEditForm() {
     setPortions({ adult: '', child5: '', child2: '' });
     setOriginalText(undefined);
     setSourceUrl(undefined);
+    setNameZh(undefined);
+    setIngredientsZh(undefined);
+    setInstructionsZh(undefined);
   };
 
   const handleAddIngredient = () => {
@@ -252,6 +270,26 @@ export function RecipeEditForm() {
       if (sourceUrl) {
         recipeData.sourceUrl = sourceUrl;
       }
+      
+      // Include Chinese versions if available (bilingual support)
+      if (nameZh) {
+        recipeData.nameZh = nameZh;
+        console.log('💾 Saving Chinese name:', nameZh);
+      }
+      if (ingredientsZh && ingredientsZh.length > 0) {
+        recipeData.ingredientsZh = ingredientsZh;
+        console.log('💾 Saving Chinese ingredients:', ingredientsZh.length, 'items');
+      }
+      if (instructionsZh && instructionsZh.length > 0) {
+        recipeData.instructionsZh = instructionsZh;
+        console.log('💾 Saving Chinese instructions:', instructionsZh.length, 'steps');
+      }
+      
+      console.log('💾 Final recipe data being saved:', {
+        hasEnglish: !!recipeData.name,
+        hasChinese: !!recipeData.nameZh,
+        sourceUrl: recipeData.sourceUrl
+      });
 
       if (selectedRecipe) {
         // Update existing recipe in Firebase

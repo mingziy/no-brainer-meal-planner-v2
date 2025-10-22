@@ -1,0 +1,54 @@
+{
+  "library": {
+    "title": "My Recipe Box",
+    "addButton": "Add",
+    "searchPlaceholder": "Search my recipes (e.g., 'Chicken', 'Pasta')",
+    "noRecipesFound": "No recipes found",
+    "tryAdjusting": "Try adjusting your search or filters",
+    "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?",
+    "deleteFailed": "Failed to delete recipe. Please try again.",
+    "deleteButton": "Delete Recipe",
+    "prepTime": "Prep",
+    "cookTime": "Cook"
+  },
+  "details": {
+    "editButton": "Edit",
+    "viewExtractedText": "View Extracted Text",
+    "openOriginalWebsite": "Open Original Website",
+    "plateComposition": "Plate Composition",
+    "protein": "Protein",
+    "veggies": "Veggies",
+    "carbs": "Carbs",
+    "fats": "Fats",
+    "nutritionPerServing": "Nutrition per Serving",
+    "fiber": "Fiber",
+    "iron": "Iron",
+    "calcium": "Calcium",
+    "portionGuidance": "Portion Guidance",
+    "adult": "Adult",
+    "child5": "Child (5 years)",
+    "child2": "Child (2 years)",
+    "ingredients": "Ingredients",
+    "instructions": "Instructions",
+    "originalRecipeText": "Original Recipe Text",
+    "close": "Close"
+  },
+  "categories": {
+    "all": "All",
+    "favorites": "Favorites ❤️",
+    "korean": "Korean",
+    "chinese": "Chinese",
+    "italian": "Italian",
+    "american": "American",
+    "mexican": "Mexican",
+    "japanese": "Japanese",
+    "other": "Other",
+    "kidFriendly": "Kid-Friendly",
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "snack": "Snack",
+    "batchCook": "Batch-Cook Friendly"
+  }
+}
+

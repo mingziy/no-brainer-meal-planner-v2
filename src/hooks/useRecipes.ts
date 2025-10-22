@@ -34,13 +34,26 @@ export function useRecipes(userId: string | null) {
       snapshot.forEach((doc) => {
         const data = doc.data();
         
-        recipesData.push({
+        const recipe = {
           id: doc.id,
           ...data,
           // Convert Firestore Timestamps to Date objects
           createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
           updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-        } as Recipe);
+        } as Recipe;
+        
+        // Debug: Log if recipe has Chinese version
+        if (recipe.nameZh) {
+          console.log('📚 Loaded bilingual recipe from Firebase:', {
+            id: recipe.id,
+            english: recipe.name,
+            chinese: recipe.nameZh,
+            hasChineseIngredients: !!recipe.ingredientsZh,
+            hasChineseInstructions: !!recipe.instructionsZh
+          });
+        }
+        
+        recipesData.push(recipe);
       });
       setRecipes(recipesData);
       setLoading(false);

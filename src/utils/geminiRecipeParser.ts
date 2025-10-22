@@ -13,15 +13,19 @@ export async function parseRecipeWithGemini(text: string): Promise<Partial<Recip
     throw new Error('API_KEY_NOT_CONFIGURED');
   }
 
-  // Create timeout promise (60 seconds)
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('AI request timeout after 60 seconds')), 60000);
-  });
+  // Retry logic for API overload errors
+  let lastError: any = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    // Create timeout promise (60 seconds)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('AI request timeout after 60 seconds')), 60000);
+    });
 
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    // Use gemini-2.5-flash for improved parsing
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    try {
+      console.log(`📡 Sending request to Gemini API (attempt ${attempt}/3)...`);
+      const genAI = new GoogleGenerativeAI(apiKey);
+      // Use gemini-2.5-flash for improved parsing
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `You are a recipe parsing assistant. Extract recipe information from the text below and return ONLY valid JSON (no markdown, no explanations).
 
@@ -115,21 +119,164 @@ ${text}`;
     parsed.isFavorite = false;
     
     return parsed;
-  } catch (error: any) {
-    console.error('❌ Gemini parsing failed:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      ...error
+    
+    } catch (error: any) {
+      lastError = error;
+      console.error(`❌ Gemini parsing attempt ${attempt} failed:`, error.message);
+      
+      if (error.message === 'API_KEY_NOT_CONFIGURED') {
+        throw error;
+      }
+      
+      // If it's a 503 (overloaded) and we have retries left, wait and retry
+      if (error.message && error.message.includes('503') && attempt < 3) {
+        const waitTime = attempt * 3000; // 3s, 6s
+        console.log(`⏳ Waiting ${waitTime/1000}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      
+      // For other errors or last attempt, break
+      break;
+    }
+  }
+  
+  // All retries failed
+  console.error('❌ All Gemini parsing attempts failed:', lastError);
+  console.error('Error details:', {
+    message: lastError.message,
+    stack: lastError.stack,
+    name: lastError.name,
+    ...lastError
+  });
+  
+  // If AI fails, throw error to trigger fallback
+  throw new Error(`AI parsing failed after 3 attempts: ${lastError.message}`);
+}
+
+/**
+ * Parse recipe and generate BOTH English and Chinese versions
+ * This creates a bilingual recipe perfect for building a Chinese recipe database from US sources
+ */
+export async function parseRecipeWithBilingualSupport(text: string): Promise<Partial<Recipe>> {
+  console.log('🌏 Starting bilingual recipe parsing...');
+  
+  // First, parse the English version
+  const englishRecipe = await parseRecipeWithGemini(text);
+  console.log('✅ English version parsed');
+  
+  // Add a small delay to avoid rate limiting
+  console.log('⏳ Waiting 2 seconds before Chinese translation to avoid rate limits...');
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Now, generate Chinese version
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('⚠️ API key not configured, skipping Chinese translation');
+    return englishRecipe; // Return English only if no API key
+  }
+  
+  // Retry logic for Chinese translation
+  let lastError: any = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`🔄 Chinese translation attempt ${attempt}/3...`);
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    
+    const chinesePrompt = `You are a recipe translation assistant. Translate the following recipe INTO CHINESE (简体中文).
+
+Translate these fields to Chinese:
+- Recipe name
+- All ingredient names (keep amounts/units as they are, just translate the ingredient names)
+- All instruction steps
+
+Return ONLY valid JSON with this structure:
+{
+  "nameZh": "中文食谱名称",
+  "ingredientsZh": [
+    {
+      "id": "1",
+      "amount": "2",
+      "unit": "cups",
+      "name": "面粉"
+    }
+  ],
+  "instructionsZh": [
+    "第一步的中文说明",
+    "第二步的中文说明"
+  ]
+}
+
+IMPORTANT:
+- Translate ingredient NAMES to Chinese, but keep amounts and units in original format
+- Translate instruction steps to natural Chinese
+- Return ONLY the JSON, no markdown or explanations
+
+Original English Recipe:
+Name: ${englishRecipe.name}
+Ingredients: ${JSON.stringify(englishRecipe.ingredients)}
+Instructions: ${JSON.stringify(englishRecipe.instructions)}`;
+
+    console.log('📡 Sending Chinese translation request to Gemini...');
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Chinese translation timeout')), 60000);
     });
     
-    if (error.message === 'API_KEY_NOT_CONFIGURED') {
-      throw error;
+    const result = await Promise.race([
+      model.generateContent(chinesePrompt),
+      timeoutPromise
+    ]) as any;
+    
+    const response = result.response;
+    let aiText = response.text().trim();
+    
+    // Remove markdown if present
+    if (aiText.startsWith('```json')) {
+      aiText = aiText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    } else if (aiText.startsWith('```')) {
+      aiText = aiText.replace(/```\n?/g, '');
     }
     
-    // If AI fails, throw error to trigger fallback
-    throw new Error(`AI parsing failed: ${error.message}`);
+    const chineseData = JSON.parse(aiText);
+    console.log('✅ Chinese version generated:', chineseData);
+    
+    // Merge both versions
+    const bilingualRecipe = {
+      ...englishRecipe,
+      nameZh: chineseData.nameZh,
+      ingredientsZh: chineseData.ingredientsZh,
+      instructionsZh: chineseData.instructionsZh,
+    };
+    
+    console.log('🌏 Final bilingual recipe:', {
+      english: { name: bilingualRecipe.name, ingredientCount: bilingualRecipe.ingredients?.length },
+      chinese: { name: bilingualRecipe.nameZh, ingredientCount: bilingualRecipe.ingredientsZh?.length }
+    });
+    
+    return bilingualRecipe;
+    
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`⚠️ Attempt ${attempt} failed:`, error.message);
+      
+      // If it's a 503 (overloaded) and we have retries left, wait and retry
+      if (error.message.includes('503') && attempt < 3) {
+        const waitTime = attempt * 3000; // 3s, 6s
+        console.log(`⏳ Waiting ${waitTime/1000}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      
+      // For other errors or last attempt, break
+      break;
+    }
   }
+  
+  // All retries failed
+  console.warn('⚠️ All Chinese translation attempts failed:', lastError?.message);
+  console.log('📝 Returning English-only version');
+  return englishRecipe;
 }
 

@@ -11,7 +11,7 @@ import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Upload, FileText, Edit, Loader2, Image as ImageIcon, Link } from 'lucide-react';
 import { parseRecipeText } from '../../utils/recipeParser';
-import { parseRecipeWithGemini } from '../../utils/geminiRecipeParser';
+import { parseRecipeWithGemini, parseRecipeWithBilingualSupport } from '../../utils/geminiRecipeParser';
 import Tesseract from 'tesseract.js';
 
 export function AddRecipeModal() {
@@ -354,12 +354,12 @@ export function AddRecipeModal() {
         throw new Error('No meaningful text found in the URL');
       }
 
-      // Parse the extracted text with AI
+      // Parse the extracted text with AI AND generate Chinese translation
       let parsedRecipe;
       try {
-        console.log('🤖 Attempting AI parsing with Gemini...');
-        parsedRecipe = await parseRecipeWithGemini(extractedText);
-        console.log('✅ AI parsing successful!');
+        console.log('🌏 Attempting bilingual AI parsing (English + Chinese)...');
+        parsedRecipe = await parseRecipeWithBilingualSupport(extractedText);
+        console.log('✅ Bilingual parsing successful! Recipe now has both EN and ZH versions.');
       } catch (error: any) {
         console.warn('⚠️ AI parsing failed, using local parser:', error.message);
         parsedRecipe = parseRecipeText(extractedText);

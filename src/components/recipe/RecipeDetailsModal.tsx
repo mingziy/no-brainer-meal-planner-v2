@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import {
   Dialog,
@@ -13,6 +14,7 @@ import { Edit, Clock, Heart, FileText, ExternalLink } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 export function RecipeDetailsModal() {
+  const { t, i18n } = useTranslation('recipe');
   const {
     selectedRecipe,
     isRecipeDetailsModalOpen,
@@ -24,6 +26,21 @@ export function RecipeDetailsModal() {
   const [showOriginalText, setShowOriginalText] = useState(false);
 
   if (!selectedRecipe) return null;
+  
+  // Bilingual support: use Chinese version if available and current language is Chinese
+  const isChineseMode = i18n.language === 'zh';
+  const displayName = (isChineseMode && selectedRecipe.nameZh) ? selectedRecipe.nameZh : selectedRecipe.name;
+  const displayIngredients = (isChineseMode && selectedRecipe.ingredientsZh) ? selectedRecipe.ingredientsZh : selectedRecipe.ingredients;
+  const displayInstructions = (isChineseMode && selectedRecipe.instructionsZh) ? selectedRecipe.instructionsZh : selectedRecipe.instructions;
+  
+  console.log('🔍 Recipe Details Display:', {
+    currentLanguage: i18n.language,
+    isChineseMode,
+    hasChineseName: !!selectedRecipe.nameZh,
+    displayingName: displayName,
+    englishName: selectedRecipe.name,
+    chineseName: selectedRecipe.nameZh
+  });
 
   const handleEdit = () => {
     setIsRecipeDetailsModalOpen(false);
@@ -44,7 +61,7 @@ export function RecipeDetailsModal() {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="recipe-details-description">
         <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
           <div className="flex items-start justify-between">
-            <DialogTitle className="text-2xl pr-8">{selectedRecipe.name}</DialogTitle>
+            <DialogTitle className="text-2xl pr-8">{displayName}</DialogTitle>
             <div className="flex gap-2">
               <Button
                 variant="ghost"
@@ -62,7 +79,7 @@ export function RecipeDetailsModal() {
               </Button>
               <Button variant="outline" size="sm" onClick={handleEdit}>
                 <Edit className="w-4 h-4 mr-2" />
-                Edit
+                {t('details.editButton')}
               </Button>
             </div>
           </div>
@@ -80,7 +97,7 @@ export function RecipeDetailsModal() {
                   onClick={() => setShowOriginalText(true)}
                 >
                   <FileText className="w-4 h-4 mr-2" />
-                  View Extracted Text
+                  {t('details.viewExtractedText')}
                 </Button>
               )}
               {selectedRecipe.sourceUrl && (
@@ -95,7 +112,7 @@ export function RecipeDetailsModal() {
                     rel="noopener noreferrer"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Open Original Website
+                    {t('details.openOriginalWebsite')}
                   </a>
                 </Button>
               )}
@@ -127,17 +144,17 @@ export function RecipeDetailsModal() {
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-1" />
-                <span>Prep: {selectedRecipe.prepTime} min</span>
+                <span>{t('library.prepTime')}: {selectedRecipe.prepTime} min</span>
               </div>
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-1" />
-                <span>Cook: {selectedRecipe.cookTime} min</span>
+                <span>{t('library.cookTime')}: {selectedRecipe.cookTime} min</span>
               </div>
             </div>
 
             {/* Visual Plate Composition */}
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">Plate Composition</h3>
+              <h3 className="font-semibold mb-3">{t('details.plateComposition')}</h3>
               <div className="flex items-center gap-2 mb-2">
                 <div className="flex-1 h-8 bg-gray-200 rounded-full overflow-hidden flex">
                   <div
@@ -161,49 +178,49 @@ export function RecipeDetailsModal() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-orange-500 rounded" />
-                  <span>Protein: {selectedRecipe.plateComposition.protein}%</span>
+                  <span>{t('details.protein')}: {selectedRecipe.plateComposition.protein}%</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-green-500 rounded" />
-                  <span>Veggies: {selectedRecipe.plateComposition.veggies}%</span>
+                  <span>{t('details.veggies')}: {selectedRecipe.plateComposition.veggies}%</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-yellow-500 rounded" />
-                  <span>Carbs: {selectedRecipe.plateComposition.carbs}%</span>
+                  <span>{t('details.carbs')}: {selectedRecipe.plateComposition.carbs}%</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-blue-500 rounded" />
-                  <span>Fats: {selectedRecipe.plateComposition.fats}%</span>
+                  <span>{t('details.fats')}: {selectedRecipe.plateComposition.fats}%</span>
                 </div>
               </div>
             </div>
 
             {/* Nutrition Details */}
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">Nutrition per Serving</h3>
+              <h3 className="font-semibold mb-3">{t('details.nutritionPerServing')}</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-gray-600">Protein:</span>{' '}
+                  <span className="text-gray-600">{t('details.protein')}:</span>{' '}
                   <span className="font-medium">{selectedRecipe.nutrition.protein}g</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">Fat:</span>{' '}
+                  <span className="text-gray-600">{t('details.fats')}:</span>{' '}
                   <span className="font-medium">{selectedRecipe.nutrition.fat}g</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">Carbs:</span>{' '}
+                  <span className="text-gray-600">{t('details.carbs')}:</span>{' '}
                   <span className="font-medium">{selectedRecipe.nutrition.carbs}g</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">Fiber:</span>{' '}
+                  <span className="text-gray-600">{t('details.fiber')}:</span>{' '}
                   <span className="font-medium">{selectedRecipe.nutrition.fiber}g</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">Iron:</span>{' '}
+                  <span className="text-gray-600">{t('details.iron')}:</span>{' '}
                   <span className="font-medium">{selectedRecipe.nutrition.iron}</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">Calcium:</span>{' '}
+                  <span className="text-gray-600">{t('details.calcium')}:</span>{' '}
                   <span className="font-medium">{selectedRecipe.nutrition.calcium}</span>
                 </div>
               </div>
@@ -211,18 +228,18 @@ export function RecipeDetailsModal() {
 
             {/* Portion Guidance */}
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">Portion Guidance</h3>
+              <h3 className="font-semibold mb-3">{t('details.portionGuidance')}</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Adult:</span>
+                  <span className="text-gray-600">{t('details.adult')}:</span>
                   <span className="font-medium">{selectedRecipe.portions.adult}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Child (5 years):</span>
+                  <span className="text-gray-600">{t('details.child5')}:</span>
                   <span className="font-medium">{selectedRecipe.portions.child5}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Child (2 years):</span>
+                  <span className="text-gray-600">{t('details.child2')}:</span>
                   <span className="font-medium">{selectedRecipe.portions.child2}</span>
                 </div>
               </div>
@@ -230,9 +247,9 @@ export function RecipeDetailsModal() {
 
             {/* Ingredients List */}
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">Ingredients</h3>
+              <h3 className="font-semibold mb-3">{t('details.ingredients')}</h3>
               <ul className="space-y-2">
-                {selectedRecipe.ingredients.map((ingredient) => (
+                {displayIngredients.map((ingredient) => (
                   <li key={ingredient.id} className="text-sm flex items-start">
                     <span className="mr-2">•</span>
                     <span>
@@ -245,9 +262,9 @@ export function RecipeDetailsModal() {
 
             {/* Instructions */}
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">Instructions</h3>
+              <h3 className="font-semibold mb-3">{t('details.instructions')}</h3>
               <ol className="space-y-3">
-                {selectedRecipe.instructions.map((instruction, index) => (
+                {displayInstructions.map((instruction, index) => (
                   <li key={index} className="text-sm flex gap-3">
                     <span className="font-semibold text-primary shrink-0">
                       {index + 1}.
@@ -265,7 +282,7 @@ export function RecipeDetailsModal() {
     <Dialog open={showOriginalText} onOpenChange={setShowOriginalText}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="original-text-description">
         <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
-          <DialogTitle>Original Recipe Text</DialogTitle>
+          <DialogTitle>{t('details.originalRecipeText')}</DialogTitle>
           <DialogDescription id="original-text-description">
             The raw text extracted from your uploaded image or pasted content.
           </DialogDescription>
@@ -278,7 +295,7 @@ export function RecipeDetailsModal() {
         
         <div className="sticky bottom-0 bg-background border-t pt-4 flex justify-end">
           <Button variant="outline" onClick={() => setShowOriginalText(false)}>
-            Close
+            {t('details.close')}
           </Button>
         </div>
       </DialogContent>

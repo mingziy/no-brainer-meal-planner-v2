@@ -123,6 +123,12 @@ export interface Recipe {
   isFavorite: boolean;
   originalText?: string; // Raw extracted text from OCR or pasted text
   sourceUrl?: string; // Original recipe URL for attribution and linking back
+  
+  // Bilingual support - store both English and Chinese versions
+  nameZh?: string; // Chinese name
+  ingredientsZh?: Ingredient[]; // Chinese ingredients
+  instructionsZh?: string[]; // Chinese instructions
+  
   createdAt: Date;
   updatedAt: Date;
 }

@@ -154,3 +154,59 @@
 - Meal planning integration with recipes
 - Shopping list auto-generation from recipes
 
+## October 22, 2025
+
+### AI-Powered Recipe Parsing
+- Integrated Google Gemini AI (gemini-2.5-flash) for intelligent recipe extraction
+- Replaced local parser with AI-powered parsing (fallback to local parser on failure)
+- Configured API key management via `.env.local` file
+- Added multilingual support (preserves original language - Chinese/English)
+- Enhanced parsing accuracy for ingredients, instructions, and metadata
+
+### URL Import Feature
+- Implemented automatic recipe import from URLs
+- Added CORS proxy with multiple fallbacks (corsproxy.io, codetabs, allorigins)
+- Extracts recipe content and images from any recipe website
+- 15-second timeout per proxy attempt with automatic failover
+- Filters out icons, logos, and ads from image extraction
+
+### Image Selector
+- Created image selection UI with grid layout
+- Extracts up to 10 images from recipe webpages (OG image, Twitter cards, content images)
+- User can click to select preferred recipe card display image
+- "Skip - Use Default" option if no suitable images found
+- Image preview with hover effects and broken image handling
+
+### Source URL Attribution
+- Added `sourceUrl` field to Recipe type
+- Saves original recipe URL for attribution
+- "Open Original Website" button opens source in new tab
+- "View Extracted Text" and "Open Original Website" buttons side-by-side below recipe title
+- Fixed Firebase save issue where sourceUrl wasn't being persisted
+
+### Mobile Optimizations
+- Image resizing before OCR (max 1600px) for faster processing
+- Increased OCR timeout to 90 seconds for mobile devices
+- Better error handling with user-friendly fallback options
+- Improved progress indicators during URL fetching and OCR
+
+### Bug Fixes
+- Fixed sourceUrl not being saved to Firestore (added to RecipeEditForm state and save logic)
+- Removed intrusive alert dialogs, kept silent fallbacks with console logging
+- Fixed button labeling confusion ("View Extracted Text" vs "Open Original Website")
+- Cleaned up debug console logs after fixing issues
+
+### Bilingual Recipe Feature
+- Implemented automatic English-to-Chinese translation for URL-imported recipes
+- Added `nameZh`, `ingredientsZh`, `instructionsZh` fields to Recipe type
+- Created `parseRecipeWithBilingualSupport()` function with two Gemini API calls
+- Added retry logic (3 attempts) for both English parsing and Chinese translation
+- 2-second delay between API calls to prevent rate limiting
+- Language-aware display: shows Chinese versions when language is set to 中文
+- Bilingual support in Recipe Library cards and Recipe Details modal
+- Graceful fallback to English-only if translation fails
+- Added internationalization (i18n) with `react-i18next` for UI text translation
+- Created language switcher component (EN/中文 toggle)
+- Translation files for recipe library, details, and categories
+- **Unique selling point**: Build Chinese database from US recipe websites automatically
+
