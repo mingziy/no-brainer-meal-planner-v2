@@ -99,13 +99,19 @@ export interface Recipe {
   categories: RecipeCategory[];
   prepTime: number; // in minutes
   cookTime: number; // in minutes
+  servings: number; // total number of servings (e.g., 4)
+  caloriesPerServing: number; // calories per serving
   ingredients: Ingredient[];
   instructions: string[];
   nutrition: {
-    protein: number; // in grams
-    fiber: number; // in grams
-    fat: number; // in grams
-    carbs: number; // in grams
+    protein: number; // in grams PER SERVING
+    proteinDV?: number; // % Daily Value
+    fiber: number; // in grams PER SERVING
+    fiberDV?: number; // % Daily Value
+    fat: number; // in grams PER SERVING
+    fatDV?: number; // % Daily Value
+    carbs: number; // in grams PER SERVING
+    carbsDV?: number; // % Daily Value
     iron: string;
     calcium: string;
   };
@@ -123,6 +129,7 @@ export interface Recipe {
   isFavorite: boolean;
   originalText?: string; // Raw extracted text from OCR or pasted text
   sourceUrl?: string; // Original recipe URL for attribution and linking back
+  nutritionCalculationReasoning?: string; // AI explanation of how servings/calories/nutrition were calculated
   
   // Bilingual support - store both English and Chinese versions
   nameZh?: string; // Chinese name

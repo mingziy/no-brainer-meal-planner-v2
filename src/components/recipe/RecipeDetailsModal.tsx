@@ -10,7 +10,7 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Edit, Clock, Heart, FileText, ExternalLink } from 'lucide-react';
+import { Edit, Clock, Heart, FileText, ExternalLink, Calculator } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 export function RecipeDetailsModal() {
@@ -24,6 +24,7 @@ export function RecipeDetailsModal() {
   } = useApp();
 
   const [showOriginalText, setShowOriginalText] = useState(false);
+  const [showNutritionReasoning, setShowNutritionReasoning] = useState(false);
 
   if (!selectedRecipe) return null;
   
@@ -88,8 +89,8 @@ export function RecipeDetailsModal() {
           </DialogDescription>
           
           {/* Action Buttons - Below Title */}
-          {(selectedRecipe.originalText || selectedRecipe.sourceUrl) && (
-            <div className="flex gap-2 mt-3">
+          {(selectedRecipe.originalText || selectedRecipe.sourceUrl || selectedRecipe.nutritionCalculationReasoning) && (
+            <div className="flex gap-2 mt-3 flex-wrap">
               {selectedRecipe.originalText && (
                 <Button 
                   variant="outline" 
@@ -116,6 +117,16 @@ export function RecipeDetailsModal() {
                   </a>
                 </Button>
               )}
+              {selectedRecipe.nutritionCalculationReasoning && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNutritionReasoning(true)}
+                >
+                  <Calculator className="w-4 h-4 mr-2" />
+                  {t('details.viewNutritionCalculation')}
+                </Button>
+              )}
             </div>
           )}
         </DialogHeader>
@@ -140,6 +151,28 @@ export function RecipeDetailsModal() {
               ))}
             </div>
 
+            {/* Source URL */}
+            {selectedRecipe.sourceUrl && (
+              <div className="border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-950 px-4 py-3 rounded">
+                <div className="flex items-start gap-2">
+                  <ExternalLink className="w-4 h-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                      {t('details.source')}
+                    </p>
+                    <a
+                      href={selectedRecipe.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline break-words"
+                    >
+                      {selectedRecipe.sourceUrl}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Time */}
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center">
@@ -152,95 +185,72 @@ export function RecipeDetailsModal() {
               </div>
             </div>
 
-            {/* Visual Plate Composition */}
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">{t('details.plateComposition')}</h3>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex-1 h-8 bg-gray-200 rounded-full overflow-hidden flex">
-                  <div
-                    className="bg-orange-500"
-                    style={{ width: `${selectedRecipe.plateComposition.protein}%` }}
-                  />
-                  <div
-                    className="bg-green-500"
-                    style={{ width: `${selectedRecipe.plateComposition.veggies}%` }}
-                  />
-                  <div
-                    className="bg-yellow-500"
-                    style={{ width: `${selectedRecipe.plateComposition.carbs}%` }}
-                  />
-                  <div
-                    className="bg-blue-500"
-                    style={{ width: `${selectedRecipe.plateComposition.fats}%` }}
-                  />
+            {/* Nutrition Card */}
+            <div className="p-5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg">
+              <h3 className="font-semibold text-lg mb-4 text-primary">{t('details.nutritionInfo')}</h3>
+              
+              {/* Servings and Calories - Top Row */}
+              {selectedRecipe.servings > 0 && (
+                <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-primary/20">
+                  <div className="text-center bg-background/60 rounded-lg p-3">
+                    <p className="text-xs text-gray-600 mb-1">{t('details.servings')}</p>
+                    <p className="text-5xl font-bold text-primary">{selectedRecipe.servings}</p>
+                  </div>
+                  {selectedRecipe.caloriesPerServing > 0 && (
+                    <div className="text-center bg-background/60 rounded-lg p-3">
+                      <p className="text-xs text-gray-600 mb-1">{t('details.calories')}</p>
+                      <p className="text-5xl font-bold text-primary">{selectedRecipe.caloriesPerServing}</p>
+                      <p className="text-xs text-gray-500">{t('details.perServing')}</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-orange-500 rounded" />
-                  <span>{t('details.protein')}: {selectedRecipe.plateComposition.protein}%</span>
+              )}
+              
+              {/* Macros and Nutrients */}
+              <div className="grid grid-cols-2 gap-x-16 gap-y-3 text-sm">
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-700 font-bold">{t('details.protein')}</span>
+                  <span className="font-bold text-primary">
+                    {selectedRecipe.nutrition.protein}g
+                    {selectedRecipe.nutrition.proteinDV && (
+                      <span className="text-xs ml-1">({selectedRecipe.nutrition.proteinDV}%)</span>
+                    )}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded" />
-                  <span>{t('details.veggies')}: {selectedRecipe.plateComposition.veggies}%</span>
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-700 font-bold">{t('details.carbs')}</span>
+                  <span className="font-bold text-primary">
+                    {selectedRecipe.nutrition.carbs}g
+                    {selectedRecipe.nutrition.carbsDV && (
+                      <span className="text-xs ml-1">({selectedRecipe.nutrition.carbsDV}%)</span>
+                    )}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-yellow-500 rounded" />
-                  <span>{t('details.carbs')}: {selectedRecipe.plateComposition.carbs}%</span>
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-700 font-bold">{t('details.fats')}</span>
+                  <span className="font-bold text-primary">
+                    {selectedRecipe.nutrition.fat}g
+                    {selectedRecipe.nutrition.fatDV && (
+                      <span className="text-xs ml-1">({selectedRecipe.nutrition.fatDV}%)</span>
+                    )}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded" />
-                  <span>{t('details.fats')}: {selectedRecipe.plateComposition.fats}%</span>
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-700 font-bold">{t('details.fiber')}</span>
+                  <span className="font-bold text-primary">
+                    {selectedRecipe.nutrition.fiber}g
+                    {selectedRecipe.nutrition.fiberDV && (
+                      <span className="text-xs ml-1">({selectedRecipe.nutrition.fiberDV}%)</span>
+                    )}
+                  </span>
                 </div>
-              </div>
-            </div>
-
-            {/* Nutrition Details */}
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">{t('details.nutritionPerServing')}</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-gray-600">{t('details.protein')}:</span>{' '}
-                  <span className="font-medium">{selectedRecipe.nutrition.protein}g</span>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-gray-700 font-bold">{t('details.iron')}</span>
+                  <span className="font-semibold text-gray-700">{selectedRecipe.nutrition.iron}</span>
                 </div>
-                <div>
-                  <span className="text-gray-600">{t('details.fats')}:</span>{' '}
-                  <span className="font-medium">{selectedRecipe.nutrition.fat}g</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">{t('details.carbs')}:</span>{' '}
-                  <span className="font-medium">{selectedRecipe.nutrition.carbs}g</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">{t('details.fiber')}:</span>{' '}
-                  <span className="font-medium">{selectedRecipe.nutrition.fiber}g</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">{t('details.iron')}:</span>{' '}
-                  <span className="font-medium">{selectedRecipe.nutrition.iron}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">{t('details.calcium')}:</span>{' '}
-                  <span className="font-medium">{selectedRecipe.nutrition.calcium}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Portion Guidance */}
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">{t('details.portionGuidance')}</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">{t('details.adult')}:</span>
-                  <span className="font-medium">{selectedRecipe.portions.adult}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">{t('details.child5')}:</span>
-                  <span className="font-medium">{selectedRecipe.portions.child5}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">{t('details.child2')}:</span>
-                  <span className="font-medium">{selectedRecipe.portions.child2}</span>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-gray-700 font-bold">{t('details.calcium')}</span>
+                  <span className="font-semibold text-gray-700">{selectedRecipe.nutrition.calcium}</span>
                 </div>
               </div>
             </div>
@@ -295,6 +305,33 @@ export function RecipeDetailsModal() {
         
         <div className="sticky bottom-0 bg-background border-t pt-4 flex justify-end">
           <Button variant="outline" onClick={() => setShowOriginalText(false)}>
+            {t('details.close')}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Nutrition Calculation Reasoning Dialog */}
+    <Dialog open={showNutritionReasoning} onOpenChange={setShowNutritionReasoning}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="nutrition-reasoning-description">
+        <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
+          <DialogTitle>{t('details.nutritionCalculationLogic')}</DialogTitle>
+          <DialogDescription id="nutrition-reasoning-description">
+            AI explanation of how serving size, calories, and nutrition values were calculated.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="py-4">
+          <div className="whitespace-pre-wrap text-sm bg-blue-50 dark:bg-blue-950 p-4 rounded-md border border-blue-200 dark:border-blue-800">
+            {selectedRecipe.nutritionCalculationReasoning}
+          </div>
+          <div className="mt-4 text-xs text-gray-500 italic">
+            💡 This calculation is AI-generated and may not be 100% accurate. Always consult nutrition labels or professional guidance for precise dietary needs.
+          </div>
+        </div>
+        
+        <div className="sticky bottom-0 bg-background border-t pt-4 flex justify-end">
+          <Button variant="outline" onClick={() => setShowNutritionReasoning(false)}>
             {t('details.close')}
           </Button>
         </div>

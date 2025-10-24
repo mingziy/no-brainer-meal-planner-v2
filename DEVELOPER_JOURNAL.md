@@ -210,3 +210,24 @@
 - Translation files for recipe library, details, and categories
 - **Unique selling point**: Build Chinese database from US recipe websites automatically
 
+### AI-Powered Nutrition Calculation
+- Integrated USDA FoodData Central data for accurate nutrition estimates
+- AI calculates nutrition from raw/uncooked ingredient values
+- Added `servings`, `caloriesPerServing`, `nutrition` fields to Recipe type
+- Nutrition includes: protein, fat, carbs, fiber (grams and % Daily Value)
+- Added `nutritionCalculationReasoning` field for AI's step-by-step calculation logic
+- **% Daily Value** calculated based on FDA 2000-calorie diet guidelines
+- Gemini prompt includes detailed USDA nutrition estimation instructions
+- Editable serving size and calories in RecipeEditForm
+- Console logging for debugging AI nutrition calculations
+
+### Nutrition Information UI
+- Redesigned Recipe Details modal with dedicated "Nutrition Information" card
+- Removed "Plate Composition" and "Portion Guidance" sections
+- Prominent display: large servings count and calories per serving (text-5xl)
+- Macronutrient grid: Protein, Carbs, Fats, Fiber with grams and %DV
+- Bold nutrient labels for better readability
+- Wider column spacing (gap-x-16) for cleaner layout
+- "View AI Calculation Logic" button displays detailed reasoning in modal
+- Frameless card design for modern, clean look
+

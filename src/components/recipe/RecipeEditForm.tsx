@@ -44,6 +44,8 @@ export function RecipeEditForm() {
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const [prepTime, setPrepTime] = useState(0);
   const [cookTime, setCookTime] = useState(0);
+  const [servings, setServings] = useState(0);
+  const [caloriesPerServing, setCaloriesPerServing] = useState(0);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [instructions, setInstructions] = useState<string[]>(['']);
   const [nutrition, setNutrition] = useState({
@@ -67,6 +69,7 @@ export function RecipeEditForm() {
   });
   const [originalText, setOriginalText] = useState<string | undefined>(undefined);
   const [sourceUrl, setSourceUrl] = useState<string | undefined>(undefined);
+  const [nutritionCalculationReasoning, setNutritionCalculationReasoning] = useState<string | undefined>(undefined);
   
   // Bilingual support - Chinese versions
   const [nameZh, setNameZh] = useState<string | undefined>(undefined);
@@ -122,6 +125,8 @@ export function RecipeEditForm() {
         setCategories(draftRecipe.categories || []);
         setPrepTime(draftRecipe.prepTime || 0);
         setCookTime(draftRecipe.cookTime || 0);
+        setServings(draftRecipe.servings || 0);
+        setCaloriesPerServing(draftRecipe.caloriesPerServing || 0);
         setIngredients(draftRecipe.ingredients || [{ id: '1', amount: '', unit: '', name: '' }]);
         setInstructions(draftRecipe.instructions || ['']);
         setNutrition(draftRecipe.nutrition || {
@@ -136,6 +141,7 @@ export function RecipeEditForm() {
         setPortions(draftRecipe.portions || { adult: '', child5: '', child2: '' });
         setOriginalText(draftRecipe.originalText); // Capture originalText before draft is cleared
         setSourceUrl(draftRecipe.sourceUrl); // Capture sourceUrl before draft is cleared
+        setNutritionCalculationReasoning(draftRecipe.nutritionCalculationReasoning); // Capture AI reasoning
         
         // Load bilingual Chinese versions if available
         setNameZh(draftRecipe.nameZh);
@@ -158,6 +164,8 @@ export function RecipeEditForm() {
         setCategories(selectedRecipe.categories);
         setPrepTime(selectedRecipe.prepTime);
         setCookTime(selectedRecipe.cookTime);
+        setServings(selectedRecipe.servings || 0);
+        setCaloriesPerServing(selectedRecipe.caloriesPerServing || 0);
         setIngredients(selectedRecipe.ingredients);
         setInstructions(selectedRecipe.instructions);
         setNutrition(selectedRecipe.nutrition);
@@ -165,6 +173,7 @@ export function RecipeEditForm() {
         setPortions(selectedRecipe.portions);
         setOriginalText(selectedRecipe.originalText); // Preserve originalText when editing
         setSourceUrl(selectedRecipe.sourceUrl); // Preserve sourceUrl when editing
+        setNutritionCalculationReasoning(selectedRecipe.nutritionCalculationReasoning); // Preserve AI reasoning
         
         // Load bilingual Chinese versions if available
         setNameZh(selectedRecipe.nameZh);
@@ -188,6 +197,8 @@ export function RecipeEditForm() {
     setCategories([]);
     setPrepTime(0);
     setCookTime(0);
+    setServings(0);
+    setCaloriesPerServing(0);
     setIngredients([{ id: '1', amount: '', unit: '', name: '' }]);
     setInstructions(['']);
     setNutrition({
@@ -202,6 +213,7 @@ export function RecipeEditForm() {
     setPortions({ adult: '', child5: '', child2: '' });
     setOriginalText(undefined);
     setSourceUrl(undefined);
+    setNutritionCalculationReasoning(undefined);
     setNameZh(undefined);
     setIngredientsZh(undefined);
     setInstructionsZh(undefined);
@@ -253,6 +265,8 @@ export function RecipeEditForm() {
         categories,
         prepTime,
         cookTime,
+        servings,
+        caloriesPerServing,
         ingredients: ingredients.filter((ing) => ing.name.trim() !== ''),
         instructions: instructions.filter((inst) => inst.trim() !== ''),
         nutrition,
@@ -269,6 +283,11 @@ export function RecipeEditForm() {
       // Only include sourceUrl if it exists (Firestore doesn't accept undefined)
       if (sourceUrl) {
         recipeData.sourceUrl = sourceUrl;
+      }
+      
+      // Only include nutritionCalculationReasoning if it exists
+      if (nutritionCalculationReasoning) {
+        recipeData.nutritionCalculationReasoning = nutritionCalculationReasoning;
       }
       
       // Include Chinese versions if available (bilingual support)
@@ -577,15 +596,48 @@ export function RecipeEditForm() {
                   />
                 </div>
               </div>
+
+              {/* Serving Size & Calories */}
+              <div className="space-y-4 pt-4 border-t">
+                <div>
+                  <h3 className="font-semibold mb-1">Serving Information</h3>
+                  <p className="text-sm text-gray-600">
+                    Servings and calories are estimated by AI. Adjust if needed or leave as 0 if unknown.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="servings">Total Servings</Label>
+                    <Input
+                      id="servings"
+                      type="number"
+                      value={servings}
+                      onChange={(e) => setServings(Number(e.target.value))}
+                      min="0"
+                      placeholder="e.g., 4"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="caloriesPerServing">Calories per Serving</Label>
+                    <Input
+                      id="caloriesPerServing"
+                      type="number"
+                      value={caloriesPerServing}
+                      onChange={(e) => setCaloriesPerServing(Number(e.target.value))}
+                      min="0"
+                      placeholder="e.g., 350"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Nutrition Section */}
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold mb-1">Nutrition (Auto-Calculated)</h3>
+                <h3 className="font-semibold mb-1">Nutrition Per Serving</h3>
                 <p className="text-sm text-gray-600">
-                  We've estimated the nutrition based on the ingredients. You can adjust
-                  these values if needed.
+                  Estimated per-serving nutrition. Adjust these values if needed.
                 </p>
               </div>
 

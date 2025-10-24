@@ -36,6 +36,9 @@ Required JSON structure:
   "categories": ["Array of: Breakfast, Lunch, Dinner, Snack, Kid-Friendly, Batch-Cook Friendly"],
   "prepTime": 15,
   "cookTime": 30,
+  "servings": 4,
+  "caloriesPerServing": 350,
+  "nutritionCalculationReasoning": "Explain your calculation logic here, including: 1) How you determined serving size (from recipe text or estimated from ingredient amounts), 2) How you calculated calories per serving (cite USDA nutrition data, common nutrition databases, or standard calorie values), 3) Sources or reasoning for nutrition estimates (protein/carbs/fat/fiber)",
   "ingredients": [
     {
       "id": "1",
@@ -48,6 +51,18 @@ Required JSON structure:
     "Step 1 instruction",
     "Step 2 instruction"
   ],
+  "nutrition": {
+    "protein": 25,
+    "proteinDV": 50,
+    "fiber": 5,
+    "fiberDV": 18,
+    "fat": 12,
+    "fatDV": 15,
+    "carbs": 40,
+    "carbsDV": 15,
+    "iron": "Moderate",
+    "calcium": "High"
+  },
   "portions": {
     "adult": "1 cup",
     "child5": "3/4 cup",
@@ -61,9 +76,86 @@ IMPORTANT Rules:
 - Extract all ingredients with amounts/units
 - Number each ingredient starting from "1"
 - Break instructions into clear steps
-- If portions aren't specified, use reasonable defaults
 - Times are in minutes
-- Return ONLY the JSON object, nothing else
+
+**SERVING SIZE & NUTRITION CALCULATION (CRITICAL RULES)**:
+
+**DO NOT use any nutrition information from the source recipe text. Calculate EVERYTHING from scratch using official USDA data.**
+
+1. **Serving Size Determination**:
+   - If recipe states serving size (e.g., "serves 4", "makes 6 servings"), use that exact number
+   - If NO explicit serving size but ingredients have SPECIFIC AMOUNTS, estimate servings using:
+     * 3-4 oz (85-115g) protein per serving (USDA dietary guidelines)
+     * 1 cup vegetables per serving (MyPlate recommendations)
+     * 1/2 cup cooked grains/pasta per serving (standard portion)
+   - If ingredients LACK specific amounts, set "servings": 0
+
+2. **Nutrition Calculation from Ingredients ONLY**:
+   - **IGNORE any nutrition facts from the recipe source** (e.g., "350 calories", "20g protein")
+   - Calculate ALL nutrition values from scratch by:
+     a) Look up each ingredient in USDA FoodData Central
+     b) Use ingredient amounts to calculate total nutrition
+     c) Divide by number of servings to get per-serving values
+   
+3. **Official USDA FoodData Central Values** (per 100g RAW/UNCOOKED):
+   
+   **Proteins (raw/uncooked)**:
+   - Chicken breast (raw, skinless): 165 cal, 31g protein, 0g carbs, 3.6g fat
+   - Chicken thigh (raw, skinless): 119 cal, 18g protein, 0g carbs, 4.7g fat
+   - Ground beef (80/20, raw): 254 cal, 17g protein, 0g carbs, 20g fat
+   - Ground turkey (raw): 203 cal, 19g protein, 0g carbs, 13g fat
+   - Salmon (raw, Atlantic): 208 cal, 20g protein, 0g carbs, 13g fat
+   - Shrimp (raw): 85 cal, 18g protein, 0.9g carbs, 0.5g fat
+   - Pork chop (raw, lean): 143 cal, 19g protein, 0g carbs, 7g fat
+   - Tofu (firm, raw): 76 cal, 8g protein, 1.9g carbs, 4.8g fat
+   - Eggs (whole, raw): 143 cal, 13g protein, 0.7g carbs, 9.5g fat, 0g fiber
+   
+   **Grains/Carbs (dry/uncooked)**:
+   - White rice (dry, uncooked): 365 cal, 7g protein, 80g carbs, 0.6g fat, 1.3g fiber
+   - Brown rice (dry, uncooked): 370 cal, 7.9g protein, 77.2g carbs, 2.9g fat, 3.5g fiber
+   - Pasta (dry, uncooked): 371 cal, 13g protein, 75g carbs, 1.5g fat, 3.2g fiber
+   - Quinoa (dry, uncooked): 368 cal, 14g protein, 64g carbs, 6g fat, 7g fiber
+   - Oats (dry, uncooked): 389 cal, 17g protein, 66g carbs, 7g fat, 10.6g fiber
+   - Bread (white): 265 cal, 9g protein, 49g carbs, 3.2g fat, 2.7g fiber
+   
+   **Vegetables (raw)**:
+   - Broccoli (raw): 34 cal, 2.8g protein, 7g carbs, 0.4g fat, 2.6g fiber
+   - Spinach (raw): 23 cal, 2.9g protein, 3.6g carbs, 0.4g fat, 2.2g fiber
+   - Carrots (raw): 41 cal, 0.9g protein, 10g carbs, 0.2g fat, 2.8g fiber
+   - Bell pepper (raw): 31 cal, 1g protein, 6g carbs, 0.3g fat, 2.1g fiber
+   - Onion (raw): 40 cal, 1.1g protein, 9.3g carbs, 0.1g fat, 1.7g fiber
+   - Tomatoes (raw): 18 cal, 0.9g protein, 3.9g carbs, 0.2g fat, 1.2g fiber
+   - Zucchini (raw): 17 cal, 1.2g protein, 3.1g carbs, 0.3g fat, 1g fiber
+   
+   **Fats/Oils**:
+   - Olive oil: 884 cal, 0g protein, 0g carbs, 100g fat, 0g fiber
+   - Butter: 717 cal, 0.9g protein, 0.1g carbs, 81g fat, 0g fiber
+   - Vegetable oil: 884 cal, 0g protein, 0g carbs, 100g fat, 0g fiber
+   
+   **Dairy (raw/fresh)**:
+   - Whole milk: 61 cal, 3.2g protein, 4.8g carbs, 3.3g fat
+   - Cheddar cheese: 403 cal, 25g protein, 1.3g carbs, 33g fat
+   - Greek yogurt (plain): 59 cal, 10g protein, 3.6g carbs, 0.4g fat
+   
+   **Other**:
+   - Sugar (granulated): 387 cal, 0g protein, 100g carbs, 0g fat, 0g fiber
+   - Soy sauce: 53 cal, 5.6g protein, 4.9g carbs, 0g fat, 0g fiber
+   
+4. **% Daily Value Calculation** (based on FDA 2000 calorie diet):
+   - proteinDV: (protein in g / 50g) × 100
+   - fiberDV: (fiber in g / 28g) × 100
+   - fatDV: (fat in g / 78g) × 100
+   - carbsDV: (carbs in g / 275g) × 100
+   
+5. **Iron/Calcium**: Use "Low", "Moderate", or "High" based on ingredient types
+   
+6. **nutritionCalculationReasoning**: 
+   - Show step-by-step calculation for EACH ingredient
+   - Example: "1 lb chicken (454g): 750 cal, 141g protein, 16g fat"
+   - Then show: "Total / 4 servings = 350 cal, 35g protein per serving"
+   - Always cite USDA FoodData Central as source
+
+Return ONLY the JSON object, nothing else.
 
 Recipe text:
 ${text}`;
@@ -96,19 +188,52 @@ ${text}`;
     
     console.log('✅ Gemini parsed recipe:', parsed);
     
+    // Log nutrition calculation reasoning if provided
+    if (parsed.nutritionCalculationReasoning) {
+      console.log('📊 GEMINI NUTRITION CALCULATION LOGIC:');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(parsed.nutritionCalculationReasoning);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    }
+    
     // Add default image
     parsed.image = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop';
     
-    // Add default nutrition and plate composition
-    parsed.nutrition = {
-      protein: 0,
-      fiber: 0,
-      fat: 0,
-      carbs: 0,
-      iron: 'Moderate',
-      calcium: 'Moderate',
-    };
+    // Add default nutrition if not provided by AI
+    if (!parsed.nutrition) {
+      parsed.nutrition = {
+        protein: 0,
+        fiber: 0,
+        fat: 0,
+        carbs: 0,
+        iron: 'Moderate',
+        calcium: 'Moderate',
+      };
+    }
     
+    // Calculate % Daily Value if not provided by AI (based on FDA 2000 calorie diet)
+    if (parsed.nutrition.protein && !parsed.nutrition.proteinDV) {
+      parsed.nutrition.proteinDV = Math.round((parsed.nutrition.protein / 50) * 100);
+    }
+    if (parsed.nutrition.fiber && !parsed.nutrition.fiberDV) {
+      parsed.nutrition.fiberDV = Math.round((parsed.nutrition.fiber / 28) * 100);
+    }
+    if (parsed.nutrition.fat && !parsed.nutrition.fatDV) {
+      parsed.nutrition.fatDV = Math.round((parsed.nutrition.fat / 78) * 100);
+    }
+    if (parsed.nutrition.carbs && !parsed.nutrition.carbsDV) {
+      parsed.nutrition.carbsDV = Math.round((parsed.nutrition.carbs / 275) * 100);
+    }
+    
+    // Add default servings and calories if not provided
+    if (!parsed.servings) {
+      parsed.servings = 0; // 0 means unknown/not specified
+    }
+    if (!parsed.caloriesPerServing) {
+      parsed.caloriesPerServing = 0;
+    }
+    
+    // Add default plate composition
     parsed.plateComposition = {
       protein: 25,
       veggies: 25,
