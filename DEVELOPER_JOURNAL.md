@@ -231,3 +231,59 @@
 - "View AI Calculation Logic" button displays detailed reasoning in modal
 - Frameless card design for modern, clean look
 
+## October 26, 2025
+
+### Image Processing Optimization
+- **Removed Tesseract.js OCR** (slow, 90s+ processing time)
+- **Direct Gemini Vision** for image-to-recipe extraction
+- 3.5x faster: 120s OCR+parsing → 45s direct vision
+- Simplified prompt (100 words vs 2500 words) for speed
+- Removed nutrition calculation from image processing (too slow)
+- Bundle size reduced: 984 KB → 969 KB (15 KB smaller)
+
+### Image Upload Improvements
+- **Auto-crop modal** after AI extraction
+- User selects portion of image for recipe card display
+- Automatic image compression for Firestore (max 800px, 70% quality)
+- Fixed: "image too large" error (>1MB Firestore limit)
+- Converts to JPEG and compresses before saving
+- Logs compression ratio for debugging
+
+### AI Recipe Discovery Wizard
+- New "AI Recipe Ideas" button in Recipe Library
+- Natural language queries in English or Chinese
+- AI generates customizable recipe suggestions (default: 5)
+- Checkbox selection for multiple recipes
+- Attempts auto-fetch from multiple recipe sites:
+  - AllRecipes, Simply Recipes, Food Network, Serious Eats, Bon Appetit
+- Searches results pages and extracts first recipe link
+- Bilingual recipe extraction (EN + CN) for all imported recipes
+- Image selector for choosing best photo from website
+- Fallback to manual URL paste if auto-fetch fails
+- Progress tracking: "Processing X of Y..."
+
+### Wizard Flow States
+- **Step 1**: Query input (text + suggestion count)
+- **Step 2**: AI suggestions with checkboxes
+- **Step 3**: Processing each selected recipe one-by-one
+- **Step 4**: Next action (more ideas / new search / done)
+- Auto-continues to next recipe after save
+- Graceful error handling with retry options
+
+### Known Limitations & Future Improvements
+- **CORS restrictions** prevent reliable auto-fetching from browser
+- Most recipe sites block cross-origin requests
+- CORS proxies unreliable (403, 429, 503 errors)
+- **Solution identified**: Firebase Cloud Functions for server-side fetching
+  - Would bypass CORS completely
+  - Enable fully automated recipe discovery
+  - ~20 minutes implementation time
+  - Free tier: 2M requests/month
+
+### Bug Fixes
+- Fixed JSON parsing for AI-generated recipe ideas (escaped quotes)
+- Fixed recipe link extraction from search results
+- Fixed flow continuation after image selection
+- Added retry logic for Gemini API overload (503 errors)
+- Improved error messages and user feedback
+

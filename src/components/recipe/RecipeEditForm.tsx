@@ -108,11 +108,16 @@ export function RecipeEditForm() {
 
   // Track if we've loaded the draft to prevent re-running
   const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+  const [shouldAutoCrop, setShouldAutoCrop] = useState(false);
 
-  // Debug: Log when imageToCrop changes
+  // Auto-open crop modal when image is loaded from draft
   useEffect(() => {
-    console.log('📸 imageToCrop state changed:', imageToCrop ? `Has image (${imageToCrop.substring(0, 50)}...)` : 'null');
-  }, [imageToCrop]);
+    if (shouldAutoCrop && imageToCrop && isRecipeEditFormOpen) {
+      console.log('🖼️ Auto-opening crop modal...');
+      setShowCropModal(true);
+      setShouldAutoCrop(false);
+    }
+  }, [shouldAutoCrop, imageToCrop, isRecipeEditFormOpen]);
 
   // Initialize form with selected recipe data or draft
   useEffect(() => {
@@ -151,6 +156,8 @@ export function RecipeEditForm() {
         // Store original image for cropping if available
         if ((draftRecipe as any).originalImageForCropping) {
           setImageToCrop((draftRecipe as any).originalImageForCropping);
+          // Auto-open crop modal for AI-extracted images
+          setShouldAutoCrop(true);
         }
         
         // Mark as loaded and clear draft
@@ -186,6 +193,7 @@ export function RecipeEditForm() {
     } else {
       // Reset the hasLoadedDraft flag when form closes
       setHasLoadedDraft(false);
+      setShouldAutoCrop(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRecipe, draftRecipe, isRecipeEditFormOpen]);
@@ -256,11 +264,65 @@ export function RecipeEditForm() {
     }
   };
 
+  const compressImageForStorage = async (imageDataUrl: string): Promise<string> => {
+    // If it's already a URL (not base64), return as is
+    if (!imageDataUrl.startsWith('data:')) {
+      return imageDataUrl;
+    }
+    
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Resize to max 800px width for Firestore storage
+        const maxWidth = 800;
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (height / width) * maxWidth;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Compress to JPEG with 0.7 quality
+        const compressed = canvas.toDataURL('image/jpeg', 0.7);
+        console.log('🗜️ Image compressed:', 
+          (imageDataUrl.length / 1024).toFixed(0) + 'KB →', 
+          (compressed.length / 1024).toFixed(0) + 'KB'
+        );
+        resolve(compressed);
+      };
+      img.src = imageDataUrl;
+    });
+  };
+
   const handleSave = async () => {
     try {
+      console.log('💾 Starting save process...');
+      console.log('💾 Form data:', {
+        name,
+        ingredientsCount: ingredients.length,
+        instructionsCount: instructions.length,
+        servings,
+        caloriesPerServing
+      });
+      
+      // Compress image if it's a data URL
+      let compressedImage = image;
+      if (image.startsWith('data:')) {
+        console.log('🗜️ Compressing image for Firestore...');
+        compressedImage = await compressImageForStorage(image);
+      }
+      
       const recipeData: any = {
         name,
-        image,
+        image: compressedImage,
         cuisine,
         categories,
         prepTime,

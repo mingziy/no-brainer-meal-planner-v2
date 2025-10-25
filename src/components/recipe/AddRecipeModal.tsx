@@ -11,8 +11,7 @@ import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Upload, FileText, Edit, Loader2, Image as ImageIcon, Link } from 'lucide-react';
 import { parseRecipeText } from '../../utils/recipeParser';
-import { parseRecipeWithGemini, parseRecipeWithBilingualSupport } from '../../utils/geminiRecipeParser';
-import Tesseract from 'tesseract.js';
+import { parseRecipeWithGemini, parseRecipeWithBilingualSupport, parseRecipeFromImage } from '../../utils/geminiRecipeParser';
 
 export function AddRecipeModal() {
   const { 
@@ -120,58 +119,71 @@ export function AddRecipeModal() {
 
       console.log('📸 Original image size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
       
-      // Resize image for better OCR performance on mobile
+      // Resize image for better AI processing performance
       const resizedImage = await resizeImageForOCR(file);
       console.log('📸 Resized image size:', (resizedImage.size / 1024 / 1024).toFixed(2), 'MB');
 
-      // Extract text from image with timeout
-      console.log('🔍 Starting OCR text extraction...');
-      const ocrTimeout = 90000; // 90 seconds timeout for mobile
-      
-      const ocrPromise = Tesseract.recognize(
-        resizedImage,
-        'eng+chi_sim',
-        {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              setOcrProgress(Math.round(m.progress * 100));
-            }
-            console.log('OCR progress:', m.status, m.progress);
-          }
-        }
-      );
-
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('OCR timeout - image processing took too long. Please try a smaller or clearer image.')), ocrTimeout);
+      // Convert resized blob to data URL for Gemini
+      const resizedDataUrl = await new Promise<string>((resolve) => {
+        const reader2 = new FileReader();
+        reader2.onload = (e) => resolve(e.target?.result as string);
+        reader2.readAsDataURL(resizedImage);
       });
 
-      const result = await Promise.race([ocrPromise, timeoutPromise]) as Tesseract.RecognizeResult;
-
-      const extractedText = result.data.text;
-      console.log('✅ Extracted text from image:', extractedText.substring(0, 200));
-
-      if (!extractedText.trim()) {
-        alert('No text found in the image. Please try a clearer image or paste the recipe text manually.');
-        setIsProcessing(false);
-        setOcrProgress(0);
-        return;
-      }
-
-      // Parse the extracted text with AI (fallback to local parser if fails)
+      // Parse the image directly with Gemini Vision (NO OCR!)
       let parsedRecipe;
       try {
-        console.log('🤖 Attempting AI parsing with Gemini...');
-        console.log('📝 Text length:', extractedText.length, 'characters');
-        parsedRecipe = await parseRecipeWithGemini(extractedText);
-        console.log('✅ AI parsing successful!');
+        console.log('📸 Sending image directly to Gemini Vision AI...');
+        setOcrProgress(50); // Show some progress
+        parsedRecipe = await parseRecipeFromImage(resizedDataUrl);
+        console.log('✅ AI image processing successful!');
+        console.log('📦 Parsed recipe:', parsedRecipe);
+        setOcrProgress(100);
       } catch (error: any) {
-        console.warn('⚠️ AI parsing failed, using local parser:', error.message);
-        console.error('Full error:', error);
-        parsedRecipe = parseRecipeText(extractedText);
+        console.warn('⚠️ AI image processing failed, using local parser with empty data:', error.message);
+        // If AI fails completely, create minimal recipe for user to fill manually
+        parsedRecipe = {
+          name: 'Untitled Recipe',
+          ingredients: [{ id: '1', amount: '', unit: '', name: '' }],
+          instructions: [''],
+          cuisine: 'Other',
+          categories: [],
+          prepTime: 0,
+          cookTime: 0,
+          servings: 0,
+          caloriesPerServing: 0,
+        };
+        alert('Failed to extract recipe from image automatically. Please fill in the details manually.');
       }
       
-      parsedRecipe.originalText = extractedText;
-      parsedRecipe.image = imageDataUrl; // Store full image temporarily
+      // Ensure all required fields have default values
+      parsedRecipe = {
+        ...parsedRecipe,
+        servings: parsedRecipe.servings || 0,
+        caloriesPerServing: parsedRecipe.caloriesPerServing || 0,
+        nutrition: parsedRecipe.nutrition || {
+          protein: 0,
+          fiber: 0,
+          fat: 0,
+          carbs: 0,
+          iron: 'Moderate',
+          calcium: 'Moderate',
+        },
+        plateComposition: parsedRecipe.plateComposition || {
+          protein: 25,
+          veggies: 25,
+          carbs: 25,
+          fats: 25,
+        },
+        portions: parsedRecipe.portions || {
+          adult: '',
+          child5: '',
+          child2: '',
+        },
+      };
+      
+      // Store original image for display
+      parsedRecipe.image = imageDataUrl;
       
       // Store original image data for later cropping in the form
       (parsedRecipe as any).originalImageForCropping = imageDataUrl;
@@ -189,7 +201,7 @@ export function AddRecipeModal() {
     } catch (error: any) {
       console.error('❌ Error processing image:', error);
       const errorMessage = error.message || 'Unknown error';
-      alert(`Failed to extract text from image: ${errorMessage}\n\nPlease try again or paste the text manually.`);
+      alert(`Failed to process image: ${errorMessage}\n\nPlease try again or use "Paste Recipe Text" instead.`);
       setIsProcessing(false);
       setOcrProgress(0);
     }
@@ -208,8 +220,9 @@ export function AddRecipeModal() {
       // Parse the recipe text with AI (fallback to local parser if fails)
       let parsedRecipe;
       try {
-        console.log('🤖 Attempting AI parsing with Gemini...');
-        parsedRecipe = await parseRecipeWithGemini(pasteText);
+        console.log('🤖 Attempting AI parsing with Gemini (clean text - 60s timeout)...');
+        // Clean pasted text is faster to process - use 60 second timeout
+        parsedRecipe = await parseRecipeWithGemini(pasteText, 60000);
         console.log('✅ AI parsing successful!');
       } catch (error: any) {
         console.warn('⚠️ AI parsing failed, using local parser:', error.message);
@@ -457,7 +470,7 @@ export function AddRecipeModal() {
               Option 1: AI Extraction (Primary)
             </h3>
             <p className="text-sm text-gray-600">
-              Upload a screenshot, paste a URL, or paste text, and our AI will extract the recipe.
+              Upload a recipe screenshot, paste a URL, or paste text - AI extracts everything instantly.
             </p>
 
             {/* Upload Screenshot Button */}
@@ -470,12 +483,12 @@ export function AddRecipeModal() {
               {isProcessing && ocrProgress > 0 ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Extracting text... {ocrProgress}%
+                  AI Processing... {ocrProgress}%
                 </>
               ) : (
                 <>
                   <Upload className="mr-2 h-4 w-4" />
-                  Upload Screenshot/Image
+                  Upload Recipe Screenshot
                 </>
               )}
             </Button>

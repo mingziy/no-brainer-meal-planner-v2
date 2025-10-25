@@ -12,6 +12,7 @@ import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { BottomNav } from '../shared/BottomNav';
 import { UserButton } from '../auth/UserButton';
 import { LanguageSwitcher } from '../shared/LanguageSwitcher';
+import { RecipeIdeaWizard } from './RecipeIdeaWizard';
 
 export function RecipeLibraryScreen() {
   const { t, i18n } = useTranslation('recipe');
@@ -126,6 +127,11 @@ export function RecipeLibraryScreen() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
           />
+        </div>
+
+        {/* AI Recipe Ideas Button */}
+        <div className="flex gap-2">
+          <RecipeIdeaWizard />
         </div>
 
         {/* Browse by Category - Horizontal Scrolling */}

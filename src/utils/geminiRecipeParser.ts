@@ -4,8 +4,10 @@ import { Recipe } from '../types';
 /**
  * Parse recipe text using Google Gemini AI
  * Falls back to local parser if AI fails
+ * @param text - The recipe text to parse
+ * @param timeoutMs - Optional timeout in milliseconds (default: 90000ms for OCR, 60000ms for clean text)
  */
-export async function parseRecipeWithGemini(text: string): Promise<Partial<Recipe>> {
+export async function parseRecipeWithGemini(text: string, timeoutMs: number = 90000): Promise<Partial<Recipe>> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   
   if (!apiKey || apiKey === 'your_api_key_here') {
@@ -16,9 +18,9 @@ export async function parseRecipeWithGemini(text: string): Promise<Partial<Recip
   // Retry logic for API overload errors
   let lastError: any = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
-    // Create timeout promise (60 seconds)
+    // Create timeout promise with configurable timeout
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('AI request timeout after 60 seconds')), 60000);
+      setTimeout(() => reject(new Error(`AI request timeout after ${timeoutMs / 1000} seconds`)), timeoutMs);
     });
 
     try {
@@ -403,5 +405,264 @@ Instructions: ${JSON.stringify(englishRecipe.instructions)}`;
   console.warn('⚠️ All Chinese translation attempts failed:', lastError?.message);
   console.log('📝 Returning English-only version');
   return englishRecipe;
+}
+
+/**
+ * Parse recipe directly from image using Gemini Vision
+ * This is MUCH faster than OCR + text parsing
+ * @param imageDataUrl - Base64 data URL of the image
+ */
+export async function parseRecipeFromImage(imageDataUrl: string): Promise<Partial<Recipe>> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('⚠️ Gemini API key not configured. Please set VITE_GEMINI_API_KEY in .env.local');
+    throw new Error('API_KEY_NOT_CONFIGURED');
+  }
+
+  console.log('📸 Processing image directly with Gemini Vision...');
+
+  // Retry logic
+  let lastError: any = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('AI image processing timeout after 45 seconds')), 45000);
+    });
+
+    try {
+      console.log(`📡 Sending image to Gemini API (attempt ${attempt}/3)...`);
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+      const prompt = `Extract the recipe from this image and return ONLY valid JSON (no markdown, no explanations).
+
+JSON format:
+{
+  "name": "Recipe name",
+  "cuisine": "Korean|Chinese|Italian|American|Mexican|Japanese|Other",
+  "categories": ["Breakfast|Lunch|Dinner|Snack|Kid-Friendly|Batch-Cook Friendly"],
+  "prepTime": 15,
+  "cookTime": 30,
+  "servings": 4,
+  "ingredients": [{"id": "1", "amount": "2", "unit": "cups", "name": "flour"}],
+  "instructions": ["Step 1", "Step 2"]
+}
+
+Rules:
+- Preserve original language (Chinese/English)
+- Extract all ingredients with amounts/units, number from "1"
+- Break instructions into clear steps
+- Times in minutes
+- Estimate servings from recipe or ingredient amounts
+
+Return ONLY the JSON.`;
+
+      // Convert base64 data URL to the format Gemini expects
+      const base64Data = imageDataUrl.split(',')[1];
+      const mimeType = imageDataUrl.split(';')[0].split(':')[1];
+
+      const result = await Promise.race([
+        model.generateContent([
+          prompt,
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
+          }
+        ]),
+        timeoutPromise
+      ]) as any;
+
+      console.log('📥 Received response from Gemini Vision');
+      const response = result.response;
+      const aiText = response.text();
+      
+      console.log('🤖 Gemini raw response:', aiText);
+
+      // Try to extract JSON from the response
+      let jsonText = aiText.trim();
+      
+      // Remove markdown code blocks if present
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/```\n?/g, '');
+      }
+
+      const parsedRecipe = JSON.parse(jsonText);
+      
+      console.log('✅ Successfully parsed recipe from image');
+      return parsedRecipe;
+      
+    } catch (error: any) {
+      console.error(`❌ Attempt ${attempt} failed:`, error.message);
+      lastError = error;
+      
+      // If it's a 503 (overloaded) or network error, retry after delay
+      if (error.message.includes('503') || error.message.includes('overloaded') || error.message.includes('ECONNREFUSED')) {
+        const delay = attempt * 3000; // 3s, 6s
+        console.log(`⏳ Waiting ${delay/1000}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // For other errors, don't retry
+      break;
+    }
+  }
+  
+  throw new Error(`AI image processing failed after 3 attempts: ${lastError.message}`);
+}
+
+/**
+ * Generate recipe ideas based on user query
+ * @param query - Natural language description (English or Chinese)
+ * @param count - Number of recipe ideas to generate (default: 5)
+ */
+export async function generateRecipeIdeas(query: string, count: number = 5): Promise<string[]> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    throw new Error('API_KEY_NOT_CONFIGURED');
+  }
+
+  console.log(`💡 Generating ${count} recipe ideas for: "${query}"`);
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const prompt = `Based on this query: "${query}"
+
+Generate EXACTLY ${count} specific recipe names that match the request.
+
+Rules:
+- Return ONLY a JSON array of recipe names (strings)
+- Each recipe name should be specific (e.g., "Honey Garlic Chicken Thighs", not just "Chicken")
+- If query is in Chinese, respond in Chinese
+- If query is in English, respond in English
+- Match the user's dietary preferences, cooking style, and constraints
+- Be creative but practical
+
+Example output format:
+["Recipe Name 1", "Recipe Name 2", "Recipe Name 3"]
+
+Return ONLY the JSON array, nothing else.`;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    let aiText = response.text().trim();
+    
+    console.log('🤖 Raw AI response:', aiText);
+    
+    // Remove markdown code blocks if present
+    if (aiText.startsWith('```json')) {
+      aiText = aiText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    } else if (aiText.startsWith('```')) {
+      aiText = aiText.replace(/```\n?/g, '');
+    }
+    
+    // If the response is a JSON string (wrapped in quotes), parse it first
+    if (aiText.startsWith('"') && aiText.endsWith('"')) {
+      try {
+        // Remove outer quotes and parse as JSON string
+        aiText = JSON.parse(aiText);
+        console.log('📝 Unwrapped JSON string:', aiText);
+      } catch (e) {
+        console.log('⚠️ Could not unwrap JSON string, continuing...');
+      }
+    }
+    
+    // Try to extract JSON array if it's embedded in text
+    const arrayMatch = aiText.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      aiText = arrayMatch[0];
+    }
+
+    try {
+      const ideas = JSON.parse(aiText);
+      
+      // Validate it's an array
+      if (!Array.isArray(ideas)) {
+        throw new Error('Response is not an array');
+      }
+      
+      console.log('✅ Generated recipe ideas:', ideas);
+      return ideas;
+    } catch (parseError: any) {
+      console.error('❌ JSON parse failed. Raw text:', aiText);
+      throw new Error(`Invalid JSON response: ${parseError.message}`);
+    }
+  } catch (error: any) {
+    console.error('❌ Failed to generate recipe ideas:', error);
+    throw new Error(`Failed to generate ideas: ${error.message}`);
+  }
+}
+
+/**
+ * Search for the best recipe URL for a given dish name
+ * Uses AI to generate most likely URL from popular recipe sites
+ * @param dishName - Name of the dish to search for
+ */
+export async function searchRecipeUrl(dishName: string): Promise<string> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    throw new Error('API_KEY_NOT_CONFIGURED');
+  }
+
+  console.log(`🔍 Finding recipe URL for: "${dishName}"`);
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const prompt = `Generate the most likely recipe URL for: "${dishName}"
+
+Popular recipe sites:
+- AllRecipes: https://www.allrecipes.com/recipe/[id]/[dish-name]/
+- Simply Recipes: https://www.simplyrecipes.com/recipes/[dish_name]/
+- Serious Eats: https://www.seriouseats.com/[dish-name-recipe]
+- Food Network: https://www.foodnetwork.com/recipes/[chef]/[dish-name]
+- Bon Appetit: https://www.bonappetit.com/recipe/[dish-name]
+- Chinese (if dish is Chinese): 
+  - https://www.xiachufang.com/search/?keyword=${encodeURIComponent(dishName)}
+  - https://www.meishij.net/search/?q=${encodeURIComponent(dishName)}
+
+Instructions:
+1. If it's a Chinese dish (like 宫保鸡丁), use Chinese recipe sites
+2. For Western dishes, use AllRecipes, Simply Recipes, or Serious Eats
+3. Format the URL to match the site's pattern
+4. Use lowercase, hyphens for spaces
+5. Make it as specific as possible
+
+Return ONLY the complete URL (starting with https://), nothing else.`;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    let url = response.text().trim();
+    
+    // Clean up the URL
+    url = url.replace(/```/g, '').replace(/\n/g, '').trim();
+    
+    // Validate URL format
+    try {
+      new URL(url);
+      console.log('✅ Generated recipe URL:', url);
+      return url;
+    } catch {
+      // If AI fails, construct a search URL for AllRecipes
+      const searchUrl = `https://www.allrecipes.com/search?q=${encodeURIComponent(dishName)}`;
+      console.log('⚠️ AI URL invalid, using AllRecipes search:', searchUrl);
+      return searchUrl;
+    }
+  } catch (error: any) {
+    console.error('❌ Failed to generate recipe URL:', error);
+    // Fallback to AllRecipes search
+    const searchUrl = `https://www.allrecipes.com/search?q=${encodeURIComponent(dishName)}`;
+    console.log('🔄 Falling back to AllRecipes search:', searchUrl);
+    return searchUrl;
+  }
 }
 
