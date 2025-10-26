@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { UserProfile, WeeklyPlan, ShoppingItem, PrepTask, Recipe } from '../types';
+import { UserProfile, WeeklyPlan, ShoppingItem, PrepTask, Recipe, RecipeCategory } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useRecipes } from '../hooks/useRecipes';
+import { useMealPlans } from '../hooks/useMealPlans';
 import { User } from 'firebase/auth';
 
 interface AppContextType {
@@ -17,11 +18,16 @@ interface AppContextType {
   updateRecipe: (recipeId: string, updates: Partial<Recipe>) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
   toggleFavorite: (recipeId: string, currentValue: boolean) => Promise<void>;
+  // Meal Plans (Firebase)
+  mealPlans: WeeklyPlan[];
+  currentWeeklyPlan: WeeklyPlan | null;
+  mealPlansLoading: boolean;
+  saveMealPlan: (plan: Omit<WeeklyPlan, 'id' | 'createdAt'> | WeeklyPlan) => Promise<string | undefined>;
+  deleteMealPlan: (planId: string) => Promise<void>;
+  setCurrentWeeklyPlan: (plan: WeeklyPlan | null) => void;
   // Legacy/Local state
   userProfile: UserProfile | null;
   setUserProfile: (profile: UserProfile) => void;
-  currentWeeklyPlan: WeeklyPlan | null;
-  setCurrentWeeklyPlan: (plan: WeeklyPlan) => void;
   shoppingList: ShoppingItem[];
   setShoppingList: (items: ShoppingItem[]) => void;
   prepTasks: PrepTask[];
@@ -34,6 +40,8 @@ interface AppContextType {
   setSelectedRecipe: (recipe: Recipe | null) => void;
   draftRecipe: Partial<Recipe> | null;
   setDraftRecipe: (recipe: Partial<Recipe> | null) => void;
+  pendingMealType: RecipeCategory | null;
+  setPendingMealType: (type: RecipeCategory | null) => void;
   isAddRecipeModalOpen: boolean;
   setIsAddRecipeModalOpen: (isOpen: boolean) => void;
   isRecipeDetailsModalOpen: boolean;
@@ -58,15 +66,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toggleFavorite
   } = useRecipes(user?.uid || null);
 
+  // Firebase Meal Plans
+  const {
+    mealPlans,
+    currentPlan,
+    loading: mealPlansLoading,
+    saveMealPlan,
+    deleteMealPlan,
+    setCurrentPlan
+  } = useMealPlans(user?.uid || null);
+
   // Local state (not synced to Firebase yet)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [currentWeeklyPlan, setCurrentWeeklyPlan] = useState<WeeklyPlan | null>(null);
   const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([]);
   const [prepTasks, setPrepTasks] = useState<PrepTask[]>([]);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [selectedMealForSwap, setSelectedMealForSwap] = useState<{ dayIndex: number; mealType: string } | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [draftRecipe, setDraftRecipe] = useState<Partial<Recipe> | null>(null);
+  const [pendingMealType, setPendingMealType] = useState<RecipeCategory | null>(null);
   const [isAddRecipeModalOpen, setIsAddRecipeModalOpen] = useState(false);
   const [isRecipeDetailsModalOpen, setIsRecipeDetailsModalOpen] = useState(false);
   const [isRecipeEditFormOpen, setIsRecipeEditFormOpen] = useState(false);
@@ -86,11 +104,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateRecipe,
         deleteRecipe,
         toggleFavorite,
+        // Meal Plans (Firebase)
+        mealPlans,
+        currentWeeklyPlan: currentPlan,
+        mealPlansLoading,
+        saveMealPlan,
+        deleteMealPlan,
+        setCurrentWeeklyPlan: setCurrentPlan,
         // Local state
         userProfile,
         setUserProfile,
-        currentWeeklyPlan,
-        setCurrentWeeklyPlan,
         shoppingList,
         setShoppingList,
         prepTasks,
@@ -103,6 +126,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSelectedRecipe,
         draftRecipe,
         setDraftRecipe,
+        pendingMealType,
+        setPendingMealType,
         isAddRecipeModalOpen,
         setIsAddRecipeModalOpen,
         isRecipeDetailsModalOpen,

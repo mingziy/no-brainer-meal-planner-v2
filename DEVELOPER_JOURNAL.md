@@ -287,3 +287,86 @@
 - Added retry logic for Gemini API overload (503 errors)
 - Improved error messages and user feedback
 
+### Meal Planning System
+- **Multiple recipes per meal**: Each meal (Breakfast, Lunch, Dinner) now supports arrays of recipes
+- Users can add chicken AND duck to the same meal slot
+- Updated `DayPlan` type: changed from single recipe to recipe arrays
+- Redesigned Today Screen with vertical meal sections (replaced 2x2 grid)
+- Each recipe displays as clickable card with image, name, time, and calories
+- Click any recipe card to view full details (ingredients, instructions, nutrition)
+
+### Recipe Details Modal Enhancement
+- Updated modal to accept props (recipe, onClose) for flexible usage
+- Maintains backward compatibility with App context for other screens
+- Modal now works from both Recipe Library and Today Screen
+- Fixed issue where modal wasn't displaying from Today Screen
+
+### Weekly Meal Planner Updates
+- Supports multiple recipes per meal slot
+- "Add More" button after first recipe in each meal
+- Individual remove buttons for each recipe in a meal
+- Shopping list generation from all recipes in weekly plan
+- Auto-save meal plan changes
+- "Save Meal Plan" and "Generate Shopping List" buttons
+- Plan edits automatically update shopping list (preserves checked items)
+
+### Shopping List Improvements
+- Extracts **base ingredient names** only (no processing details)
+- "minced garlic" → "Garlic"
+- "boneless skinless chicken breast" → "Chicken breast"
+- Removes words: minced, diced, chopped, sliced, fresh, frozen, large, medium, etc.
+- Simplified display (no quantities shown for now)
+- Categories: produce, meat, dairy, pantry
+
+### Daily Nutrition Goals Card
+- **Calorie tracking**: Shows total daily calories with % of 2000 cal goal
+- Averages calories when multiple recipes in a meal (e.g., 2 breakfast recipes)
+- **FDA Daily Values** for macronutrients:
+  - Protein: 50g
+  - Carbohydrates: 275g
+  - Total Fat: 78g
+  - Dietary Fiber: 28g
+- Progress bars with %DV for each nutrient
+- Smart feedback messages based on calorie and protein goals
+- Blue progress bar for calories, color-coded bars for macros
+
+### Home Screen Updates
+- Displays saved weekly plan with all recipes per meal
+- "Today's Steps" button links to daily cooking view
+- "Edit Week" button for meal plan management
+- Shows all recipes for each meal type (multiple per meal)
+
+### Dynamic Tagging System
+- **Expanded categories** with 30+ tags:
+  - Meal Timing: Breakfast, Lunch, Dinner, Snack
+  - Protein Type: Beef, Chicken, Pork, Fish, Shellfish, Turkey, Lamb, Tofu, Eggs
+  - Cooking Method: Batch-Cook, One-Pot, No-Cook, Slow-Cooker, Air-Fryer, Instant-Pot
+  - Time/Effort: Quick, 30-Min, Make-Ahead, Freezer-Friendly
+  - Dietary: Vegetarian, Vegan, Gluten-Free, Dairy-Free, Low-Carb, Keto
+  - Goal-Based: High-Protein, Veggie-Rich, Balanced, Healthy
+  - Audience: Kid-Friendly, Toddler-Friendly, Picky-Eater-Friendly
+  - Occasion: Meal-Prep, Comfort-Food, Leftover-Friendly
+- Changed from badge UI to dropdown menus (one per category group)
+- AI automatically fills tags during recipe extraction
+- **Dynamic tag learning**: New tags (e.g., "Duck") automatically added to appropriate dropdown
+- Regex-based inference for categorizing new custom tags
+- "None" and "+ Custom..." options in each dropdown
+
+### Technical Improvements
+- Proper type definitions for multiple recipes per meal
+- Array-based meal storage and retrieval
+- Improved state management for meal plans
+- Better error handling and loading states
+- Removed unused child nutrition recommendations
+
+### Bug Fixes (Session)
+- Fixed recipe card clicks not opening modal (prop vs context issue)
+- Fixed dropdown overlapping in recipe edit form (z-index and portal issues)
+- Fixed meal plan save functionality
+- Fixed function definition order for calorie calculations
+- Resolved TypeScript errors with recipe arrays
+
+### Known Issues
+- Calories progress bar display issue (minor visual bug, functionality works)
+- Need to investigate calorie bar rendering in production
+

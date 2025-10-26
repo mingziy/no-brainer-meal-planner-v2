@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Recipe, Ingredient, RecipeCategory, RecipeCuisine } from '../../types';
 import {
@@ -35,6 +35,9 @@ export function RecipeEditForm() {
     addRecipe,
     updateRecipe,
     setSelectedRecipe,
+    pendingMealType,
+    setPendingMealType,
+    recipes, // Access all recipes to learn from
   } = useApp();
 
   // Form state
@@ -95,14 +98,125 @@ export function RecipeEditForm() {
     'Other',
   ];
 
-  const categoryOptions: RecipeCategory[] = [
-    'Breakfast',
-    'Lunch',
-    'Dinner',
-    'Snack',
-    'Kid-Friendly',
-    'Batch-Cook Friendly',
-  ];
+  // Base options for each category group (seed values)
+  const baseCategoryGroups = {
+    'Meal Type': ['Breakfast', 'Lunch', 'Dinner', 'Snack'] as RecipeCategory[],
+    'Protein Type': ['Chicken', 'Beef', 'Pork', 'Fish', 'Shellfish', 'Turkey', 'Lamb', 'Tofu', 'Eggs'] as RecipeCategory[],
+    'Dietary': ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Low-Carb', 'Keto'] as RecipeCategory[],
+    'Cooking Method': ['One-Pot', 'Slow-Cooker', 'Air-Fryer', 'Instant-Pot', 'No-Cook', 'Batch-Cook Friendly'] as RecipeCategory[],
+    'Time': ['Quick', '30-Min', 'Make-Ahead', 'Freezer-Friendly'] as RecipeCategory[],
+    'Goal': ['High-Protein', 'Veggie-Rich', 'Balanced', 'Healthy'] as RecipeCategory[],
+    'Audience': ['Kid-Friendly', 'Toddler-Friendly', 'Picky-Eater-Friendly', 'Meal-Prep', 'Comfort-Food', 'Leftover-Friendly'] as RecipeCategory[],
+  };
+
+  // Learn new tags from existing recipes and merge with base options
+  const categoryGroups = useMemo(() => {
+    const learned: Record<string, Set<RecipeCategory>> = {
+      'Meal Type': new Set(baseCategoryGroups['Meal Type']),
+      'Protein Type': new Set(baseCategoryGroups['Protein Type']),
+      'Dietary': new Set(baseCategoryGroups['Dietary']),
+      'Cooking Method': new Set(baseCategoryGroups['Cooking Method']),
+      'Time': new Set(baseCategoryGroups['Time']),
+      'Goal': new Set(baseCategoryGroups['Goal']),
+      'Audience': new Set(baseCategoryGroups['Audience']),
+    };
+
+    // Extract all unique tags from existing recipes
+    recipes.forEach(recipe => {
+      recipe.categories.forEach(cat => {
+        // First, check if tag already exists in base groups
+        let groupFound = false;
+        
+        for (const [groupName, baseTags] of Object.entries(baseCategoryGroups)) {
+          if (baseTags.includes(cat)) {
+            learned[groupName].add(cat);
+            groupFound = true;
+            break;
+          }
+        }
+
+        // Only infer group for completely new custom tags
+        if (!groupFound) {
+          const catLower = cat.toLowerCase();
+          
+          // Protein-like words (most specific first)
+          if (/^(chicken|beef|pork|fish|shellfish|turkey|lamb|tofu|eggs|duck|salmon|shrimp|crab|lobster|venison|goat|rabbit|quail|tuna|cod|halibut|tilapia|scallops|clams|mussels|oysters)$/i.test(catLower)) {
+            learned['Protein Type'].add(cat);
+          }
+          // Dietary-like words
+          else if (/^(vegetarian|vegan|gluten-free|dairy-free|low-carb|keto|paleo|whole30|fodmap)$/i.test(catLower)) {
+            learned['Dietary'].add(cat);
+          }
+          // Cooking method-like words
+          else if (/(pot|cooker|fryer|grill|bake|roast|steam|microwave|pressure|instant-pot|air-fryer|slow-cooker)/i.test(catLower)) {
+            learned['Cooking Method'].add(cat);
+          }
+          // Time-like words
+          else if (/(quick|30-min|\d+-min|make-ahead|freezer|prep)/i.test(catLower)) {
+            learned['Time'].add(cat);
+          }
+          // Goal-like words
+          else if (/(high-protein|veggie|balanced|healthy|low-cal|fiber|comfort)/i.test(catLower)) {
+            learned['Goal'].add(cat);
+          }
+          // Meal type-like (just in case)
+          else if (/^(breakfast|lunch|dinner|snack)$/i.test(catLower)) {
+            learned['Meal Type'].add(cat);
+          }
+          // Default to Audience for everything else
+          else {
+            learned['Audience'].add(cat);
+          }
+        }
+      });
+    });
+
+    // Convert Sets back to sorted arrays
+    return Object.entries(learned).reduce((acc, [groupName, tags]) => {
+      acc[groupName] = Array.from(tags).sort() as RecipeCategory[];
+      return acc;
+    }, {} as Record<string, RecipeCategory[]>);
+  }, [recipes]);
+
+  // Helper to get selected tag from a group
+  const getSelectedFromGroup = (groupTags: RecipeCategory[]): string => {
+    const selected = categories.find(cat => groupTags.includes(cat));
+    return selected || 'None';
+  };
+
+  // State for custom tag input
+  const [customTagGroup, setCustomTagGroup] = useState<string | null>(null);
+  const [customTagValue, setCustomTagValue] = useState('');
+
+  // Helper to update tag from a group (single-select per group)
+  const updateTagFromGroup = (groupTags: RecipeCategory[], newValue: string, groupName: string) => {
+    // If "Custom" is selected, show input
+    if (newValue === 'Custom') {
+      setCustomTagGroup(groupName);
+      setCustomTagValue('');
+      return;
+    }
+
+    // Remove any existing tag from this group
+    const filtered = categories.filter(cat => !groupTags.includes(cat));
+    // Add new tag if not "None"
+    if (newValue !== 'None') {
+      setCategories([...filtered, newValue as RecipeCategory]);
+    } else {
+      setCategories(filtered);
+    }
+  };
+
+  // Save custom tag
+  const saveCustomTag = () => {
+    if (!customTagValue.trim() || !customTagGroup) return;
+    
+    const groupTags = categoryGroups[customTagGroup] || [];
+    const filtered = categories.filter(cat => !groupTags.includes(cat));
+    setCategories([...filtered, customTagValue.trim() as RecipeCategory]);
+    setCustomTagGroup(null);
+    setCustomTagValue('');
+  };
 
   const mineralOptions = ['Low', 'Moderate', 'Good Source', 'Excellent'];
 
@@ -127,7 +241,15 @@ export function RecipeEditForm() {
         setName(draftRecipe.name || '');
         setImage(draftRecipe.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop');
         setCuisine(draftRecipe.cuisine || 'Other');
-        setCategories(draftRecipe.categories || []);
+        
+        // Auto-add pending meal type if set
+        let initialCategories = draftRecipe.categories || [];
+        if (pendingMealType && !initialCategories.includes(pendingMealType)) {
+          initialCategories = [...initialCategories, pendingMealType];
+          setPendingMealType(null); // Clear after using
+        }
+        setCategories(initialCategories);
+        
         setPrepTime(draftRecipe.prepTime || 0);
         setCookTime(draftRecipe.cookTime || 0);
         setServings(draftRecipe.servings || 0);
@@ -618,23 +740,6 @@ export function RecipeEditForm() {
                 </Select>
               </div>
 
-              {/* Categories */}
-              <div className="space-y-2">
-                <Label>Categories</Label>
-                <div className="flex flex-wrap gap-2">
-                  {categoryOptions.map((category) => (
-                    <Badge
-                      key={category}
-                      variant={categories.includes(category) ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => handleToggleCategory(category)}
-                    >
-                      {category}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
               {/* Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -824,6 +929,82 @@ export function RecipeEditForm() {
                     placeholder="e.g., 1/2 cup"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Categories/Tags - Moved to end for better dropdown space */}
+            <div className="space-y-4 mt-6">
+              <h3 className="font-semibold">Categories & Tags</h3>
+              <p className="text-sm text-muted-foreground">Select one option per category or add custom tags</p>
+              <div className="grid grid-cols-2 gap-4">
+                {Object.entries(categoryGroups).map(([groupName, groupTags]) => (
+                  <div key={groupName} className="space-y-2">
+                    <Label className="text-sm font-medium">{groupName}</Label>
+                    {customTagGroup === groupName ? (
+                      // Show custom input
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Type custom tag..."
+                          value={customTagValue}
+                          onChange={(e) => setCustomTagValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              saveCustomTag();
+                            } else if (e.key === 'Escape') {
+                              setCustomTagGroup(null);
+                              setCustomTagValue('');
+                            }
+                          }}
+                          autoFocus
+                          className="flex-1 h-10"
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          onClick={saveCustomTag}
+                          disabled={!customTagValue.trim()}
+                          className="h-10 w-10 shrink-0"
+                        >
+                          ✓
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          onClick={() => {
+                            setCustomTagGroup(null);
+                            setCustomTagValue('');
+                          }}
+                          className="h-10 w-10 shrink-0"
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      // Show dropdown
+                      <Select
+                        value={getSelectedFromGroup(groupTags)}
+                        onValueChange={(value) => updateTagFromGroup(groupTags, value, groupName)}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          <SelectItem value="None">None</SelectItem>
+                          {groupTags.map((tag) => (
+                            <SelectItem key={tag} value={tag}>
+                              {tag}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="Custom" className="text-primary font-medium">
+                            + Add Custom...
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
         </div>

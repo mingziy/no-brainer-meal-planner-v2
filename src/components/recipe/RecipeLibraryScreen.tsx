@@ -47,17 +47,29 @@ export function RecipeLibraryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  // Define categories with "All" and "Favorites" first
+  // Define filter categories - organized by most useful for filtering
   const categories: Array<{ key: string; label: string }> = [
     { key: 'All', label: t('categories.all') },
     { key: 'Favorites ❤️', label: t('categories.favorites') },
-    { key: 'Korean', label: t('categories.korean') },
-    { key: 'Chinese', label: t('categories.chinese') },
-    { key: 'Italian', label: t('categories.italian') },
-    { key: 'Kid-Friendly', label: t('categories.kidFriendly') },
+    // Meal Types
     { key: 'Breakfast', label: t('categories.breakfast') },
     { key: 'Lunch', label: t('categories.lunch') },
     { key: 'Dinner', label: t('categories.dinner') },
+    { key: 'Snack', label: 'Snack' },
+    // Popular Protein Filters
+    { key: 'Chicken', label: 'Chicken' },
+    { key: 'Beef', label: 'Beef' },
+    { key: 'Fish', label: 'Fish' },
+    { key: 'Vegetarian', label: 'Vegetarian' },
+    // Cuisines
+    { key: 'Korean', label: t('categories.korean') },
+    { key: 'Chinese', label: t('categories.chinese') },
+    { key: 'Italian', label: t('categories.italian') },
+    // Useful Filters
+    { key: 'Kid-Friendly', label: t('categories.kidFriendly') },
+    { key: 'Quick', label: 'Quick' },
+    { key: '30-Min', label: '30-Min' },
+    { key: 'One-Pot', label: 'One-Pot' },
     { key: 'Batch-Cook Friendly', label: t('categories.batchCook') },
   ];
 

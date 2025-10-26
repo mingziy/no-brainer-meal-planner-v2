@@ -13,15 +13,25 @@ import { Badge } from '../ui/badge';
 import { Edit, Clock, Heart, FileText, ExternalLink, Calculator } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
-export function RecipeDetailsModal() {
+interface RecipeDetailsModalProps {
+  recipe?: any; // Optional prop, if not provided, use context
+  onClose?: () => void; // Optional close handler
+}
+
+export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }: RecipeDetailsModalProps = {}) {
   const { t, i18n } = useTranslation('recipe');
   const {
-    selectedRecipe,
+    selectedRecipe: contextRecipe,
     isRecipeDetailsModalOpen,
     setIsRecipeDetailsModalOpen,
     setIsRecipeEditFormOpen,
     toggleFavorite,
   } = useApp();
+
+  // Use prop if provided, otherwise use context
+  const selectedRecipe = recipeProp || contextRecipe;
+  const isOpen = recipeProp ? true : isRecipeDetailsModalOpen;
+  const handleClose = onCloseProp || (() => setIsRecipeDetailsModalOpen(false));
 
   const [showOriginalText, setShowOriginalText] = useState(false);
   const [showNutritionReasoning, setShowNutritionReasoning] = useState(false);
@@ -58,7 +68,7 @@ export function RecipeDetailsModal() {
 
   return (
     <>
-    <Dialog open={isRecipeDetailsModalOpen} onOpenChange={setIsRecipeDetailsModalOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="recipe-details-description">
         <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
           <div className="flex items-start justify-between">

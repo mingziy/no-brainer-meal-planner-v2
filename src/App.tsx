@@ -5,8 +5,7 @@ import { RecipeLibraryScreen } from './components/recipe/RecipeLibraryScreen';
 import { AddRecipeModal } from './components/recipe/AddRecipeModal';
 import { RecipeDetailsModal } from './components/recipe/RecipeDetailsModal';
 import { RecipeEditForm } from './components/recipe/RecipeEditForm';
-import { PlanSetupScreen } from './components/planning/PlanSetupScreen';
-import { WeeklyReviewScreen } from './components/planning/WeeklyReviewScreen';
+import { WeeklyPlanScreen } from './components/planning/WeeklyPlanScreen';
 import { ShoppingListScreen } from './components/shopping/ShoppingListScreen';
 import { PrepHubScreen } from './components/shopping/PrepHubScreen';
 import { TodayScreen } from './components/daily/TodayScreen';
@@ -39,9 +38,8 @@ function AppContent() {
       case 'recipes':
         return <RecipeLibraryScreen />;
       case 'plan-setup':
-        return <PlanSetupScreen />;
       case 'weekly-review':
-        return <WeeklyReviewScreen />;
+        return <WeeklyPlanScreen />;
       case 'shopping-list':
         return <ShoppingListScreen />;
       case 'prep-hub':

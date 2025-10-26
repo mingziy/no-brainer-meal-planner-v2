@@ -36,10 +36,10 @@ export interface Meal {
 
 export interface DayPlan {
   day: string;
-  breakfast: Meal;
-  lunch: Meal;
-  dinner: Meal;
-  snacks: Meal[];
+  breakfast: Recipe[];  // Array of recipes for breakfast
+  lunch: Recipe[];      // Array of recipes for lunch
+  dinner: Recipe[];     // Array of recipes for dinner
+  snacks: Recipe[];     // Array of snack recipes
 }
 
 export interface WeeklyPlan {
@@ -75,12 +75,60 @@ export interface Ingredient {
 }
 
 export type RecipeCategory = 
+  // Meal Timing
   | 'Breakfast' 
   | 'Lunch' 
   | 'Dinner' 
   | 'Snack' 
-  | 'Kid-Friendly' 
-  | 'Batch-Cook Friendly';
+  
+  // Audience
+  | 'Kid-Friendly'
+  | 'Toddler-Friendly'
+  | 'Picky-Eater-Friendly'
+  
+  // Protein Type
+  | 'Beef'
+  | 'Chicken'
+  | 'Pork'
+  | 'Fish'
+  | 'Shellfish'
+  | 'Turkey'
+  | 'Lamb'
+  | 'Tofu'
+  | 'Eggs'
+  
+  // Cooking Method
+  | 'Batch-Cook Friendly'
+  | 'One-Pot'
+  | 'No-Cook'
+  | 'Slow-Cooker'
+  | 'Air-Fryer'
+  | 'Instant-Pot'
+  
+  // Time/Effort
+  | 'Quick'
+  | '30-Min'
+  | 'Make-Ahead'
+  | 'Freezer-Friendly'
+  
+  // Dietary
+  | 'Vegetarian'
+  | 'Vegan'
+  | 'Gluten-Free'
+  | 'Dairy-Free'
+  | 'Low-Carb'
+  | 'Keto'
+  
+  // Goal-Based
+  | 'High-Protein'
+  | 'Veggie-Rich'
+  | 'Balanced'
+  
+  // Occasion
+  | 'Meal-Prep'
+  | 'Comfort-Food'
+  | 'Healthy'
+  | 'Leftover-Friendly';
 
 export type RecipeCuisine = 
   | 'Korean' 

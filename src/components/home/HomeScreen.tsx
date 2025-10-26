@@ -4,9 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useApp } from '../../context/AppContext';
 import { BottomNav } from '../shared/BottomNav';
 import { UserButton } from '../auth/UserButton';
+import { useState, useEffect } from 'react';
 
 export function HomeScreen() {
   const { userProfile, currentWeeklyPlan, setCurrentScreen } = useApp();
+  const [showContent, setShowContent] = useState(false);
+  
+  // Small delay to let localStorage/Firebase load before showing content
+  useEffect(() => {
+    const timer = setTimeout(() => setShowContent(true), 150);
+    return () => clearTimeout(timer);
+  }, []);
   
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   const todaysPlan = currentWeeklyPlan?.days.find(d => d.day === today);
@@ -22,61 +30,110 @@ export function HomeScreen() {
           <UserButton />
         </div>
 
-        <Card 
-          className="bg-primary text-primary-foreground cursor-pointer hover:opacity-90 transition-opacity"
-          onClick={() => setCurrentScreen('plan-setup')}
-        >
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-primary-foreground">
-              <Calendar className="w-6 h-6" />
-              Plan Your Week
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-primary-foreground/90">
-              Get a personalized meal plan with shopping list and prep instructions
-            </p>
-          </CardContent>
-        </Card>
+        {!showContent ? (
+          // Brief loading to prevent flash
+          <div className="h-32" />
+        ) : currentWeeklyPlan ? (
+          // Has a meal plan - show today's plan or weekly plan
+          <>
+            {todaysPlan ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Today's Plan ({today})</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {todaysPlan.breakfast.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-muted-foreground text-sm">Breakfast</p>
+                      {todaysPlan.breakfast.map((recipe, i) => (
+                        <p key={i} className="font-medium">{recipe.name}</p>
+                      ))}
+                    </div>
+                  )}
+                  {todaysPlan.lunch.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-muted-foreground text-sm">Lunch</p>
+                      {todaysPlan.lunch.map((recipe, i) => (
+                        <p key={i} className="font-medium">{recipe.name}</p>
+                      ))}
+                    </div>
+                  )}
+                  {todaysPlan.dinner.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-muted-foreground text-sm">Dinner</p>
+                      {todaysPlan.dinner.map((recipe, i) => (
+                        <p key={i} className="font-medium">{recipe.name}</p>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => setCurrentScreen('today')}
+                    >
+                      Today's Steps
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      className="flex-1"
+                      onClick={() => setCurrentScreen('weekly-review')}
+                    >
+                      Edit Week
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Weekly Plan</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-4">
+                    You have a saved meal plan for the week!
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => setCurrentScreen('weekly-review')}
+                  >
+                    View & Edit Week
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        ) : (
+          // No meal plan - show "Plan Your Week" card
+          <>
+            <Card 
+              className="bg-primary text-primary-foreground cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => setCurrentScreen('plan-setup')}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-primary-foreground">
+                  <Calendar className="w-6 h-6" />
+                  Plan Your Week
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-primary-foreground/90">
+                  Get a personalized meal plan with shopping list and prep instructions
+                </p>
+              </CardContent>
+            </Card>
 
-        {todaysPlan && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Today's Plan</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <p className="text-muted-foreground text-sm">Breakfast</p>
-                <p>{todaysPlan.breakfast.name}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-muted-foreground text-sm">Lunch</p>
-                <p>{todaysPlan.lunch.name}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-muted-foreground text-sm">Dinner</p>
-                <p>{todaysPlan.dinner.name}</p>
-              </div>
-              <Button 
-                variant="outline" 
-                className="w-full mt-4"
-                onClick={() => setCurrentScreen('today')}
-              >
-                See Today's Steps
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {!currentWeeklyPlan && (
-          <Card className="bg-secondary/30">
-            <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground">
-                No meal plan yet. Start by planning your week!
-              </p>
-            </CardContent>
-          </Card>
+            <Card className="bg-secondary/30">
+              <CardContent className="pt-6">
+                <p className="text-center text-muted-foreground">
+                  No meal plan yet. Start by planning your week!
+                </p>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
 

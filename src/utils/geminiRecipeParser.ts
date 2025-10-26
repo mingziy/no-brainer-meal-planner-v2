@@ -2,6 +2,61 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Recipe } from '../types';
 
 /**
+ * Clean ingredient names using AI to remove processing details and punctuation
+ * Batch processes multiple ingredients in one API call for efficiency
+ */
+export async function cleanIngredientNames(ingredientNames: string[]): Promise<string[]> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('⚠️ Gemini API key not configured, falling back to regex cleaning');
+    return ingredientNames; // Fallback to original names
+  }
+
+  try {
+    console.log('🧹 Cleaning', ingredientNames.length, 'ingredient names with AI...');
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const prompt = `Clean these ingredient names for a shopping list. Remove ALL processing details, cooking instructions, punctuation, and descriptions. Return ONLY the core ingredient name.
+
+Examples:
+- "garlic (minced)" → "garlic"
+- "tomatoes, seeds removed" → "tomatoes"
+- "chicken breast, boneless skinless" → "chicken breast"
+- "olive oil (extra virgin)" → "olive oil"
+- "onion - diced" → "onion"
+- "bell pepper (red, chopped)" → "bell pepper"
+
+Ingredient names to clean (one per line):
+${ingredientNames.join('\n')}
+
+Return ONLY the cleaned names, one per line, in the same order. No explanations, no numbering, no extra text.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text().trim();
+    
+    // Split by newlines and clean up
+    const cleanedNames = text.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+    
+    // Validate we got the same number of results
+    if (cleanedNames.length !== ingredientNames.length) {
+      console.warn('⚠️ AI returned different number of ingredients, using originals');
+      return ingredientNames;
+    }
+    
+    console.log('✅ Cleaned ingredient names:', cleanedNames);
+    return cleanedNames;
+  } catch (error) {
+    console.error('❌ Error cleaning ingredient names with AI:', error);
+    return ingredientNames; // Fallback to original names
+  }
+}
+
+/**
  * Parse recipe text using Google Gemini AI
  * Falls back to local parser if AI fails
  * @param text - The recipe text to parse
@@ -35,7 +90,7 @@ Required JSON structure:
 {
   "name": "Recipe name (string)",
   "cuisine": "One of: Korean, Chinese, Italian, American, Mexican, Japanese, Other",
-  "categories": ["Array of: Breakfast, Lunch, Dinner, Snack, Kid-Friendly, Batch-Cook Friendly"],
+  "categories": ["Array of relevant tags from: Breakfast, Lunch, Dinner, Snack, Kid-Friendly, Toddler-Friendly, Picky-Eater-Friendly, Beef, Chicken, Pork, Fish, Shellfish, Turkey, Lamb, Tofu, Eggs, Batch-Cook Friendly, One-Pot, No-Cook, Slow-Cooker, Air-Fryer, Instant-Pot, Quick, 30-Min, Make-Ahead, Freezer-Friendly, Vegetarian, Vegan, Gluten-Free, Dairy-Free, Low-Carb, Keto, High-Protein, Veggie-Rich, Balanced, Meal-Prep, Comfort-Food, Healthy, Leftover-Friendly"],
   "prepTime": 15,
   "cookTime": 30,
   "servings": 4,
@@ -75,6 +130,10 @@ Required JSON structure:
 IMPORTANT Rules:
 - **PRESERVE THE ORIGINAL LANGUAGE**: If the recipe is in Chinese, output Chinese text for name, ingredients, and instructions. If in English, use English.
 - If cuisine is unclear, use "Other"
+- **CATEGORIES MUST BE ACCURATE**: Select ALL relevant tags (meal type + protein type + cooking method + dietary + goals). For example:
+  * Chicken stir-fry: ["Dinner", "Chicken", "Quick", "30-Min", "One-Pot", "High-Protein"]
+  * Vegan tofu scramble: ["Breakfast", "Tofu", "Vegetarian", "Vegan", "Quick", "High-Protein"]
+  * Slow cooker beef stew: ["Dinner", "Beef", "Slow-Cooker", "Comfort-Food", "Make-Ahead", "Batch-Cook Friendly"]
 - Extract all ingredients with amounts/units
 - Number each ingredient starting from "1"
 - Break instructions into clear steps
@@ -440,7 +499,7 @@ JSON format:
 {
   "name": "Recipe name",
   "cuisine": "Korean|Chinese|Italian|American|Mexican|Japanese|Other",
-  "categories": ["Breakfast|Lunch|Dinner|Snack|Kid-Friendly|Batch-Cook Friendly"],
+  "categories": ["Select all relevant from: Breakfast, Lunch, Dinner, Snack, Kid-Friendly, Toddler-Friendly, Picky-Eater-Friendly, Beef, Chicken, Pork, Fish, Shellfish, Turkey, Lamb, Tofu, Eggs, Batch-Cook Friendly, One-Pot, No-Cook, Slow-Cooker, Air-Fryer, Instant-Pot, Quick, 30-Min, Make-Ahead, Freezer-Friendly, Vegetarian, Vegan, Gluten-Free, Dairy-Free, Low-Carb, Keto, High-Protein, Veggie-Rich, Balanced, Meal-Prep, Comfort-Food, Healthy, Leftover-Friendly"],
   "prepTime": 15,
   "cookTime": 30,
   "servings": 4,
@@ -450,6 +509,7 @@ JSON format:
 
 Rules:
 - Preserve original language (Chinese/English)
+- **Select ALL relevant categories**: meal type + protein type + cooking method + dietary restrictions + time/effort
 - Extract all ingredients with amounts/units, number from "1"
 - Break instructions into clear steps
 - Times in minutes
