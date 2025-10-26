@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useApp } from '../../context/AppContext';
 import { BottomNav } from '../shared/BottomNav';
 import { Plus, Calendar, Sparkles, RefreshCw, ShoppingCart, Save } from 'lucide-react';
-import { Recipe, RecipeCategory, ShoppingItem } from '../../types';
+import { Recipe, RecipeCategory, ShoppingItem, QuickFood } from '../../types';
 import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
+import { defaultQuickFoods } from '../../data/quickFoods';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
@@ -16,7 +17,16 @@ interface DayMealPlan {
   lunch: Recipe[];
   dinner: Recipe[];
   snacks: Recipe[];
+  breakfastQuickFoods: QuickFood[];
+  lunchQuickFoods: QuickFood[];
+  dinnerQuickFoods: QuickFood[];
 }
+
+// Helper to get random quick foods for a meal
+const getRandomQuickFoods = (count: number): QuickFood[] => {
+  const shuffled = [...defaultQuickFoods].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+};
 
 export function WeeklyPlanScreen() {
   const { recipes, setIsAddRecipeModalOpen, setDraftRecipe, setPendingMealType, shoppingList, setShoppingList, setCurrentScreen, currentWeeklyPlan, setCurrentWeeklyPlan, saveMealPlan } = useApp();
@@ -37,12 +47,15 @@ export function WeeklyPlanScreen() {
           breakfast: Array.isArray(day.breakfast) ? day.breakfast : [],
           lunch: Array.isArray(day.lunch) ? day.lunch : [],
           dinner: Array.isArray(day.dinner) ? day.dinner : [],
-          snacks: Array.isArray(day.snacks) ? day.snacks : []
+          snacks: Array.isArray(day.snacks) ? day.snacks : [],
+          breakfastQuickFoods: day.breakfastQuickFoods || getRandomQuickFoods(2),
+          lunchQuickFoods: day.lunchQuickFoods || getRandomQuickFoods(2),
+          dinnerQuickFoods: day.dinnerQuickFoods || getRandomQuickFoods(2)
         };
       });
     }
     
-    // Otherwise create empty plan
+    // Otherwise create empty plan with auto-populated quick foods
     return days.map((day, index) => {
       const date = new Date(today);
       date.setDate(today.getDate() - today.getDay() + 1 + index); // Start from Monday
@@ -52,7 +65,10 @@ export function WeeklyPlanScreen() {
         breakfast: [],
         lunch: [],
         dinner: [],
-        snacks: []
+        snacks: [],
+        breakfastQuickFoods: getRandomQuickFoods(2),
+        lunchQuickFoods: getRandomQuickFoods(2),
+        dinnerQuickFoods: getRandomQuickFoods(2)
       };
     });
   });
@@ -81,6 +97,9 @@ export function WeeklyPlanScreen() {
       dinner: dinnerRecipes.length > 0 
         ? [dinnerRecipes[Math.floor(Math.random() * dinnerRecipes.length)]] 
         : [],
+      breakfastQuickFoods: getRandomQuickFoods(2),
+      lunchQuickFoods: getRandomQuickFoods(2),
+      dinnerQuickFoods: getRandomQuickFoods(2)
     })));
   };
   
@@ -185,7 +204,10 @@ export function WeeklyPlanScreen() {
           breakfast: day.breakfast as any,
           lunch: day.lunch as any,
           dinner: day.dinner as any,
-          snacks: day.snacks as any[]
+          snacks: day.snacks as any[],
+          breakfastQuickFoods: day.breakfastQuickFoods,
+          lunchQuickFoods: day.lunchQuickFoods,
+          dinnerQuickFoods: day.dinnerQuickFoods
         })),
         ...(currentWeeklyPlan?.createdAt && { createdAt: currentWeeklyPlan.createdAt }),
       };
@@ -410,6 +432,7 @@ export function WeeklyPlanScreen() {
                 <MealSlot
                   label="Breakfast"
                   recipes={day.breakfast}
+                  quickFoods={day.breakfastQuickFoods}
                   onAdd={() => setAddingMeal({ dayIndex, mealType: 'Breakfast' })}
                   onRemove={(index) => handleRemoveRecipe(dayIndex, 'Breakfast', index)}
                   onRandomPick={() => handleRandomPick(dayIndex, 'Breakfast')}
@@ -420,6 +443,7 @@ export function WeeklyPlanScreen() {
                 <MealSlot
                   label="Lunch"
                   recipes={day.lunch}
+                  quickFoods={day.lunchQuickFoods}
                   onAdd={() => setAddingMeal({ dayIndex, mealType: 'Lunch' })}
                   onRemove={(index) => handleRemoveRecipe(dayIndex, 'Lunch', index)}
                   onRandomPick={() => handleRandomPick(dayIndex, 'Lunch')}
@@ -430,6 +454,7 @@ export function WeeklyPlanScreen() {
                 <MealSlot
                   label="Dinner"
                   recipes={day.dinner}
+                  quickFoods={day.dinnerQuickFoods}
                   onAdd={() => setAddingMeal({ dayIndex, mealType: 'Dinner' })}
                   onRemove={(index) => handleRemoveRecipe(dayIndex, 'Dinner', index)}
                   onRandomPick={() => handleRandomPick(dayIndex, 'Dinner')}
@@ -516,17 +541,18 @@ export function WeeklyPlanScreen() {
   );
 }
 
-// Meal Slot Component - now handles multiple recipes
+// Meal Slot Component - now handles multiple recipes + quick foods
 interface MealSlotProps {
   label: string;
   recipes: Recipe[];
+  quickFoods?: QuickFood[];
   onAdd: () => void;
   onRemove: (index: number) => void;
   onRandomPick: () => void;
   onManualPick: () => void;
 }
 
-function MealSlot({ label, recipes, onAdd, onRemove, onRandomPick, onManualPick }: MealSlotProps) {
+function MealSlot({ label, recipes, quickFoods = [], onAdd, onRemove, onRandomPick, onManualPick }: MealSlotProps) {
   if (recipes.length === 0) {
     return (
       <div className="space-y-2">
@@ -547,6 +573,7 @@ function MealSlot({ label, recipes, onAdd, onRemove, onRandomPick, onManualPick 
     <div className="space-y-2">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <div className="space-y-2">
+        {/* Recipes */}
         {recipes.map((recipe, index) => (
           <div key={recipe.id} className="space-y-2">
             <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
@@ -567,6 +594,23 @@ function MealSlot({ label, recipes, onAdd, onRemove, onRandomPick, onManualPick 
             </div>
           </div>
         ))}
+        
+        {/* Quick Foods */}
+        {quickFoods.length > 0 && (
+          <div className="pl-4 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">+ Add-ons:</p>
+            <div className="flex flex-wrap gap-2">
+              {quickFoods.map((food, index) => (
+                <div key={`${food.id}-${index}`} className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full text-sm">
+                  <span className="text-lg">{food.emoji}</span>
+                  <span>{food.name}</span>
+                  <span className="text-xs text-muted-foreground">({food.calories} cal)</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         <div className="flex gap-2">
           <Button
             variant="outline"

@@ -40,6 +40,9 @@ export interface DayPlan {
   lunch: Recipe[];      // Array of recipes for lunch
   dinner: Recipe[];     // Array of recipes for dinner
   snacks: Recipe[];     // Array of snack recipes
+  breakfastQuickFoods?: QuickFood[];  // Quick add-ons for breakfast
+  lunchQuickFoods?: QuickFood[];      // Quick add-ons for lunch
+  dinnerQuickFoods?: QuickFood[];     // Quick add-ons for dinner
 }
 
 export interface WeeklyPlan {
@@ -47,6 +50,24 @@ export interface WeeklyPlan {
   cuisine: string;
   days: DayPlan[];
   createdAt: Date;
+}
+
+export interface QuickFood {
+  id: string;
+  name: string;
+  category: 'fruit' | 'veggie' | 'dairy' | 'grain' | 'protein' | 'snack' | 'drink';
+  emoji?: string; // emoji icon
+  image?: string; // optional image URL
+  calories: number;
+  servingSize: string; // "1 medium banana", "1 cup", etc.
+  nutrition: {
+    protein: number;  // grams
+    carbs: number;    // grams
+    fat: number;      // grams
+    fiber: number;    // grams
+  };
+  isCustom?: boolean; // user-created vs pre-populated
+  userId?: string;    // for custom items
 }
 
 export interface ShoppingItem {

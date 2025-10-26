@@ -1,4 +1,4 @@
-import { Home, ChefHat, ShoppingCart, User } from 'lucide-react';
+import { Home, ChefHat, ShoppingCart, Apple, User } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export function BottomNav() {
@@ -7,6 +7,7 @@ export function BottomNav() {
   const navItems = [
     { id: 'home', label: 'Home', icon: Home, screen: 'home' },
     { id: 'recipes', label: 'Recipes', icon: ChefHat, screen: 'recipes' },
+    { id: 'quickfoods', label: 'Quick Foods', icon: Apple, screen: 'quick-foods' },
     { id: 'shopping', label: 'Shopping', icon: ShoppingCart, screen: 'shopping-list' },
     { id: 'profile', label: 'Profile', icon: User, screen: 'profile' },
   ];

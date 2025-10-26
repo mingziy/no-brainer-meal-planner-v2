@@ -34,6 +34,13 @@ export function TodayScreen() {
     ...todaysPlan.snacks
   ];
   
+  // Get all quick foods from today's plan
+  const allQuickFoods = [
+    ...(todaysPlan.breakfastQuickFoods || []),
+    ...(todaysPlan.lunchQuickFoods || []),
+    ...(todaysPlan.dinnerQuickFoods || [])
+  ];
+  
   // FDA Daily Values (based on 2000 calorie diet)
   const dailyValues = {
     calories: 2000,
@@ -52,15 +59,30 @@ export function TodayScreen() {
   // Calculate average calories per meal (assuming 1 serving each)
   const getAverageCaloriesForMeal = (recipes: Recipe[]) => {
     if (recipes.length === 0) return 0;
-    const totalCalories = recipes.reduce((sum, recipe) => sum + (recipe.caloriesPerServing || 0), 0);
+    const totalCalories = recipes.reduce((sum, recipe) => {
+      // Divide total calories by servings to get per-serving value
+      const perServing = recipe.servings > 0 
+        ? recipe.caloriesPerServing / recipe.servings 
+        : recipe.caloriesPerServing;
+      return sum + perServing;
+    }, 0);
     return totalCalories / recipes.length;
   };
   
   const breakfastCalories = getAverageCaloriesForMeal(todaysPlan.breakfast);
   const lunchCalories = getAverageCaloriesForMeal(todaysPlan.lunch);
   const dinnerCalories = getAverageCaloriesForMeal(todaysPlan.dinner);
-  const snacksCalories = todaysPlan.snacks.reduce((sum, recipe) => sum + (recipe.caloriesPerServing || 0), 0);
-  const totalCalories = breakfastCalories + lunchCalories + dinnerCalories + snacksCalories;
+  const snacksCalories = todaysPlan.snacks.reduce((sum, recipe) => {
+    const perServing = recipe.servings > 0 
+      ? recipe.caloriesPerServing / recipe.servings 
+      : recipe.caloriesPerServing;
+    return sum + perServing;
+  }, 0);
+  
+  // Add quick foods calories
+  const quickFoodsCalories = allQuickFoods.reduce((sum, food) => sum + food.calories, 0);
+  
+  const totalCalories = breakfastCalories + lunchCalories + dinnerCalories + snacksCalories + quickFoodsCalories;
   
   console.log('Calorie breakdown:', {
     breakfast: breakfastCalories,
@@ -72,16 +94,55 @@ export function TodayScreen() {
     barWidth: `${Math.min(calculatePercentage(totalCalories, dailyValues.calories), 100)}%`
   });
   
-  // Sum up macronutrients (protein, carbs, fat, fiber) from all recipes
-  const dailyTotals = allRecipes.reduce(
-    (acc, recipe) => ({
-      protein: acc.protein + (recipe.nutrition.protein || 0),
-      carbs: acc.carbs + (recipe.nutrition.carbs || 0),
-      fat: acc.fat + (recipe.nutrition.fat || 0),
-      fiber: acc.fiber + (recipe.nutrition.fiber || 0),
+  // Sum up macronutrients from recipes (per serving)
+  const recipeTotals = allRecipes.reduce(
+    (acc, recipe) => {
+      // Divide by servings to get per-serving nutrition values
+      const perServingProtein = recipe.servings > 0 
+        ? (recipe.nutrition?.protein || 0) / recipe.servings 
+        : (recipe.nutrition?.protein || 0);
+      const perServingCarbs = recipe.servings > 0 
+        ? (recipe.nutrition?.carbs || 0) / recipe.servings 
+        : (recipe.nutrition?.carbs || 0);
+      const perServingFat = recipe.servings > 0 
+        ? (recipe.nutrition?.fat || 0) / recipe.servings 
+        : (recipe.nutrition?.fat || 0);
+      const perServingFiber = recipe.servings > 0 
+        ? (recipe.nutrition?.fiber || 0) / recipe.servings 
+        : (recipe.nutrition?.fiber || 0);
+      
+      console.log(`Recipe: ${recipe.name} (${recipe.servings} servings) - Per serving: Protein: ${perServingProtein.toFixed(1)}g, Carbs: ${perServingCarbs.toFixed(1)}g, Fat: ${perServingFat.toFixed(1)}g, Fiber: ${perServingFiber.toFixed(1)}g`);
+      
+      return {
+        protein: acc.protein + perServingProtein,
+        carbs: acc.carbs + perServingCarbs,
+        fat: acc.fat + perServingFat,
+        fiber: acc.fiber + perServingFiber,
+      };
+    },
+    { protein: 0, carbs: 0, fat: 0, fiber: 0 }
+  );
+  
+  // Add quick foods nutrition
+  const quickFoodsTotals = allQuickFoods.reduce(
+    (acc, food) => ({
+      protein: acc.protein + food.nutrition.protein,
+      carbs: acc.carbs + food.nutrition.carbs,
+      fat: acc.fat + food.nutrition.fat,
+      fiber: acc.fiber + food.nutrition.fiber,
     }),
     { protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
+  
+  // Combine recipes + quick foods
+  const dailyTotals = {
+    protein: recipeTotals.protein + quickFoodsTotals.protein,
+    carbs: recipeTotals.carbs + quickFoodsTotals.carbs,
+    fat: recipeTotals.fat + quickFoodsTotals.fat,
+    fiber: recipeTotals.fiber + quickFoodsTotals.fiber,
+  };
+  
+  console.log('Daily nutrition totals (recipes + quick foods):', dailyTotals);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -282,26 +343,33 @@ function MealSection({ title, recipes, onRecipeClick }: MealSectionProps) {
         <CardTitle className="text-lg">{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {recipes.map((recipe) => (
-          <div
-            key={recipe.id}
-            onClick={() => onRecipeClick(recipe)}
-            className="flex items-center gap-3 p-3 hover:bg-accent/50 rounded-lg cursor-pointer transition-colors"
-          >
-            <ImageWithFallback
-              src={recipe.image}
-              alt={recipe.name}
-              className="w-20 h-20 object-cover rounded"
-            />
-            <div className="flex-1">
-              <h4 className="font-medium">{recipe.name}</h4>
-              <p className="text-sm text-muted-foreground">
-                {recipe.prepTime + recipe.cookTime} min • {recipe.caloriesPerServing} cal/serving
-              </p>
+        {recipes.map((recipe) => {
+          // Calculate per-serving calories by dividing total by servings
+          const perServingCalories = recipe.servings > 0 
+            ? Math.round(recipe.caloriesPerServing / recipe.servings)
+            : recipe.caloriesPerServing;
+          
+          return (
+            <div
+              key={recipe.id}
+              onClick={() => onRecipeClick(recipe)}
+              className="flex items-center gap-3 p-3 hover:bg-accent/50 rounded-lg cursor-pointer transition-colors"
+            >
+              <ImageWithFallback
+                src={recipe.image}
+                alt={recipe.name}
+                className="w-20 h-20 object-cover rounded"
+              />
+              <div className="flex-1">
+                <h4 className="font-medium">{recipe.name}</h4>
+                <p className="text-sm text-muted-foreground">
+                  {perServingCalories} cal/serving
+                </p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );

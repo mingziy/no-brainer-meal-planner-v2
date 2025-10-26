@@ -10,6 +10,7 @@ import { ShoppingListScreen } from './components/shopping/ShoppingListScreen';
 import { PrepHubScreen } from './components/shopping/PrepHubScreen';
 import { TodayScreen } from './components/daily/TodayScreen';
 import { ProfileScreen } from './components/profile/ProfileScreen';
+import { QuickFoodsScreen } from './components/quickfoods/QuickFoodsScreen';
 
 function AppContent() {
   const { user, authLoading, currentScreen } = useApp();
@@ -37,6 +38,8 @@ function AppContent() {
         return <HomeScreen />;
       case 'recipes':
         return <RecipeLibraryScreen />;
+      case 'quick-foods':
+        return <QuickFoodsScreen />;
       case 'plan-setup':
       case 'weekly-review':
         return <WeeklyPlanScreen />;
