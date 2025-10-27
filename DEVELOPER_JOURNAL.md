@@ -1,5 +1,61 @@
 # Developer Journal - Meal Planner App
 
+## October 27, 2025
+
+### Edit Today's Meals Feature
+- Implemented Quick Edit Modal for daily meal editing:
+  - Edit breakfast, lunch, and dinner meals for current day
+  - Add/remove recipes with recipe picker (filtered by meal type)
+  - Add/remove quick foods with category-based picker
+  - Separate "+ Add Recipe" and "+ Add Quick Food" buttons for each meal
+  - Proper layout with recipes first, then quick foods section
+  - Scrollable modal with fixed header and footer buttons
+- Automatic shopping list regeneration after daily edits
+- Background AI cleaning of ingredients while showing immediate save confirmation
+
+### Quick Foods Category Picker
+- Redesigned quick food picker with two-level navigation:
+  - Level 1: Category grid view (Fruits, Veggies, Dairy, Grains, Protein, Snacks, Drinks)
+  - Level 2: Item list within selected category
+  - Back button to return to categories
+  - Visual design with large emoji icons and item counts
+
+### Shopping List Enhancements
+- Added quick foods to shopping list generation
+- Implemented deduplication:
+  - Case-insensitive matching to merge duplicates (e.g., "Ginger" + "ginger" → "Ginger")
+  - Cross-checking between recipe ingredients and quick foods
+- Proper capitalization of all items (first letter of each word)
+- Category improvements:
+  - Removed "Other" category - everything maps to Produce, Meat & Poultry, Dairy, or Pantry
+  - Fixed category order: Produce → Meat & Poultry → Dairy → Pantry
+  - Added emoji icons to category headers (🥬 Produce, 🍖 Meat & Poultry, 🥛 Dairy, 🍞 Pantry)
+- Alphabetical sorting within each category maintained
+
+### Meal Plan Overwrite Logic
+- Changed meal plan saving to always overwrite existing plan for the same week
+- Prevents duplicate plans in database
+- Maintains original `createdAt` timestamp, updates `updatedAt`
+- Cleaner database with one plan per week
+
+### Home Screen Meal Plan Display
+- Fixed issue where home screen showed wrong plan after edits
+- Updated `getThisWeekPlan()` and `getNextWeekPlan()` to return most recently created plan when multiple plans exist for same week
+- More robust date comparison with normalized timestamps
+
+### Shopping List Week Selector
+- Unified format for week labels: "This Week (Oct 27 - Nov 2)"
+- Shows relative label with actual date range for clarity
+- Deduplication logic to show only one entry per week (most recent)
+- Sorted display: This Week, Next Week, then past weeks by date
+
+### Technical Improvements
+- Shopping list generation moved to backend during meal plan save
+- AI ingredient cleaning happens in background with retry logic
+- Improved error handling for AI cleaning failures
+- Console logging for debugging shopping list generation
+- Fixed double-division bug in nutrition calculations
+
 ## October 21, 2025
 
 ### Initial Setup & Recipe Tab Implementation

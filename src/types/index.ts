@@ -48,8 +48,13 @@ export interface DayPlan {
 export interface WeeklyPlan {
   id: string;
   cuisine: string;
+  weekStartDate: Date;  // Monday of the week (start of week)
+  weekEndDate: Date;    // Sunday of the week (end of week)
+  weekLabel: string;    // "This Week", "Next Week", or "Dec 23-29, 2024"
   days: DayPlan[];
   createdAt: Date;
+  shoppingList?: ShoppingItem[];  // Shopping list associated with this week's plan
+  userId?: string;      // For Firestore queries
 }
 
 export interface QuickFood {

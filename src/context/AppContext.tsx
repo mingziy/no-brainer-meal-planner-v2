@@ -25,6 +25,13 @@ interface AppContextType {
   saveMealPlan: (plan: Omit<WeeklyPlan, 'id' | 'createdAt'> | WeeklyPlan) => Promise<string | undefined>;
   deleteMealPlan: (planId: string) => Promise<void>;
   setCurrentWeeklyPlan: (plan: WeeklyPlan | null) => void;
+  // Meal Plan helpers
+  getWeekStart: (date: Date) => Date;
+  getWeekEnd: (date: Date) => Date;
+  formatWeekLabel: (weekStart: Date, weekEnd: Date) => string;
+  getThisWeekPlan: () => WeeklyPlan | null;
+  getNextWeekPlan: () => WeeklyPlan | null;
+  getPlanByWeekStart: (weekStart: Date) => WeeklyPlan | null;
   // Legacy/Local state
   userProfile: UserProfile | null;
   setUserProfile: (profile: UserProfile) => void;
@@ -34,6 +41,8 @@ interface AppContextType {
   setPrepTasks: (tasks: PrepTask[]) => void;
   currentScreen: string;
   setCurrentScreen: (screen: string) => void;
+  planningWeekOffset: number; // 0 = this week, 1 = next week
+  setPlanningWeekOffset: (offset: number) => void;
   selectedMealForSwap: { dayIndex: number; mealType: string } | null;
   setSelectedMealForSwap: (data: { dayIndex: number; mealType: string } | null) => void;
   selectedRecipe: Recipe | null;
@@ -73,7 +82,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loading: mealPlansLoading,
     saveMealPlan,
     deleteMealPlan,
-    setCurrentPlan
+    setCurrentPlan,
+    getWeekStart,
+    getWeekEnd,
+    formatWeekLabel,
+    getThisWeekPlan,
+    getNextWeekPlan,
+    getPlanByWeekStart,
   } = useMealPlans(user?.uid || null);
 
   // Local state (not synced to Firebase yet)
@@ -81,6 +96,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([]);
   const [prepTasks, setPrepTasks] = useState<PrepTask[]>([]);
   const [currentScreen, setCurrentScreen] = useState('home');
+  const [planningWeekOffset, setPlanningWeekOffset] = useState(0); // 0 = this week, 1 = next week
   const [selectedMealForSwap, setSelectedMealForSwap] = useState<{ dayIndex: number; mealType: string } | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [draftRecipe, setDraftRecipe] = useState<Partial<Recipe> | null>(null);
@@ -111,6 +127,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         saveMealPlan,
         deleteMealPlan,
         setCurrentWeeklyPlan: setCurrentPlan,
+        // Meal Plan helpers
+        getWeekStart,
+        getWeekEnd,
+        formatWeekLabel,
+        getThisWeekPlan,
+        getNextWeekPlan,
+        getPlanByWeekStart,
         // Local state
         userProfile,
         setUserProfile,
@@ -120,6 +143,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setPrepTasks,
         currentScreen,
         setCurrentScreen,
+        planningWeekOffset,
+        setPlanningWeekOffset,
         selectedMealForSwap,
         setSelectedMealForSwap,
         selectedRecipe,

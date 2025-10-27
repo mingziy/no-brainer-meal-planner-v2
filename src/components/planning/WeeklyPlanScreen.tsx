@@ -29,18 +29,38 @@ const getRandomQuickFoods = (count: number): QuickFood[] => {
 };
 
 export function WeeklyPlanScreen() {
-  const { recipes, setIsAddRecipeModalOpen, setDraftRecipe, setPendingMealType, shoppingList, setShoppingList, setCurrentScreen, currentWeeklyPlan, setCurrentWeeklyPlan, saveMealPlan } = useApp();
+  const { 
+    recipes, 
+    setIsAddRecipeModalOpen, 
+    setDraftRecipe, 
+    setPendingMealType, 
+    shoppingList, 
+    setShoppingList, 
+    setCurrentScreen, 
+    currentWeeklyPlan, 
+    setCurrentWeeklyPlan, 
+    saveMealPlan,
+    planningWeekOffset,
+    getWeekStart,
+    getWeekEnd,
+    formatWeekLabel,
+    getThisWeekPlan,
+    getNextWeekPlan
+  } = useApp();
   
   // Initialize 7 days starting from today, or load from saved plan
   const [weekPlan, setWeekPlan] = useState<DayMealPlan[]>(() => {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const today = new Date();
     
-    // If there's a saved plan, load it
-    if (currentWeeklyPlan) {
-      return currentWeeklyPlan.days.map((day, index) => {
+    // Get the appropriate plan based on planningWeekOffset
+    const targetPlan = planningWeekOffset === 0 ? getThisWeekPlan() : getNextWeekPlan();
+    
+    // If there's a saved plan for the target week, load it
+    if (targetPlan) {
+      return targetPlan.days.map((day, index) => {
         const date = new Date(today);
-        date.setDate(today.getDate() - today.getDay() + 1 + index);
+        date.setDate(today.getDate() - today.getDay() + 1 + index + (planningWeekOffset * 7));
         return {
           day: days[index],
           date,
@@ -48,17 +68,17 @@ export function WeeklyPlanScreen() {
           lunch: Array.isArray(day.lunch) ? day.lunch : [],
           dinner: Array.isArray(day.dinner) ? day.dinner : [],
           snacks: Array.isArray(day.snacks) ? day.snacks : [],
-          breakfastQuickFoods: day.breakfastQuickFoods || getRandomQuickFoods(2),
-          lunchQuickFoods: day.lunchQuickFoods || getRandomQuickFoods(2),
-          dinnerQuickFoods: day.dinnerQuickFoods || getRandomQuickFoods(2)
+          breakfastQuickFoods: day.breakfastQuickFoods || [],
+          lunchQuickFoods: day.lunchQuickFoods || [],
+          dinnerQuickFoods: day.dinnerQuickFoods || []
         };
       });
     }
     
-    // Otherwise create empty plan with auto-populated quick foods
+    // Otherwise create empty plan
     return days.map((day, index) => {
       const date = new Date(today);
-      date.setDate(today.getDate() - today.getDay() + 1 + index); // Start from Monday
+      date.setDate(today.getDate() - today.getDay() + 1 + index + (planningWeekOffset * 7)); // Start from Monday + offset
       return {
         day,
         date,
@@ -66,9 +86,9 @@ export function WeeklyPlanScreen() {
         lunch: [],
         dinner: [],
         snacks: [],
-        breakfastQuickFoods: getRandomQuickFoods(2),
-        lunchQuickFoods: getRandomQuickFoods(2),
-        dinnerQuickFoods: getRandomQuickFoods(2)
+        breakfastQuickFoods: [],
+        lunchQuickFoods: [],
+        dinnerQuickFoods: []
       };
     });
   });
@@ -195,10 +215,25 @@ export function WeeklyPlanScreen() {
   // Save meal plan (also called after any change)
   const handleSaveMealPlan = async (silent = false) => {
     try {
-      // Convert to WeeklyPlan format
+      // Calculate week start and end dates based on the planningWeekOffset
+      const today = new Date();
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + (planningWeekOffset * 7)); // Add 7 days for next week
+      
+      const weekStartDate = getWeekStart(targetDate);
+      const weekEndDate = getWeekEnd(targetDate);
+      const weekLabel = formatWeekLabel(weekStartDate, weekEndDate);
+      
+      // Get the existing plan for this week (if any) to preserve its ID
+      const existingPlan = planningWeekOffset === 0 ? getThisWeekPlan() : getNextWeekPlan();
+      
+      // Convert to WeeklyPlan format (without shopping list first for immediate save)
       const weeklyPlan = {
-        ...(currentWeeklyPlan?.id && { id: currentWeeklyPlan.id }), // Include ID if updating
+        ...(existingPlan?.id && { id: existingPlan.id }), // Include ID if updating existing plan
         cuisine: 'Mixed',
+        weekStartDate,
+        weekEndDate,
+        weekLabel,
         days: weekPlan.map(day => ({
           day: day.day,
           breakfast: day.breakfast as any,
@@ -209,27 +244,196 @@ export function WeeklyPlanScreen() {
           lunchQuickFoods: day.lunchQuickFoods,
           dinnerQuickFoods: day.dinnerQuickFoods
         })),
-        ...(currentWeeklyPlan?.createdAt && { createdAt: currentWeeklyPlan.createdAt }),
+        shoppingList: existingPlan?.shoppingList || [], // Keep existing shopping list or empty
+        ...(existingPlan?.createdAt && { createdAt: existingPlan.createdAt }),
+        ...(existingPlan?.userId && { userId: existingPlan.userId }),
       };
       
-      // Save to Firebase
-      await saveMealPlan(weeklyPlan as any);
+      // Save to Firebase IMMEDIATELY
+      const savedPlanId = await saveMealPlan(weeklyPlan as any);
+      console.log('✅ Meal plan saved immediately:', savedPlanId);
       
       // Show success immediately
       if (!silent) {
-        alert('Meal plan saved! You can view it on the home page.');
+        alert('Meal plan saved! Generating shopping list in the background...');
+        // Navigate to home page to see the saved plan
+        setCurrentScreen('home');
       }
       
-      // Update shopping list in background (don't wait for AI)
-      if (shoppingList.length > 0) {
-        updateShoppingListWithAI(); // No await - runs in background
-      }
+      // Generate and clean shopping list with AI in the BACKGROUND
+      console.log('🛒 Generating shopping list with AI in background...');
+      generateAndCleanShoppingList()
+        .then(async (cleanedShoppingList) => {
+          console.log('✅ Shopping list generated:', cleanedShoppingList.length, 'items', cleanedShoppingList);
+          
+          // Update the saved plan with the shopping list
+          const updatedPlan = {
+            ...weeklyPlan,
+            id: savedPlanId || existingPlan?.id,
+            shoppingList: cleanedShoppingList,
+          };
+          
+          await saveMealPlan(updatedPlan as any);
+          setShoppingList(cleanedShoppingList);
+          console.log('✅ Shopping list saved to plan');
+        })
+        .catch((error) => {
+          console.error('❌ Failed to generate shopping list:', error);
+        });
+        
     } catch (error) {
       console.error('Error saving meal plan:', error);
       if (!silent) {
         alert('Failed to save meal plan. Please try again.');
       }
     }
+  };
+  
+  // Generate shopping list and clean with AI
+  const generateAndCleanShoppingList = async (): Promise<ShoppingItem[]> => {
+    const ingredientMap = new Map<string, { original: string; category: string }>();
+    const quickFoodMap = new Map<string, QuickFood>();
+    
+    // Collect all unique ingredients from planned meals
+    console.log('🔍 Collecting ingredients from weekPlan:', weekPlan);
+    
+    weekPlan.forEach((day, dayIndex) => {
+      const allRecipes = [...day.breakfast, ...day.lunch, ...day.dinner, ...day.snacks];
+      console.log(`  ${day.day}: ${allRecipes.length} recipes`);
+      
+      allRecipes.forEach((recipe, recipeIndex) => {
+        if (!recipe) {
+          console.log(`    Recipe ${recipeIndex} is null/undefined`);
+          return;
+        }
+        
+        console.log(`    Recipe: ${recipe.name}, ingredients: ${recipe.ingredients?.length || 0}`);
+        
+        if (!recipe.ingredients || recipe.ingredients.length === 0) {
+          console.log(`    ⚠️ Recipe "${recipe.name}" has no ingredients!`);
+          return;
+        }
+        
+        recipe.ingredients.forEach(ingredient => {
+          const key = ingredient.name.toLowerCase().trim();
+          
+          if (!ingredientMap.has(key)) {
+            const category = categorizeIngredient(ingredient.name);
+            ingredientMap.set(key, { original: ingredient.name, category });
+          }
+        });
+      });
+      
+      // Collect quick foods from each meal
+      const allQuickFoods = [
+        ...(day.breakfastQuickFoods || []),
+        ...(day.lunchQuickFoods || []),
+        ...(day.dinnerQuickFoods || [])
+      ];
+      
+      console.log(`  Quick foods for ${day.day}:`, {
+        breakfast: day.breakfastQuickFoods?.length || 0,
+        lunch: day.lunchQuickFoods?.length || 0,
+        dinner: day.dinnerQuickFoods?.length || 0,
+        total: allQuickFoods.length,
+        items: allQuickFoods.map(f => f.name)
+      });
+      
+      allQuickFoods.forEach(food => {
+        const key = food.name.toLowerCase().trim();
+        if (!quickFoodMap.has(key)) {
+          quickFoodMap.set(key, food);
+        }
+      });
+    });
+    
+    // Get all unique ingredient names
+    const ingredientNames = Array.from(ingredientMap.values()).map(v => v.original);
+    const quickFoods = Array.from(quickFoodMap.values());
+    
+    console.log('📊 Total unique ingredients collected:', ingredientNames.length, ingredientNames);
+    console.log('🍎 Total unique quick foods collected:', quickFoods.length, quickFoods.map(f => f.name));
+    
+    if (ingredientNames.length === 0 && quickFoods.length === 0) {
+      console.log('⚠️ No ingredients or quick foods found in meal plan!');
+      return [];
+    }
+    
+    // Clean ingredient names using AI
+    console.log('🤖 Sending', ingredientNames.length, 'ingredients to AI for cleaning...');
+    const cleanedNames = ingredientNames.length > 0 ? await cleanIngredientNames(ingredientNames) : [];
+    console.log('✨ AI cleaned names:', cleanedNames);
+    
+    // Create shopping list with cleaned ingredient names (deduplicated and capitalized)
+    const itemMap = new Map<string, { category: string }>();
+    
+    cleanedNames.forEach((cleanedName, index) => {
+      const originalData = Array.from(ingredientMap.values())[index];
+      // Normalize to lowercase for deduplication
+      const normalizedName = cleanedName.toLowerCase().trim();
+      
+      // Only add if not already in map
+      if (!itemMap.has(normalizedName)) {
+        itemMap.set(normalizedName, { category: originalData.category });
+      }
+    });
+    
+    // Create shopping list from deduplicated items
+    const newShoppingList: ShoppingItem[] = Array.from(itemMap.entries()).map(([name, data], index) => {
+      // Capitalize first letter of each word
+      const capitalizedName = name.split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      
+      return {
+        id: `shopping-ingredient-${index}`,
+        name: capitalizedName,
+        quantity: '',
+        category: data.category as any,
+        checked: false,
+      };
+    });
+    
+    // Add quick foods to shopping list (deduplicate with existing items)
+    quickFoods.forEach((food, index) => {
+      const normalizedFoodName = food.name.toLowerCase().trim();
+      
+      // Check if this quick food is already in the shopping list
+      const existingItem = newShoppingList.find(item => 
+        item.name.toLowerCase().trim() === normalizedFoodName
+      );
+      
+      // Only add if not already present
+      if (!existingItem) {
+        let category: 'produce' | 'meat' | 'dairy' | 'pantry' = 'pantry';
+        if (food.category === 'fruit' || food.category === 'veggie') {
+          category = 'produce';
+        } else if (food.category === 'dairy') {
+          category = 'dairy';
+        } else if (food.category === 'protein') {
+          category = 'meat';
+        } else {
+          // Grains, snacks, drinks, and anything else → pantry
+          category = 'pantry';
+        }
+        
+        // Capitalize first letter of each word
+        const capitalizedName = food.name.split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        newShoppingList.push({
+          id: `shopping-quickfood-${index}`,
+          name: capitalizedName,
+          quantity: food.servingSize,
+          category,
+          checked: false,
+        });
+      }
+    });
+    
+    console.log('📝 Final shopping list (ingredients + quick foods):', newShoppingList);
+    return newShoppingList;
   };
   
   // Update shopping list while preserving checked items

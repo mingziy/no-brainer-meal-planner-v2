@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Edit } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useApp } from '../../context/AppContext';
 import { BottomNav } from '../shared/BottomNav';
 import { RecipeDetailsModal } from '../recipe/RecipeDetailsModal';
-import { Recipe } from '../../types';
+import { EditTodayMealsModal } from './EditTodayMealsModal';
+import { Recipe, QuickFood } from '../../types';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 export function TodayScreen() {
   const { currentWeeklyPlan, userProfile } = useApp();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   const todaysPlan = currentWeeklyPlan?.days.find(d => d.day === today);
@@ -57,14 +59,11 @@ export function TodayScreen() {
   };
   
   // Calculate average calories per meal (assuming 1 serving each)
+  // Note: caloriesPerServing is already per serving, don't divide again!
   const getAverageCaloriesForMeal = (recipes: Recipe[]) => {
     if (recipes.length === 0) return 0;
     const totalCalories = recipes.reduce((sum, recipe) => {
-      // Divide total calories by servings to get per-serving value
-      const perServing = recipe.servings > 0 
-        ? recipe.caloriesPerServing / recipe.servings 
-        : recipe.caloriesPerServing;
-      return sum + perServing;
+      return sum + (recipe.caloriesPerServing || 0);
     }, 0);
     return totalCalories / recipes.length;
   };
@@ -73,10 +72,7 @@ export function TodayScreen() {
   const lunchCalories = getAverageCaloriesForMeal(todaysPlan.lunch);
   const dinnerCalories = getAverageCaloriesForMeal(todaysPlan.dinner);
   const snacksCalories = todaysPlan.snacks.reduce((sum, recipe) => {
-    const perServing = recipe.servings > 0 
-      ? recipe.caloriesPerServing / recipe.servings 
-      : recipe.caloriesPerServing;
-    return sum + perServing;
+    return sum + (recipe.caloriesPerServing || 0);
   }, 0);
   
   // Add quick foods calories
@@ -94,30 +90,22 @@ export function TodayScreen() {
     barWidth: `${Math.min(calculatePercentage(totalCalories, dailyValues.calories), 100)}%`
   });
   
-  // Sum up macronutrients from recipes (per serving)
+  // Sum up macronutrients from recipes
+  // Note: nutrition values are already per serving, don't divide again!
   const recipeTotals = allRecipes.reduce(
     (acc, recipe) => {
-      // Divide by servings to get per-serving nutrition values
-      const perServingProtein = recipe.servings > 0 
-        ? (recipe.nutrition?.protein || 0) / recipe.servings 
-        : (recipe.nutrition?.protein || 0);
-      const perServingCarbs = recipe.servings > 0 
-        ? (recipe.nutrition?.carbs || 0) / recipe.servings 
-        : (recipe.nutrition?.carbs || 0);
-      const perServingFat = recipe.servings > 0 
-        ? (recipe.nutrition?.fat || 0) / recipe.servings 
-        : (recipe.nutrition?.fat || 0);
-      const perServingFiber = recipe.servings > 0 
-        ? (recipe.nutrition?.fiber || 0) / recipe.servings 
-        : (recipe.nutrition?.fiber || 0);
+      const protein = recipe.nutrition?.protein || 0;
+      const carbs = recipe.nutrition?.carbs || 0;
+      const fat = recipe.nutrition?.fat || 0;
+      const fiber = recipe.nutrition?.fiber || 0;
       
-      console.log(`Recipe: ${recipe.name} (${recipe.servings} servings) - Per serving: Protein: ${perServingProtein.toFixed(1)}g, Carbs: ${perServingCarbs.toFixed(1)}g, Fat: ${perServingFat.toFixed(1)}g, Fiber: ${perServingFiber.toFixed(1)}g`);
+      console.log(`Recipe: ${recipe.name} - Per serving: Protein: ${protein.toFixed(1)}g, Carbs: ${carbs.toFixed(1)}g, Fat: ${fat.toFixed(1)}g, Fiber: ${fiber.toFixed(1)}g`);
       
       return {
-        protein: acc.protein + perServingProtein,
-        carbs: acc.carbs + perServingCarbs,
-        fat: acc.fat + perServingFat,
-        fiber: acc.fiber + perServingFiber,
+        protein: acc.protein + protein,
+        carbs: acc.carbs + carbs,
+        fat: acc.fat + fat,
+        fiber: acc.fiber + fiber,
       };
     },
     { protein: 0, carbs: 0, fat: 0, fiber: 0 }
@@ -148,7 +136,17 @@ export function TodayScreen() {
     <div className="min-h-screen bg-background pb-20">
       <div className="max-w-md mx-auto p-6 space-y-6">
         <div className="space-y-2">
-          <h1>Today's Meals: {today}</h1>
+          <div className="flex items-center justify-between">
+            <h1>Today's Meals: {today}</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditModalOpen(true)}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Meals
+            </Button>
+          </div>
           <p className="text-muted-foreground">
             Everything you need for today's nutrition
           </p>
@@ -158,6 +156,7 @@ export function TodayScreen() {
         <MealSection
           title="Breakfast"
           recipes={todaysPlan.breakfast}
+          quickFoods={todaysPlan.breakfastQuickFoods}
           onRecipeClick={setSelectedRecipe}
         />
 
@@ -165,6 +164,7 @@ export function TodayScreen() {
         <MealSection
           title="Lunch"
           recipes={todaysPlan.lunch}
+          quickFoods={todaysPlan.lunchQuickFoods}
           onRecipeClick={setSelectedRecipe}
         />
 
@@ -172,6 +172,7 @@ export function TodayScreen() {
         <MealSection
           title="Dinner"
           recipes={todaysPlan.dinner}
+          quickFoods={todaysPlan.dinnerQuickFoods}
           onRecipeClick={setSelectedRecipe}
         />
 
@@ -312,18 +313,29 @@ export function TodayScreen() {
           onClose={() => setSelectedRecipe(null)}
         />
       )}
+
+      {/* Edit Today's Meals Modal */}
+      {todaysPlan && (
+        <EditTodayMealsModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          dayPlan={todaysPlan}
+          dayName={today}
+        />
+      )}
     </div>
   );
 }
 
-// Meal Section Component - displays a meal with multiple recipe cards
+// Meal Section Component - displays a meal with multiple recipe cards + quick foods
 interface MealSectionProps {
   title: string;
   recipes: Recipe[];
+  quickFoods?: QuickFood[];
   onRecipeClick: (recipe: Recipe) => void;
 }
 
-function MealSection({ title, recipes, onRecipeClick }: MealSectionProps) {
+function MealSection({ title, recipes, quickFoods = [], onRecipeClick }: MealSectionProps) {
   if (recipes.length === 0) {
     return (
       <Card>
@@ -344,10 +356,8 @@ function MealSection({ title, recipes, onRecipeClick }: MealSectionProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         {recipes.map((recipe) => {
-          // Calculate per-serving calories by dividing total by servings
-          const perServingCalories = recipe.servings > 0 
-            ? Math.round(recipe.caloriesPerServing / recipe.servings)
-            : recipe.caloriesPerServing;
+          // caloriesPerServing is already per serving, no need to divide
+          const perServingCalories = Math.round(recipe.caloriesPerServing);
           
           return (
             <div
@@ -370,6 +380,20 @@ function MealSection({ title, recipes, onRecipeClick }: MealSectionProps) {
             </div>
           );
         })}
+        
+        {/* Quick Foods - smaller bullets */}
+        {quickFoods.length > 0 && (
+          <div className="pl-8 space-y-2">
+            {quickFoods.map((food, index) => (
+              <div key={`${food.id}-${index}`} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full"></span>
+                <span className="text-base">{food.emoji}</span>
+                <span>{food.name}</span>
+                <span className="text-xs">({food.calories} cal)</span>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
