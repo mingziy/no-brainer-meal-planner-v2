@@ -15,6 +15,13 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
     
+    // Allow authenticated users to read/write their own quick foods
+    match /quickFoods/{foodId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
     // Deny all other access
     match /{document=**} {
       allow read, write: if false;
