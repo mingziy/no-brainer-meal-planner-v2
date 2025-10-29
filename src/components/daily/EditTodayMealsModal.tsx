@@ -1,7 +1,17 @@
 import { useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 import { Card, CardContent } from '../ui/card';
 import { useApp } from '../../context/AppContext';
 import { Recipe, DayPlan, QuickFood, ShoppingItem } from '../../types';
@@ -31,6 +41,7 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
   const [showQuickFoodPicker, setShowQuickFoodPicker] = useState<'breakfast' | 'lunch' | 'dinner' | null>(null);
   const [selectedQuickFoodCategory, setSelectedQuickFoodCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   // Remove recipe from meal
   const removeRecipe = (mealType: 'breakfast' | 'lunch' | 'dinner', recipeId: string) => {
@@ -183,6 +194,48 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
     });
   };
 
+  // Reset all meals for the day
+  const handleReset = async () => {
+    if (!currentWeeklyPlan) return;
+
+    // Clear all local state
+    setBreakfast([]);
+    setLunch([]);
+    setDinner([]);
+    setBreakfastQuickFoods([]);
+    setLunchQuickFoods([]);
+    setDinnerQuickFoods([]);
+
+    // Update the day in the weekly plan
+    const updatedDays = currentWeeklyPlan.days.map(day => {
+      if (day.day === dayName) {
+        return {
+          ...day,
+          breakfast: [],
+          lunch: [],
+          dinner: [],
+          breakfastQuickFoods: [],
+          lunchQuickFoods: [],
+          dinnerQuickFoods: [],
+        };
+      }
+      return day;
+    });
+
+    // Save updated plan
+    const updatedPlan = {
+      ...currentWeeklyPlan,
+      days: updatedDays,
+    };
+
+    // Save to Firebase
+    await saveMealPlan(updatedPlan);
+    console.log('✅ Day meals reset and saved');
+
+    // Close the reset dialog
+    setIsResetDialogOpen(false);
+  };
+
   // Generate shopping list from meal plan
   const generateShoppingList = async (days: any[]): Promise<ShoppingItem[]> => {
     const ingredientMap = new Map<string, { original: string; category: string }>();
@@ -314,6 +367,7 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
   };
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -557,6 +611,14 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
           <Button variant="outline" onClick={onClose} className="flex-1">
             Cancel
           </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setIsResetDialogOpen(true)} 
+            className="flex-1"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset
+          </Button>
           <Button onClick={handleSave} className="flex-1">
             Save Changes
           </Button>
@@ -698,6 +760,26 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Reset Confirmation Dialog */}
+    <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reset All Meals?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will clear all meals (breakfast, lunch, and dinner) for {dayName}. 
+            You can add new meals afterward. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleReset}>
+            Reset All Meals
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 

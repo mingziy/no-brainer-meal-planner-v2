@@ -12,6 +12,7 @@ export function HomeScreen() {
     currentWeeklyPlan, 
     setCurrentScreen,
     setPlanningWeekOffset,
+    setViewingDayOffset,
     getWeekStart,
     getNextWeekPlan,
     getThisWeekPlan
@@ -29,6 +30,21 @@ export function HomeScreen() {
   const thisWeekPlan = getThisWeekPlan();
   const nextWeekPlan = getNextWeekPlan();
   
+  // Check if plans are completely empty (all days have no meals)
+  const isThisWeekPlanEmpty = thisWeekPlan ? thisWeekPlan.days.every(day => 
+    day.breakfast.length === 0 && 
+    day.lunch.length === 0 && 
+    day.dinner.length === 0 && 
+    (day.snacks?.length || 0) === 0
+  ) : true;
+  
+  const isNextWeekPlanEmpty = nextWeekPlan ? nextWeekPlan.days.every(day => 
+    day.breakfast.length === 0 && 
+    day.lunch.length === 0 && 
+    day.dinner.length === 0 && 
+    (day.snacks?.length || 0) === 0
+  ) : true;
+  
   // Get today's and tomorrow's plans
   const todaysPlan = thisWeekPlan?.days.find(d => d.day === today);
   
@@ -37,6 +53,19 @@ export function HomeScreen() {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowDay = tomorrow.toLocaleDateString('en-US', { weekday: 'long' });
   const tomorrowsPlan = thisWeekPlan?.days.find(d => d.day === tomorrowDay);
+  
+  // Check if today/tomorrow have meals
+  const hasTodayMeals = todaysPlan && (
+    todaysPlan.breakfast.length > 0 || 
+    todaysPlan.lunch.length > 0 || 
+    todaysPlan.dinner.length > 0
+  );
+  
+  const hasTomorrowMeals = tomorrowsPlan && (
+    tomorrowsPlan.breakfast.length > 0 || 
+    tomorrowsPlan.lunch.length > 0 || 
+    tomorrowsPlan.dinner.length > 0
+  );
   
   // Get all 7 days for the week overview
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -62,7 +91,7 @@ export function HomeScreen() {
         ) : (
           <>
             {/* Today's Plan Card */}
-            {thisWeekPlan && todaysPlan ? (
+            {hasTodayMeals ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -71,15 +100,15 @@ export function HomeScreen() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {/* Breakfast */}
-                  {todaysPlan.breakfast.length > 0 && (
+                  {todaysPlan!.breakfast.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-muted-foreground text-sm font-medium">Breakfast</p>
-                      {todaysPlan.breakfast.map((recipe, i) => (
+                      {todaysPlan!.breakfast.map((recipe, i) => (
                         <p key={i} className="text-sm pl-2">• {recipe.name}</p>
                       ))}
-                      {todaysPlan.breakfastQuickFoods && todaysPlan.breakfastQuickFoods.length > 0 && (
+                      {todaysPlan!.breakfastQuickFoods && todaysPlan!.breakfastQuickFoods.length > 0 && (
                         <div className="pl-4 space-y-0.5">
-                          {todaysPlan.breakfastQuickFoods.map((food, i) => (
+                          {todaysPlan!.breakfastQuickFoods.map((food, i) => (
                             <p key={i} className="text-xs text-muted-foreground">
                               {food.emoji} {food.name}
                             </p>
@@ -90,15 +119,15 @@ export function HomeScreen() {
                   )}
                   
                   {/* Lunch */}
-                  {todaysPlan.lunch.length > 0 && (
+                  {todaysPlan!.lunch.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-muted-foreground text-sm font-medium">Lunch</p>
-                      {todaysPlan.lunch.map((recipe, i) => (
+                      {todaysPlan!.lunch.map((recipe, i) => (
                         <p key={i} className="text-sm pl-2">• {recipe.name}</p>
                       ))}
-                      {todaysPlan.lunchQuickFoods && todaysPlan.lunchQuickFoods.length > 0 && (
+                      {todaysPlan!.lunchQuickFoods && todaysPlan!.lunchQuickFoods.length > 0 && (
                         <div className="pl-4 space-y-0.5">
-                          {todaysPlan.lunchQuickFoods.map((food, i) => (
+                          {todaysPlan!.lunchQuickFoods.map((food, i) => (
                             <p key={i} className="text-xs text-muted-foreground">
                               {food.emoji} {food.name}
                             </p>
@@ -109,15 +138,15 @@ export function HomeScreen() {
                   )}
                   
                   {/* Dinner */}
-                  {todaysPlan.dinner.length > 0 && (
+                  {todaysPlan!.dinner.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-muted-foreground text-sm font-medium">Dinner</p>
-                      {todaysPlan.dinner.map((recipe, i) => (
+                      {todaysPlan!.dinner.map((recipe, i) => (
                         <p key={i} className="text-sm pl-2">• {recipe.name}</p>
                       ))}
-                      {todaysPlan.dinnerQuickFoods && todaysPlan.dinnerQuickFoods.length > 0 && (
+                      {todaysPlan!.dinnerQuickFoods && todaysPlan!.dinnerQuickFoods.length > 0 && (
                         <div className="pl-4 space-y-0.5">
-                          {todaysPlan.dinnerQuickFoods.map((food, i) => (
+                          {todaysPlan!.dinnerQuickFoods.map((food, i) => (
                             <p key={i} className="text-xs text-muted-foreground">
                               {food.emoji} {food.name}
                             </p>
@@ -125,13 +154,6 @@ export function HomeScreen() {
                         </div>
                       )}
                     </div>
-                  )}
-                  
-                  {/* Empty state */}
-                  {todaysPlan.breakfast.length === 0 && todaysPlan.lunch.length === 0 && todaysPlan.dinner.length === 0 && (
-                    <p className="text-center text-muted-foreground py-2">
-                      No meals planned for today
-                    </p>
                   )}
                   
                   {/* Action button */}
@@ -140,7 +162,10 @@ export function HomeScreen() {
                       variant="outline" 
                       size="sm"
                       className="w-full"
-                      onClick={() => setCurrentScreen('today')}
+                      onClick={() => {
+                        setViewingDayOffset(0);
+                        setCurrentScreen('today');
+                      }}
                     >
                       View Today's Details
                     </Button>
@@ -148,30 +173,36 @@ export function HomeScreen() {
                 </CardContent>
               </Card>
             ) : (
-              // No plan for today - CTA
-              <Card 
-                className="bg-primary text-primary-foreground cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => {
-                  setPlanningWeekOffset(0); // This week
-                  setCurrentScreen('plan-setup');
-                }}
-              >
+              // No meals for today - CTA
+              <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-primary-foreground">
-                    <Calendar className="w-6 h-6" />
-                    Plan This Week
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus className="w-5 h-5" />
+                    Add Today's Meals
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-primary-foreground/90">
-                    Get started with a personalized meal plan for the week
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Plan your meals for today to stay on track
                   </p>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setViewingDayOffset(0);
+                      setCurrentScreen('today');
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Plan Today
+                  </Button>
                 </CardContent>
               </Card>
             )}
 
             {/* Tomorrow's Plan Card */}
-            {tomorrowsPlan && (
+            {hasTomorrowMeals ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -180,15 +211,15 @@ export function HomeScreen() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {/* Breakfast */}
-                  {tomorrowsPlan.breakfast.length > 0 && (
+                  {tomorrowsPlan!.breakfast.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-muted-foreground text-sm font-medium">Breakfast</p>
-                      {tomorrowsPlan.breakfast.map((recipe, i) => (
+                      {tomorrowsPlan!.breakfast.map((recipe, i) => (
                         <p key={i} className="text-sm pl-2">• {recipe.name}</p>
                       ))}
-                      {tomorrowsPlan.breakfastQuickFoods && tomorrowsPlan.breakfastQuickFoods.length > 0 && (
+                      {tomorrowsPlan!.breakfastQuickFoods && tomorrowsPlan!.breakfastQuickFoods.length > 0 && (
                         <div className="pl-4 space-y-0.5">
-                          {tomorrowsPlan.breakfastQuickFoods.map((food, i) => (
+                          {tomorrowsPlan!.breakfastQuickFoods.map((food, i) => (
                             <p key={i} className="text-xs text-muted-foreground">
                               {food.emoji} {food.name}
                             </p>
@@ -199,15 +230,15 @@ export function HomeScreen() {
                   )}
                   
                   {/* Lunch */}
-                  {tomorrowsPlan.lunch.length > 0 && (
+                  {tomorrowsPlan!.lunch.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-muted-foreground text-sm font-medium">Lunch</p>
-                      {tomorrowsPlan.lunch.map((recipe, i) => (
+                      {tomorrowsPlan!.lunch.map((recipe, i) => (
                         <p key={i} className="text-sm pl-2">• {recipe.name}</p>
                       ))}
-                      {tomorrowsPlan.lunchQuickFoods && tomorrowsPlan.lunchQuickFoods.length > 0 && (
+                      {tomorrowsPlan!.lunchQuickFoods && tomorrowsPlan!.lunchQuickFoods.length > 0 && (
                         <div className="pl-4 space-y-0.5">
-                          {tomorrowsPlan.lunchQuickFoods.map((food, i) => (
+                          {tomorrowsPlan!.lunchQuickFoods.map((food, i) => (
                             <p key={i} className="text-xs text-muted-foreground">
                               {food.emoji} {food.name}
                             </p>
@@ -218,15 +249,15 @@ export function HomeScreen() {
                   )}
                   
                   {/* Dinner */}
-                  {tomorrowsPlan.dinner.length > 0 && (
+                  {tomorrowsPlan!.dinner.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-muted-foreground text-sm font-medium">Dinner</p>
-                      {tomorrowsPlan.dinner.map((recipe, i) => (
+                      {tomorrowsPlan!.dinner.map((recipe, i) => (
                         <p key={i} className="text-sm pl-2">• {recipe.name}</p>
                       ))}
-                      {tomorrowsPlan.dinnerQuickFoods && tomorrowsPlan.dinnerQuickFoods.length > 0 && (
+                      {tomorrowsPlan!.dinnerQuickFoods && tomorrowsPlan!.dinnerQuickFoods.length > 0 && (
                         <div className="pl-4 space-y-0.5">
-                          {tomorrowsPlan.dinnerQuickFoods.map((food, i) => (
+                          {tomorrowsPlan!.dinnerQuickFoods.map((food, i) => (
                             <p key={i} className="text-xs text-muted-foreground">
                               {food.emoji} {food.name}
                             </p>
@@ -236,18 +267,79 @@ export function HomeScreen() {
                     </div>
                   )}
                   
-                  {/* Empty state */}
-                  {tomorrowsPlan.breakfast.length === 0 && tomorrowsPlan.lunch.length === 0 && tomorrowsPlan.dinner.length === 0 && (
-                    <p className="text-center text-muted-foreground py-2">
-                      No meals planned for tomorrow
-                    </p>
-                  )}
+                  {/* Action button */}
+                  <div className="pt-3 border-t">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setViewingDayOffset(1);
+                        setCurrentScreen('today');
+                      }}
+                    >
+                      View Tomorrow's Details
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              // No meals for tomorrow - CTA
+              <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus className="w-5 h-5" />
+                    Add Tomorrow's Meals
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Plan ahead for tomorrow and stay prepared
+                  </p>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setViewingDayOffset(1);
+                      setCurrentScreen('today');
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Plan Tomorrow
+                  </Button>
                 </CardContent>
               </Card>
             )}
 
             {/* This Week's Plan Card */}
-            {thisWeekPlan && (
+            {isThisWeekPlanEmpty ? (
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Plus className="w-5 h-5" />
+                    Add This Week's Plan
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Get started with a personalized meal plan for this week
+                  </p>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setPlanningWeekOffset(0); // This week
+                      setCurrentScreen('weekly-review');
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Plan This Week
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center justify-between">
@@ -256,7 +348,7 @@ export function HomeScreen() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {weekDays.map((day, index) => {
-                    const dayPlan = thisWeekPlan.days[index];
+                    const dayPlan = thisWeekPlan?.days[index];
                     const hasRecipes = dayPlan && (
                       dayPlan.breakfast.length > 0 || 
                       dayPlan.lunch.length > 0 || 
@@ -314,12 +406,12 @@ export function HomeScreen() {
             )}
 
             {/* Next Week - CTA or Plan Preview */}
-            {!nextWeekPlan ? (
+            {isNextWeekPlanEmpty ? (
               <Card className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <Plus className="w-5 h-5" />
-                    Plan Next Week
+                    Add Next Week's Plan
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -327,16 +419,16 @@ export function HomeScreen() {
                     Stay ahead of the game and plan for next week
                   </p>
                   <Button 
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     className="w-full"
                     onClick={() => {
                       setPlanningWeekOffset(1); // Next week
-                      setCurrentScreen('plan-setup');
+                      setCurrentScreen('weekly-review');
                     }}
                   >
-                    Start Planning
-                    <ChevronRight className="w-4 h-4 ml-2" />
+                    <Plus className="w-4 h-4 mr-2" />
+                    Plan Next Week
                   </Button>
                 </CardContent>
               </Card>
@@ -349,7 +441,7 @@ export function HomeScreen() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {weekDays.map((day, index) => {
-                    const dayPlan = nextWeekPlan.days[index];
+                    const dayPlan = nextWeekPlan?.days[index];
                     const hasRecipes = dayPlan && (
                       dayPlan.breakfast.length > 0 || 
                       dayPlan.lunch.length > 0 || 

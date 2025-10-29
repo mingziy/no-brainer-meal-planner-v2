@@ -10,18 +10,24 @@ import { Recipe, QuickFood } from '../../types';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 export function TodayScreen() {
-  const { currentWeeklyPlan, userProfile } = useApp();
+  const { currentWeeklyPlan, userProfile, viewingDayOffset } = useApp();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-  const todaysPlan = currentWeeklyPlan?.days.find(d => d.day === today);
+  // Calculate the day to view based on viewingDayOffset
+  const viewDate = new Date();
+  viewDate.setDate(viewDate.getDate() + viewingDayOffset);
+  const viewingDay = viewDate.toLocaleDateString('en-US', { weekday: 'long' });
+  
+  const todaysPlan = currentWeeklyPlan?.days.find(d => d.day === viewingDay);
 
   if (!todaysPlan) {
     return (
       <div className="min-h-screen bg-background pb-20">
         <div className="max-w-md mx-auto p-6">
-          <p className="text-center text-muted-foreground">No meal plan for today</p>
+          <p className="text-center text-muted-foreground">
+            No meal plan for {viewingDayOffset === 0 ? 'today' : 'tomorrow'} ({viewingDay})
+          </p>
         </div>
         <BottomNav />
       </div>
@@ -137,7 +143,7 @@ export function TodayScreen() {
       <div className="max-w-md mx-auto p-6 space-y-6">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h1>Today's Meals: {today}</h1>
+            <h1>{viewingDayOffset === 0 ? 'Today' : 'Tomorrow'}'s Meals: {viewingDay}</h1>
             <Button
               variant="outline"
               size="sm"
@@ -148,7 +154,7 @@ export function TodayScreen() {
             </Button>
           </div>
           <p className="text-muted-foreground">
-            Everything you need for today's nutrition
+            Everything you need for {viewingDayOffset === 0 ? 'today' : 'tomorrow'}'s nutrition
           </p>
         </div>
 
@@ -320,7 +326,7 @@ export function TodayScreen() {
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           dayPlan={todaysPlan}
-          dayName={today}
+          dayName={viewingDay}
         />
       )}
     </div>
@@ -336,14 +342,14 @@ interface MealSectionProps {
 }
 
 function MealSection({ title, recipes, quickFoods = [], onRecipeClick }: MealSectionProps) {
-  if (recipes.length === 0) {
+  if (recipes.length === 0 && quickFoods.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground italic">No recipes planned</p>
+          <p className="text-sm text-muted-foreground italic">No meals planned - click "Edit Meals" to add</p>
         </CardContent>
       </Card>
     );

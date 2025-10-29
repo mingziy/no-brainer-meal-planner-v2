@@ -3,10 +3,20 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useApp } from '../../context/AppContext';
 import { BottomNav } from '../shared/BottomNav';
-import { Plus, Calendar, Sparkles, RefreshCw, ShoppingCart, Save } from 'lucide-react';
+import { Plus, Calendar, Sparkles, RefreshCw, Save, RotateCcw } from 'lucide-react';
 import { Recipe, RecipeCategory, ShoppingItem, QuickFood } from '../../types';
 import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
 import { defaultQuickFoods } from '../../data/quickFoods';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
@@ -47,6 +57,8 @@ export function WeeklyPlanScreen() {
     getThisWeekPlan,
     getNextWeekPlan
   } = useApp();
+  
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   
   // Initialize 7 days starting from today, or load from saved plan
   const [weekPlan, setWeekPlan] = useState<DayMealPlan[]>(() => {
@@ -100,6 +112,37 @@ export function WeeklyPlanScreen() {
     return recipes.filter(recipe => recipe.categories.includes(mealType as RecipeCategory));
   };
   
+  // Reset the entire weekly plan
+  const handleResetWeeklyPlan = async () => {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const today = new Date();
+    
+    const emptyPlan = days.map((day, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - today.getDay() + 1 + index + (planningWeekOffset * 7));
+      return {
+        day,
+        date,
+        breakfast: [],
+        lunch: [],
+        dinner: [],
+        snacks: [],
+        breakfastQuickFoods: [],
+        lunchQuickFoods: [],
+        dinnerQuickFoods: []
+      };
+    });
+    
+    setWeekPlan(emptyPlan);
+    setIsResetDialogOpen(false);
+    
+    // Auto-save the empty plan
+    // We'll trigger save after a brief delay to let state update
+    setTimeout(() => {
+      handleSaveMealPlan(true); // silent save
+    }, 100);
+  };
+
   // Auto-fill entire week with random recipes (one recipe per meal)
   const handleAutoFillWeek = () => {
     const breakfastRecipes = getRecipesByMealType('Breakfast');
@@ -175,43 +218,6 @@ export function WeeklyPlanScreen() {
   };
   
   // Generate shopping list from weekly meal plan
-  const handleGenerateShoppingList = () => {
-    const ingredientMap = new Map<string, string>();
-    
-    // Collect all unique ingredients from planned meals
-    weekPlan.forEach(day => {
-      // Flatten all recipe arrays into a single array
-      [...day.breakfast, ...day.lunch, ...day.dinner, ...day.snacks].forEach(recipe => {
-        if (!recipe) return;
-        
-        recipe.ingredients.forEach(ingredient => {
-          // Extract base ingredient name
-          const baseIngredient = extractBaseIngredient(ingredient.name);
-          const key = baseIngredient.toLowerCase().trim();
-          
-          if (!ingredientMap.has(key)) {
-            // Categorize ingredient
-            const category = categorizeIngredient(baseIngredient);
-            ingredientMap.set(key, category);
-          }
-        });
-      });
-    });
-    
-    // Convert to shopping list format (no quantities)
-    const shoppingList: ShoppingItem[] = Array.from(ingredientMap.entries()).map(([name, category], index) => ({
-      id: `shopping-${index}`,
-      name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize
-      quantity: '', // No quantity for now
-      category: category as 'produce' | 'meat' | 'pantry' | 'dairy' | 'other',
-      checked: false
-    }));
-    
-    // Save to context and navigate
-    setShoppingList(shoppingList);
-    setCurrentScreen('shopping-list');
-  };
-  
   // Save meal plan (also called after any change)
   const handleSaveMealPlan = async (silent = false) => {
     try {
@@ -255,7 +261,7 @@ export function WeeklyPlanScreen() {
       
       // Show success immediately
       if (!silent) {
-        alert('Meal plan saved! Generating shopping list in the background...');
+        alert('Successfully saved!');
         // Navigate to home page to see the saved plan
         setCurrentScreen('home');
       }
@@ -609,10 +615,12 @@ export function WeeklyPlanScreen() {
               <Calendar className="w-6 h-6 text-primary" />
               <h1 className="text-2xl font-bold">Weekly Meal Plan</h1>
             </div>
-            <Button onClick={handleAutoFillWeek} variant="default" size="sm">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Auto-Fill Week
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleAutoFillWeek} variant="default" size="sm">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Auto-Fill
+              </Button>
+            </div>
           </div>
           <p className="text-muted-foreground">
             Plan your meals for the week from your recipe library
@@ -710,21 +718,19 @@ export function WeeklyPlanScreen() {
             size="lg"
             variant="default"
             onClick={() => handleSaveMealPlan(false)}
-            disabled={!weekPlan.some(day => day.breakfast.length > 0 || day.lunch.length > 0 || day.dinner.length > 0 || day.snacks.length > 0)}
           >
             <Save className="w-5 h-5 mr-2" />
             Save Meal Plan
           </Button>
-          
+
           <Button 
             className="w-full" 
             size="lg"
             variant="outline"
-            onClick={handleGenerateShoppingList}
-            disabled={!weekPlan.some(day => day.breakfast.length > 0 || day.lunch.length > 0 || day.dinner.length > 0 || day.snacks.length > 0)}
+            onClick={() => setIsResetDialogOpen(true)}
           >
-            <ShoppingCart className="w-5 h-5 mr-2" />
-            Generate Shopping List
+            <RotateCcw className="w-5 h-5 mr-2" />
+            Reset Weekly Plan
           </Button>
         </div>
       </div>
@@ -741,6 +747,25 @@ export function WeeklyPlanScreen() {
           onClose={() => setAddingMeal(null)}
         />
       )}
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Entire Weekly Plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear all meals for all 7 days in your weekly plan. 
+              You will need to create a new plan from scratch. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetWeeklyPlan}>
+              Reset Weekly Plan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

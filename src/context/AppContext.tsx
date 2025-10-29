@@ -43,6 +43,8 @@ interface AppContextType {
   setCurrentScreen: (screen: string) => void;
   planningWeekOffset: number; // 0 = this week, 1 = next week
   setPlanningWeekOffset: (offset: number) => void;
+  viewingDayOffset: number; // 0 = today, 1 = tomorrow, etc.
+  setViewingDayOffset: (offset: number) => void;
   selectedMealForSwap: { dayIndex: number; mealType: string } | null;
   setSelectedMealForSwap: (data: { dayIndex: number; mealType: string } | null) => void;
   selectedRecipe: Recipe | null;
@@ -97,6 +99,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [prepTasks, setPrepTasks] = useState<PrepTask[]>([]);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [planningWeekOffset, setPlanningWeekOffset] = useState(0); // 0 = this week, 1 = next week
+  const [viewingDayOffset, setViewingDayOffset] = useState(0); // 0 = today, 1 = tomorrow
   const [selectedMealForSwap, setSelectedMealForSwap] = useState<{ dayIndex: number; mealType: string } | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [draftRecipe, setDraftRecipe] = useState<Partial<Recipe> | null>(null);
@@ -145,6 +148,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCurrentScreen,
         planningWeekOffset,
         setPlanningWeekOffset,
+        viewingDayOffset,
+        setViewingDayOffset,
         selectedMealForSwap,
         setSelectedMealForSwap,
         selectedRecipe,

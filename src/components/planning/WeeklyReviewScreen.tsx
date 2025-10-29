@@ -7,12 +7,24 @@ import { BottomNav } from '../shared/BottomNav';
 import { MealDetailsModal } from './MealDetailsModal';
 import { SwapMealModal } from './SwapMealModal';
 import { Meal } from '../../types';
+import { RotateCcw } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 
 export function WeeklyReviewScreen() {
-  const { currentWeeklyPlan, setCurrentScreen, setShoppingList } = useApp();
+  const { currentWeeklyPlan, setCurrentScreen, setShoppingList, saveMealPlan } = useApp();
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapContext, setSwapContext] = useState<{ dayIndex: number; mealType: string } | null>(null);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   if (!currentWeeklyPlan) return null;
 
@@ -38,11 +50,43 @@ export function WeeklyReviewScreen() {
     setCurrentScreen('shopping-list');
   };
 
+  const handleResetWeeklyPlan = async () => {
+    if (!currentWeeklyPlan) return;
+
+    const updatedDays = currentWeeklyPlan.days.map(day => ({
+      ...day,
+      breakfast: [],
+      breakfastQuickFoods: [],
+      lunch: [],
+      lunchQuickFoods: [],
+      dinner: [],
+      dinnerQuickFoods: [],
+    }));
+
+    const updatedPlan = {
+      ...currentWeeklyPlan,
+      days: updatedDays,
+    };
+
+    await saveMealPlan(updatedPlan);
+    setIsResetDialogOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="max-w-md mx-auto p-6 space-y-6">
         <div className="space-y-2">
-          <h1>Your Weekly Plan</h1>
+          <div className="flex items-center justify-between">
+            <h1>Your Weekly Plan</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsResetDialogOpen(true)}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset
+            </Button>
+          </div>
           <p className="text-muted-foreground">
             Review your meals and make any swaps you'd like
           </p>
@@ -125,6 +169,25 @@ export function WeeklyReviewScreen() {
           mealType={swapContext.mealType}
         />
       )}
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Entire Weekly Plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear all meals for all 7 days in your weekly plan. 
+              You will need to create a new plan from scratch. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetWeeklyPlan}>
+              Reset Weekly Plan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
