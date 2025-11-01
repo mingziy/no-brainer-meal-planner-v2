@@ -151,12 +151,24 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
               />
             </div>
 
-            {/* Cuisine and Categories */}
+            {/* Tags */}
             <div className="flex flex-wrap gap-2">
-              <Badge variant="default">{selectedRecipe.cuisine}</Badge>
-              {selectedRecipe.categories.map((category) => (
-                <Badge key={category} variant="secondary">
-                  {category}
+              {/* Cuisines */}
+              {(selectedRecipe.cuisines || [selectedRecipe.cuisine]).filter(Boolean).map((cuisine, idx) => (
+                <Badge key={`cuisine-${idx}`} variant="default" style={{ backgroundColor: '#e9d5ff', color: '#1f2937' }}>
+                  {cuisine}
+                </Badge>
+              ))}
+              {/* Protein Types */}
+              {(selectedRecipe.proteinTypes || [selectedRecipe.proteinType]).filter(Boolean).map((protein, idx) => (
+                <Badge key={`protein-${idx}`} variant="default" style={{ backgroundColor: '#fed7aa', color: '#1f2937' }}>
+                  {protein}
+                </Badge>
+              ))}
+              {/* Meal Types */}
+              {(selectedRecipe.mealTypes || [selectedRecipe.mealType]).filter(Boolean).map((meal, idx) => (
+                <Badge key={`meal-${idx}`} variant="default" style={{ backgroundColor: '#bfdbfe', color: '#1f2937' }}>
+                  {meal}
                 </Badge>
               ))}
             </div>
@@ -323,26 +335,45 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
 
     {/* Nutrition Calculation Reasoning Dialog */}
     <Dialog open={showNutritionReasoning} onOpenChange={setShowNutritionReasoning}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="nutrition-reasoning-description">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="nutrition-reasoning-description">
         <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
-          <DialogTitle>{t('details.nutritionCalculationLogic')}</DialogTitle>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🤖</span>
+            <DialogTitle>AI Calculation Logic</DialogTitle>
+          </div>
           <DialogDescription id="nutrition-reasoning-description">
             AI explanation of how serving size, calories, and nutrition values were calculated.
           </DialogDescription>
         </DialogHeader>
         
         <div className="py-4">
-          <div className="whitespace-pre-wrap text-sm bg-blue-50 dark:bg-blue-950 p-4 rounded-md border border-blue-200 dark:border-blue-800">
-            {selectedRecipe.nutritionCalculationReasoning}
+          <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700 max-h-[60vh] overflow-y-auto overflow-x-hidden w-full">
+            <pre 
+              className="text-xs font-mono text-gray-800 dark:text-gray-200 w-full" 
+              style={{ 
+                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
+                overflowWrap: 'break-word', 
+                wordBreak: 'break-word',
+                maxWidth: '100%',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}
+            >
+              {selectedRecipe.nutritionCalculationReasoning}
+            </pre>
           </div>
-          <div className="mt-4 text-xs text-gray-500 italic">
-            💡 This calculation is AI-generated and may not be 100% accurate. Always consult nutrition labels or professional guidance for precise dietary needs.
+          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md">
+            <p className="text-xs text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
+              <span className="text-base">💡</span>
+              <span>This calculation is AI-generated and may not be 100% accurate. Always consult nutrition labels or professional guidance for precise dietary needs.</span>
+            </p>
           </div>
         </div>
         
         <div className="sticky bottom-0 bg-background border-t pt-4 flex justify-end">
           <Button variant="outline" onClick={() => setShowNutritionReasoning(false)}>
-            {t('details.close')}
+            Close
           </Button>
         </div>
       </DialogContent>

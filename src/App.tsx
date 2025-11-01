@@ -4,7 +4,7 @@ import { HomeScreen } from './components/home/HomeScreen';
 import { RecipeLibraryScreen } from './components/recipe/RecipeLibraryScreen';
 import { AddRecipeModal } from './components/recipe/AddRecipeModal';
 import { RecipeDetailsModal } from './components/recipe/RecipeDetailsModal';
-import { RecipeEditForm } from './components/recipe/RecipeEditForm';
+import { RecipeEditFormV2 } from './components/recipe/RecipeEditFormV2';
 import { WeeklyPlanScreen } from './components/planning/WeeklyPlanScreen';
 import { ShoppingListScreen } from './components/shopping/ShoppingListScreen';
 import { PrepHubScreen } from './components/shopping/PrepHubScreen';
@@ -62,7 +62,7 @@ function AppContent() {
       {/* Recipe Modals */}
       <AddRecipeModal />
       <RecipeDetailsModal />
-      <RecipeEditForm />
+      <RecipeEditFormV2 />
     </div>
   );
 }

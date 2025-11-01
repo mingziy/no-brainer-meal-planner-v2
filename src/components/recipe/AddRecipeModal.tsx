@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   Dialog,
@@ -7,9 +7,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from '../ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
-import { Upload, FileText, Edit, Loader2, Image as ImageIcon, Link } from 'lucide-react';
+import { Upload, FileText, Edit, Loader2, Image as ImageIcon, Link, AlertTriangle } from 'lucide-react';
 import { parseRecipeText } from '../../utils/recipeParser';
 import { parseRecipeWithGemini, parseRecipeWithBilingualSupport, parseRecipeFromImage } from '../../utils/geminiRecipeParser';
 
@@ -30,8 +40,28 @@ export function AddRecipeModal() {
   const [extractedImages, setExtractedImages] = useState<string[]>([]);
   const [showImageSelector, setShowImageSelector] = useState(false);
   const [tempParsedRecipe, setTempParsedRecipe] = useState<any>(null);
+  const [showAiErrorDialog, setShowAiErrorDialog] = useState(false);
+  const [aiErrorMessage, setAiErrorMessage] = useState('');
+  const [failedRecipeData, setFailedRecipeData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isAddRecipeModalOpen) {
+      setShowPasteInput(false);
+      setPasteText('');
+      setShowUrlInput(false);
+      setPasteUrl('');
+      setExtractedImages([]);
+      setShowImageSelector(false);
+      setTempParsedRecipe(null);
+      setShowAiErrorDialog(false);
+      setAiErrorMessage('');
+      setFailedRecipeData(null);
+      setIsProcessing(false);
+      setOcrProgress(0);
+    }
+  }, [isAddRecipeModalOpen]);
 
   const handleClose = () => {
     setIsAddRecipeModalOpen(false);
@@ -140,20 +170,15 @@ export function AddRecipeModal() {
         console.log('📦 Parsed recipe:', parsedRecipe);
         setOcrProgress(100);
       } catch (error: any) {
-        console.warn('⚠️ AI image processing failed, using local parser with empty data:', error.message);
-        // If AI fails completely, create minimal recipe for user to fill manually
-        parsedRecipe = {
-          name: 'Untitled Recipe',
-          ingredients: [{ id: '1', amount: '', unit: '', name: '' }],
-          instructions: [''],
-          cuisine: 'Other',
-          categories: [],
-          prepTime: 0,
-          cookTime: 0,
-          servings: 0,
-          caloriesPerServing: 0,
-        };
-        alert('Failed to extract recipe from image automatically. Please fill in the details manually.');
+        console.error('⚠️ AI image processing failed:', error.message);
+        setIsProcessing(false);
+        setOcrProgress(0);
+        
+        // Show error dialog with retry or manual input options
+        setAiErrorMessage(`AI failed to extract recipe from image.\n\nError: ${error.message || 'Unknown error'}`);
+        setFailedRecipeData({ imageDataUrl, type: 'image' });
+        setShowAiErrorDialog(true);
+        return; // Stop execution
       }
       
       // Ensure all required fields have default values
@@ -217,16 +242,21 @@ export function AddRecipeModal() {
     if (pasteText.trim()) {
       setIsProcessing(true);
       
-      // Parse the recipe text with AI (fallback to local parser if fails)
+      // Parse the recipe text with AI
       let parsedRecipe;
       try {
         console.log('🤖 Attempting AI parsing with Gemini (clean text - 60s timeout)...');
-        // Clean pasted text is faster to process - use 60 second timeout
         parsedRecipe = await parseRecipeWithGemini(pasteText, 60000);
         console.log('✅ AI parsing successful!');
       } catch (error: any) {
-        console.warn('⚠️ AI parsing failed, using local parser:', error.message);
-        parsedRecipe = parseRecipeText(pasteText);
+        console.error('⚠️ AI parsing failed:', error.message);
+        setIsProcessing(false);
+        
+        // Show error dialog with retry or manual input options
+        setAiErrorMessage(`AI failed to parse recipe text.\n\nError: ${error.message || 'Unknown error'}`);
+        setFailedRecipeData({ text: pasteText, type: 'text' });
+        setShowAiErrorDialog(true);
+        return; // Stop execution
       }
       
       // IMPORTANT: Add the original text to the parsed recipe
@@ -243,7 +273,6 @@ export function AddRecipeModal() {
       handleClose();
       
       // Open the edit form with pre-filled data
-      // Make sure to open it after state is updated
       setTimeout(() => {
         console.log('Opening edit form');
         setIsRecipeEditFormOpen(true);
@@ -374,8 +403,14 @@ export function AddRecipeModal() {
         parsedRecipe = await parseRecipeWithBilingualSupport(extractedText);
         console.log('✅ Bilingual parsing successful! Recipe now has both EN and ZH versions.');
       } catch (error: any) {
-        console.warn('⚠️ AI parsing failed, using local parser:', error.message);
-        parsedRecipe = parseRecipeText(extractedText);
+        console.error('⚠️ AI parsing failed:', error.message);
+        setIsProcessing(false);
+        
+        // Show error dialog with retry or manual input options
+        setAiErrorMessage(`AI failed to parse recipe from URL.\n\nError: ${error.message || 'Unknown error'}`);
+        setFailedRecipeData({ text: extractedText, url: pasteUrl, images: recipeImages, type: 'url' });
+        setShowAiErrorDialog(true);
+        return; // Stop execution
       }
 
       parsedRecipe.originalText = extractedText;
@@ -441,6 +476,93 @@ export function AddRecipeModal() {
   const handleManualEntry = () => {
     handleClose();
     setIsRecipeEditFormOpen(true);
+  };
+  
+  const handleRetryAiParsing = async () => {
+    setShowAiErrorDialog(false);
+    
+    if (!failedRecipeData) return;
+    
+    if (failedRecipeData.type === 'image') {
+      // Retry image parsing
+      const file = await fetch(failedRecipeData.imageDataUrl)
+        .then(r => r.blob())
+        .then(blob => new File([blob], "recipe.jpg", { type: "image/jpeg" }));
+      
+      const event = {
+        target: { files: [file] }
+      } as any;
+      
+      setFailedRecipeData(null);
+      handleImageFileSelected(event);
+    } else if (failedRecipeData.type === 'text') {
+      // Retry text parsing
+      setPasteText(failedRecipeData.text);
+      setShowPasteInput(true);
+      setFailedRecipeData(null);
+      handlePasteRecipe();
+    } else if (failedRecipeData.type === 'url') {
+      // Retry URL parsing
+      setPasteUrl(failedRecipeData.url);
+      setShowUrlInput(true);
+      setFailedRecipeData(null);
+      handleFetchUrl();
+    }
+  };
+  
+  const handleProceedManually = () => {
+    setShowAiErrorDialog(false);
+    
+    if (!failedRecipeData) {
+      handleManualEntry();
+      return;
+    }
+    
+    // Create a minimal recipe with available data
+    const minimalRecipe: any = {
+      name: 'Untitled Recipe',
+      ingredients: [{ id: '1', amount: '', unit: '', name: '' }],
+      instructions: [''],
+      cuisine: '',
+      proteinType: '',
+      mealType: '',
+      servings: 4,
+      caloriesPerServing: 0,
+      nutrition: {
+        protein: 0,
+        fiber: 0,
+        fat: 0,
+        carbs: 0,
+        iron: 'Moderate',
+        calcium: 'Moderate',
+      },
+      plateComposition: {
+        protein: 25,
+        veggies: 25,
+        carbs: 25,
+        fats: 25,
+      },
+    };
+    
+    // Add any available data
+    if (failedRecipeData.imageDataUrl) {
+      minimalRecipe.image = failedRecipeData.imageDataUrl;
+    }
+    if (failedRecipeData.text) {
+      minimalRecipe.originalText = failedRecipeData.text;
+    }
+    if (failedRecipeData.url) {
+      minimalRecipe.sourceUrl = failedRecipeData.url;
+    }
+    
+    setSelectedRecipe(null);
+    setDraftRecipe(minimalRecipe);
+    setFailedRecipeData(null);
+    handleClose();
+    
+    setTimeout(() => {
+      setIsRecipeEditFormOpen(true);
+    }, 50);
   };
 
   return (
@@ -627,46 +749,80 @@ export function AddRecipeModal() {
 
     {/* Image Selector Dialog */}
     <Dialog open={showImageSelector} onOpenChange={setShowImageSelector}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent 
+        className="max-w-md overflow-hidden flex flex-col p-0 gap-0"
+        style={{ maxHeight: '85vh', height: 'auto' }}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="flex-shrink-0 px-6 pt-6">
           <DialogTitle>Select Recipe Image</DialogTitle>
           <DialogDescription>
             Choose an image to use as the recipe card display picture
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid grid-cols-2 gap-4 py-4">
-          {extractedImages.map((imageUrl, index) => (
-            <div
-              key={index}
-              className="relative group cursor-pointer rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-500 transition-all"
-              onClick={() => handleImageSelected(imageUrl)}
-            >
-              <img
-                src={imageUrl}
-                alt={`Recipe option ${index + 1}`}
-                className="w-full h-48 object-cover"
-                onError={(e) => {
-                  // Hide broken images
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
-                <span className="text-white opacity-0 group-hover:opacity-100 font-semibold">
-                  Select
-                </span>
+        <div 
+          className="flex-1 overflow-y-auto px-6 pb-6 min-h-0"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="grid grid-cols-2 gap-4 py-4">
+            {extractedImages.map((imageUrl, index) => (
+              <div
+                key={index}
+                className="relative group cursor-pointer rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-500 transition-all"
+                onClick={() => handleImageSelected(imageUrl)}
+              >
+                <img
+                  src={imageUrl}
+                  alt={`Recipe option ${index + 1}`}
+                  className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    // Hide broken images
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                  <span className="text-white opacity-0 group-hover:opacity-100 font-semibold">
+                    Select
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleSkipImageSelection}>
-            Skip - Use Default
-          </Button>
+            ))}
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={handleSkipImageSelection}>
+              Skip - Use Default
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* AI Error Dialog */}
+    <AlertDialog open={showAiErrorDialog} onOpenChange={setShowAiErrorDialog}>
+      <AlertDialogContent className="max-w-md">
+        <AlertDialogHeader>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-yellow-600" />
+            </div>
+            <AlertDialogTitle className="text-lg">AI Parsing Failed</AlertDialogTitle>
+          </div>
+          <AlertDialogDescription className="text-sm text-gray-600 whitespace-pre-line">
+            {aiErrorMessage}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogCancel onClick={handleProceedManually} className="w-full sm:w-auto">
+            Proceed with Manual Input
+          </AlertDialogCancel>
+          <AlertDialogAction onClick={handleRetryAiParsing} className="w-full sm:w-auto">
+            Try Again
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     </>
   );

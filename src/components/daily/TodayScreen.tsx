@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronRight, Edit } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -10,9 +10,19 @@ import { Recipe, QuickFood } from '../../types';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 export function TodayScreen() {
-  const { currentWeeklyPlan, userProfile, viewingDayOffset } = useApp();
+  const { currentWeeklyPlan, userProfile, viewingDayOffset, pendingTodayMealSelection } = useApp();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Reopen Edit Meals modal when returning from creating a new recipe
+  useEffect(() => {
+    console.log('🟣 TodayScreen: pendingTodayMealSelection changed to:', pendingTodayMealSelection);
+    console.log('🟣 TodayScreen: isEditModalOpen:', isEditModalOpen);
+    if (pendingTodayMealSelection) {
+      console.log('🟣 TodayScreen: Reopening EditMealsModal');
+      setIsEditModalOpen(true);
+    }
+  }, [pendingTodayMealSelection, isEditModalOpen]);
 
   // Calculate the day to view based on viewingDayOffset
   const viewDate = new Date();

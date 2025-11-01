@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Plus, RotateCcw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Plus, RotateCcw, PlusCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import {
@@ -27,7 +27,7 @@ interface EditTodayMealsModalProps {
 }
 
 export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditTodayMealsModalProps) {
-  const { recipes, currentWeeklyPlan, saveMealPlan, setCurrentScreen } = useApp();
+  const { recipes, currentWeeklyPlan, saveMealPlan, setCurrentScreen, setIsAddRecipeModalOpen, pendingTodayMealSelection, setPendingTodayMealSelection } = useApp();
   
   // Local state for editing
   const [breakfast, setBreakfast] = useState<Recipe[]>(dayPlan.breakfast);
@@ -42,6 +42,28 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
   const [selectedQuickFoodCategory, setSelectedQuickFoodCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false); // Prevent flicker during transition
+
+  // Watch for when a new recipe is saved and reopen the recipe picker
+  useEffect(() => {
+    if (pendingTodayMealSelection && isOpen) {
+      console.log('🟢 Detected pendingTodayMealSelection, reopening recipe picker for:', pendingTodayMealSelection.mealType);
+      // Recipe was just saved, reopen the recipe picker for the pending meal
+      setShowRecipePicker(pendingTodayMealSelection.mealType);
+      setPendingTodayMealSelection(null); // Clear the pending state
+      console.log('🟢 Cleared pendingTodayMealSelection');
+    }
+  }, [pendingTodayMealSelection, isOpen]);
+
+  // Debug: Track recipe picker state
+  useEffect(() => {
+    console.log('🟡 showRecipePicker changed to:', showRecipePicker);
+  }, [showRecipePicker]);
+
+  // Debug: Track modal open state
+  useEffect(() => {
+    console.log('🟡 EditTodayMealsModal isOpen:', isOpen);
+  }, [isOpen]);
 
   // Remove recipe from meal
   const removeRecipe = (mealType: 'breakfast' | 'lunch' | 'dinner', recipeId: string) => {
@@ -60,6 +82,7 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
 
   // Add recipe to meal
   const addRecipe = (mealType: 'breakfast' | 'lunch' | 'dinner', recipe: Recipe) => {
+    console.log('🟠 addRecipe called:', { mealType, recipeName: recipe.name });
     switch (mealType) {
       case 'breakfast':
         setBreakfast(prev => [...prev, recipe]);
@@ -73,6 +96,7 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
     }
     setShowRecipePicker(null);
     setSearchQuery('');
+    console.log('🟠 Recipe added, picker closed');
   };
 
   // Add quick food to meal
@@ -116,7 +140,12 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
     return recipes.filter(recipe => {
       const matchesSearch = searchQuery === '' || 
         recipe.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesMealType = recipe.categories.includes(mealTypeFilter as any);
+      
+      // Check new mealTypes array first, fall back to mealType, then legacy categories
+      const matchesMealType = 
+        recipe.mealTypes?.some(mt => mt.toLowerCase() === mealTypeFilter.toLowerCase()) ||
+        recipe.mealType?.toLowerCase() === mealTypeFilter.toLowerCase() ||
+        recipe.categories?.includes(mealTypeFilter as any);
       
       return matchesSearch && matchesMealType;
     });
@@ -170,12 +199,16 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
       days: updatedDays,
     };
 
-    // Save to Firebase IMMEDIATELY
-    await saveMealPlan(updatedPlan);
-    console.log('✅ Meal plan saved immediately');
-    
-    // Close modal and show success
+    // Close modal immediately for better UX
     onClose();
+    console.log('✅ Modal closed immediately');
+    
+    // Save to Firebase in the BACKGROUND
+    saveMealPlan(updatedPlan).then(() => {
+      console.log('✅ Meal plan saved to Firebase');
+    }).catch(err => {
+      console.error('❌ Failed to save meal plan:', err);
+    });
     
     // Regenerate shopping list with AI in the BACKGROUND
     console.log('🛒 Regenerating shopping list with AI in background...');
@@ -625,51 +658,87 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
         </div>
 
         {/* Recipe Picker Modal */}
-        {showRecipePicker && (
+        {showRecipePicker && !isTransitioning && (
           <Dialog open={!!showRecipePicker} onOpenChange={() => setShowRecipePicker(null)}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md p-6 gap-4" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
               <DialogHeader>
                 <DialogTitle>Add Recipe to {showRecipePicker.charAt(0).toUpperCase() + showRecipePicker.slice(1)}</DialogTitle>
               </DialogHeader>
 
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Search recipes..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
-                />
+              <input
+                type="text"
+                placeholder="Search recipes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
 
-                <ScrollArea className="h-[300px]">
-                  <div className="space-y-2">
-                    {getFilteredRecipes(showRecipePicker).length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        No recipes found
-                      </p>
-                    ) : (
-                      getFilteredRecipes(showRecipePicker).map(recipe => (
-                        <Card
-                          key={recipe.id}
-                          className="cursor-pointer hover:bg-accent/50"
-                          onClick={() => addRecipe(showRecipePicker, recipe)}
-                        >
-                          <CardContent className="p-3 flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-sm">{recipe.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {recipe.caloriesPerServing} cal
-                              </p>
-                            </div>
-                            <Button variant="ghost" size="sm">
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
-                  </div>
-                </ScrollArea>
+              {/* Add New Recipe Button */}
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => {
+                  console.log('🔵 Create New Recipe clicked');
+                  
+                  // Set transitioning flag to hide modals immediately
+                  setIsTransitioning(true);
+                  
+                  // Save which meal type we're adding to
+                  if (showRecipePicker) {
+                    setPendingTodayMealSelection({ mealType: showRecipePicker });
+                    console.log('🔵 Set pendingTodayMealSelection:', showRecipePicker);
+                  }
+                  
+                  // Close both modals immediately (synchronously)
+                  setShowRecipePicker(null);
+                  onClose();
+                  console.log('🔵 Closed both modals');
+                  
+                  // Open Add Recipe modal after a brief delay to ensure clean state
+                  setTimeout(() => {
+                    setIsAddRecipeModalOpen(true);
+                    setIsTransitioning(false);
+                    console.log('🔵 Opened AddRecipeModal');
+                  }, 150);
+                }}
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Create New Recipe
+              </Button>
+
+              <div style={{ 
+                overflowY: 'scroll', 
+                WebkitOverflowScrolling: 'touch',
+                flex: 1,
+                minHeight: 0
+              }}>
+                <div className="space-y-2">
+                  {getFilteredRecipes(showRecipePicker).length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No recipes found
+                    </p>
+                  ) : (
+                    getFilteredRecipes(showRecipePicker).map(recipe => (
+                      <Card
+                        key={recipe.id}
+                        className="cursor-pointer hover:bg-accent/50"
+                        onClick={() => addRecipe(showRecipePicker, recipe)}
+                      >
+                        <CardContent className="p-3 flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{recipe.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {recipe.caloriesPerServing} cal
+                            </p>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -681,7 +750,7 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
             setShowQuickFoodPicker(null);
             setSelectedQuickFoodCategory(null);
           }}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md p-6 gap-4" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
               <DialogHeader>
                 <DialogTitle>
                   {!selectedQuickFoodCategory 
@@ -691,68 +760,69 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
                 </DialogTitle>
               </DialogHeader>
 
-              <div className="space-y-4">
-                {/* Back button when in category view */}
-                {selectedQuickFoodCategory && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedQuickFoodCategory(null)}
-                    className="w-full"
-                  >
-                    ← Back to Categories
-                  </Button>
-                )}
+              {/* Back button when in category view */}
+              {selectedQuickFoodCategory && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedQuickFoodCategory(null)}
+                  className="w-full"
+                >
+                  ← Back to Categories
+                </Button>
+              )}
 
+              <div style={{ 
+                overflowY: 'scroll', 
+                WebkitOverflowScrolling: 'touch',
+                flex: 1,
+                minHeight: 0
+              }}>
                 {/* Category selection view */}
                 {!selectedQuickFoodCategory && (
-                  <ScrollArea className="h-[300px]">
-                    <div className="grid grid-cols-2 gap-3">
-                      {quickFoodCategories.map(category => (
-                        <Card
-                          key={category.name}
-                          className="cursor-pointer hover:bg-accent/50 transition-colors"
-                          onClick={() => setSelectedQuickFoodCategory(category.categoryKey)}
-                        >
-                          <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                            <span className="text-4xl">{category.emoji}</span>
-                            <p className="font-medium text-sm">{category.name}</p>
-                            <p className="text-xs text-muted-foreground">{category.count} items</p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                  <div className="grid grid-cols-2 gap-3">
+                    {quickFoodCategories.map(category => (
+                      <Card
+                        key={category.name}
+                        className="cursor-pointer hover:bg-accent/50 transition-colors"
+                        onClick={() => setSelectedQuickFoodCategory(category.categoryKey)}
+                      >
+                        <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                          <span className="text-4xl">{category.emoji}</span>
+                          <p className="font-medium text-sm">{category.name}</p>
+                          <p className="text-xs text-muted-foreground">{category.count} items</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 )}
 
                 {/* Items within selected category */}
                 {selectedQuickFoodCategory && (
-                  <ScrollArea className="h-[300px]">
-                    <div className="space-y-2">
-                      {getQuickFoodsByCategory(selectedQuickFoodCategory).map(food => (
-                        <Card
-                          key={food.id}
-                          className="cursor-pointer hover:bg-accent/50"
-                          onClick={() => addQuickFood(showQuickFoodPicker, food)}
-                        >
-                          <CardContent className="p-3 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-2xl">{food.emoji}</span>
-                              <div>
-                                <p className="font-medium text-sm">{food.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {food.servingSize} • {food.calories} cal
-                                </p>
-                              </div>
+                  <div className="space-y-2">
+                    {getQuickFoodsByCategory(selectedQuickFoodCategory).map(food => (
+                      <Card
+                        key={food.id}
+                        className="cursor-pointer hover:bg-accent/50"
+                        onClick={() => addQuickFood(showQuickFoodPicker, food)}
+                      >
+                        <CardContent className="p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">{food.emoji}</span>
+                            <div>
+                              <p className="font-medium text-sm">{food.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {food.servingSize} • {food.calories} cal
+                              </p>
                             </div>
-                            <Button variant="ghost" size="sm">
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 )}
               </div>
             </DialogContent>

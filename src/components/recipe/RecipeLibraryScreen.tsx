@@ -12,7 +12,6 @@ import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { BottomNav } from '../shared/BottomNav';
 import { UserButton } from '../auth/UserButton';
 import { LanguageSwitcher } from '../shared/LanguageSwitcher';
-import { RecipeIdeaWizard } from './RecipeIdeaWizard';
 
 export function RecipeLibraryScreen() {
   const { t, i18n } = useTranslation('recipe');
@@ -22,7 +21,17 @@ export function RecipeLibraryScreen() {
     setIsRecipeDetailsModalOpen,
     setIsAddRecipeModalOpen,
     deleteRecipe,
+    user,
+    recipesLoading
   } = useApp();
+  
+  console.log('📚 RecipeLibraryScreen - Debug:', {
+    recipesCount: recipes.length,
+    recipes: recipes,
+    recipesLoading,
+    userId: user?.uid,
+    userSignedIn: !!user
+  });
   
   // Helper function to translate category names
   const translateCategory = (category: string): string => {
@@ -47,31 +56,30 @@ export function RecipeLibraryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  // Define filter categories - organized by most useful for filtering
-  const categories: Array<{ key: string; label: string }> = [
-    { key: 'All', label: t('categories.all') },
-    { key: 'Favorites ❤️', label: t('categories.favorites') },
-    // Meal Types
-    { key: 'Breakfast', label: t('categories.breakfast') },
-    { key: 'Lunch', label: t('categories.lunch') },
-    { key: 'Dinner', label: t('categories.dinner') },
-    { key: 'Snack', label: 'Snack' },
-    // Popular Protein Filters
-    { key: 'Chicken', label: 'Chicken' },
-    { key: 'Beef', label: 'Beef' },
-    { key: 'Fish', label: 'Fish' },
-    { key: 'Vegetarian', label: 'Vegetarian' },
-    // Cuisines
-    { key: 'Korean', label: t('categories.korean') },
-    { key: 'Chinese', label: t('categories.chinese') },
-    { key: 'Italian', label: t('categories.italian') },
-    // Useful Filters
-    { key: 'Kid-Friendly', label: t('categories.kidFriendly') },
-    { key: 'Quick', label: 'Quick' },
-    { key: '30-Min', label: '30-Min' },
-    { key: 'One-Pot', label: 'One-Pot' },
-    { key: 'Batch-Cook Friendly', label: t('categories.batchCook') },
+  // Define protein source categories for sidebar
+  const proteinCategories: Array<{ key: string; label: string; emoji: string }> = [
+    { key: 'All', label: 'All Recipes', emoji: '🍽️' },
+    { key: 'Chicken', label: 'Chicken', emoji: '🍗' },
+    { key: 'Beef', label: 'Beef', emoji: '🥩' },
+    { key: 'Pork', label: 'Pork', emoji: '🍖' },
+    { key: 'Fish', label: 'Fish', emoji: '🐟' },
+    { key: 'Seafood', label: 'Seafood', emoji: '🦐' },
+    { key: 'Eggs', label: 'Eggs', emoji: '🥚' },
+    { key: 'Vegetarian', label: 'Vegetarian', emoji: '🥦' },
+    { key: 'Vegan', label: 'Vegan', emoji: '🌱' },
   ];
+
+  // Helper function to get all protein types (handles both old and new format)
+  const getProteinTypes = (recipe: Recipe): string[] => {
+    if (recipe.proteinTypes && recipe.proteinTypes.length > 0) {
+      return recipe.proteinTypes;
+    }
+    // Fallback to singular field for old recipes
+    if (recipe.proteinType) {
+      return [recipe.proteinType];
+    }
+    return [];
+  };
 
   // Filter recipes based on search and category
   const filteredRecipes = recipes.filter((recipe) => {
@@ -79,26 +87,37 @@ export function RecipeLibraryScreen() {
     const matchesSearch =
       searchQuery === '' ||
       recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      recipe.cuisine.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      recipe.categories.some((cat) =>
+      recipe.cuisine?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      getProteinTypes(recipe).some(pt => pt.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      recipe.mealType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      // Legacy support for old categories
+      (recipe.categories && recipe.categories.some((cat) =>
         cat.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      ));
 
-    // Category filter
+    // Category filter by protein type
     let matchesCategory = true;
     if (selectedCategory === 'All') {
       matchesCategory = true;
-    } else if (selectedCategory === 'Favorites ❤️') {
-      matchesCategory = recipe.isFavorite;
-    } else if (
-      ['Korean', 'Chinese', 'Italian', 'American', 'Mexican', 'Japanese', 'Other'].includes(
-        selectedCategory
-      )
-    ) {
-      matchesCategory = recipe.cuisine === selectedCategory;
+    } else if (selectedCategory === 'Vegetarian' || selectedCategory === 'Vegan') {
+      matchesCategory = 
+        getProteinTypes(recipe).some(pt => pt.toLowerCase().includes(selectedCategory.toLowerCase())) ||
+        (recipe.categories && recipe.categories.some(cat => cat.toLowerCase().includes(selectedCategory.toLowerCase())));
+    } else if (selectedCategory === 'Seafood') {
+      matchesCategory = getProteinTypes(recipe).some(pt => 
+        pt.toLowerCase().includes('fish') ||
+        pt.toLowerCase().includes('shrimp') ||
+        pt.toLowerCase().includes('seafood') ||
+        pt.toLowerCase().includes('shellfish')
+      );
     } else {
-      // Check if recipe has this category
-      matchesCategory = recipe.categories.includes(selectedCategory as RecipeCategory);
+      // Match protein type using unified helper
+      // Check both directions: "Eggs" matches "egg" and "Eggs" matches "Eggs"
+      matchesCategory = getProteinTypes(recipe).some(pt => {
+        const ptLower = pt.toLowerCase();
+        const catLower = selectedCategory.toLowerCase();
+        return ptLower.includes(catLower) || catLower.includes(ptLower);
+      });
     }
 
     return matchesSearch && matchesCategory;
@@ -114,15 +133,15 @@ export function RecipeLibraryScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="max-w-md mx-auto p-6 space-y-6">
-        {/* Header */}
+    <div className="min-h-screen bg-background pb-20 flex flex-col">
+      {/* Header */}
+      <div className="max-w-md mx-auto w-full px-6 py-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">{t('library.title')}</h1>
+          <h1 className="text-2xl font-bold">{t('library.title')}</h1>
           <div className="flex items-center gap-2">
             <Button onClick={handleAddRecipe} size="sm" className="shrink-0">
               <Plus className="w-4 h-4 mr-2" />
-              {t('library.addButton')}
+              Add
             </Button>
             <LanguageSwitcher />
             <UserButton />
@@ -131,7 +150,7 @@ export function RecipeLibraryScreen() {
 
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
             type="text"
             placeholder={t('library.searchPlaceholder')}
@@ -141,48 +160,66 @@ export function RecipeLibraryScreen() {
           />
         </div>
 
-        {/* AI Recipe Ideas Button */}
-        <div className="flex gap-2">
-          <RecipeIdeaWizard />
+      </div>
+
+      {/* Two Column Layout: Sidebar + Content */}
+      <div className="flex-1 flex max-w-md mx-auto w-full">
+        {/* Left Sidebar - Protein Categories */}
+        <div className="w-24 bg-secondary/30 border-r">
+          <ScrollArea className="h-full">
+            <div className="py-2">
+              {proteinCategories.map((category) => (
+                <button
+                  key={category.key}
+                  onClick={() => setSelectedCategory(category.key)}
+                  className={`w-full px-3 py-8 flex flex-col items-center justify-center gap-2 transition-colors ${
+                    selectedCategory === category.key
+                      ? 'bg-background border-r-2 border-primary text-primary'
+                      : 'text-muted-foreground hover:bg-secondary/50'
+                  }`}
+                >
+                  <span className="text-2xl">{category.emoji}</span>
+                  <span className="text-xs font-medium text-center leading-tight">
+                    {category.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
 
-        {/* Browse by Category - Horizontal Scrolling */}
-        <ScrollArea className="w-full whitespace-nowrap pb-2">
-          <div className="flex gap-2">
-            {categories.map((category) => (
-              <Button
-                key={category.key}
-                variant={selectedCategory === category.key ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory(category.key)}
-                className="shrink-0"
-              >
-                {category.label}
-              </Button>
-            ))}
-          </div>
-        </ScrollArea>
+        {/* Right Content - Recipe Grid */}
+        <div className="flex-1">
+          <ScrollArea className="h-[calc(100vh-280px)]">
+            <div className="p-4">
+              {/* Category Title */}
+              <h2 className="text-lg font-semibold mb-4">
+                {proteinCategories.find(c => c.key === selectedCategory)?.label}
+              </h2>
 
-        {/* Recipe List */}
-        {filteredRecipes.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg">{t('library.noRecipesFound')}</p>
-            <p className="text-sm mt-2">{t('library.tryAdjusting')}</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {filteredRecipes.map((recipe) => (
-              <RecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                onClick={() => handleRecipeClick(recipe)}
-                onDelete={deleteRecipe}
-                t={t}
-                currentLanguage={i18n.language}
-              />
-            ))}
-          </div>
-        )}
+              {/* Recipe Grid */}
+              {filteredRecipes.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p className="text-lg">{t('library.noRecipesFound')}</p>
+                  <p className="text-sm mt-2">{t('library.tryAdjusting')}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredRecipes.map((recipe) => (
+                    <RecipeCard
+                      key={recipe.id}
+                      recipe={recipe}
+                      onClick={() => handleRecipeClick(recipe)}
+                      onDelete={deleteRecipe}
+                      t={t}
+                      currentLanguage={i18n.language}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
       </div>
 
       <BottomNav />
@@ -217,56 +254,40 @@ function RecipeCard({ recipe, onClick, onDelete, t, currentLanguage }: RecipeCar
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden"
+      className="cursor-pointer hover:shadow-lg transition-shadow overflow-hidden relative"
       onClick={onClick}
     >
-      <CardContent className="p-0">
-        {/* Recipe Image */}
-        <div className="relative w-full h-48 overflow-hidden">
+      <CardContent className="p-0 flex items-center">
+        {/* Recipe Image - Left Side */}
+        <div className="relative w-24 h-24 flex-shrink-0 bg-gray-100 flex items-center justify-center">
           <ImageWithFallback
             src={recipe.image}
             alt={recipe.name}
             className="w-full h-full object-cover"
           />
+          
+          {/* Favorite Heart */}
           {recipe.isFavorite && (
-            <div className="absolute top-2 right-2 bg-white rounded-full p-1.5 shadow-md">
-              <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+            <div className="absolute top-1 left-1 bg-white/90 rounded-full p-1 shadow-md backdrop-blur-sm">
+              <Heart className="w-3 h-3 text-red-500 fill-red-500" />
             </div>
           )}
         </div>
 
-        {/* Recipe Info */}
-        <div className="p-4 space-y-3">
-          <h3 className="font-semibold text-lg line-clamp-2">{displayName}</h3>
-
-          {/* Tags */}
-          <div className="flex flex-wrap gap-1.5">
-            {recipe.categories.slice(0, 2).map((category) => (
-              <Badge key={category} variant="secondary" className="text-xs">
-                {category}
-              </Badge>
-            ))}
-          </div>
-
-          {/* Time */}
-          <div className="flex items-center text-sm text-muted-foreground">
-            <span>
-              {t('library.prepTime')}: {recipe.prepTime}m, {t('library.cookTime')}: {recipe.cookTime}m
-            </span>
-          </div>
-
-          {/* Delete Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDelete}
-            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            {t('library.deleteButton')}
-          </Button>
+        {/* Recipe Info - Right Side */}
+        <div className="flex-1 p-3">
+          <h3 className="font-semibold text-sm line-clamp-2">{displayName}</h3>
         </div>
       </CardContent>
+
+      {/* Delete Button - Floating Top Right */}
+      <button
+        onClick={handleDelete}
+        className="absolute p-1.5 bg-white/90 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-full transition-colors shadow-md z-10"
+        style={{ top: '8px', right: '8px' }}
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
     </Card>
   );
 }

@@ -426,3 +426,158 @@
 - Calories progress bar display issue (minor visual bug, functionality works)
 - Need to investigate calorie bar rendering in production
 
+## November 1, 2025
+
+### Quick Foods Page Redesign
+- Redesigned Quick Foods page with **two-column sidebar layout**:
+  - Left sidebar: Category buttons (Fruits, Veggies, Grains, Protein, Dairy, Snacks, Drinks)
+  - Right content area: Food items under selected category
+  - Stacked layout similar to Chinese food ordering apps
+- Adjusted page width to `max-w-md` for iPhone consistency
+- Enhanced nutrition display:
+  - Changed abbreviations (P, C, F) to full names (Protein, Carbs, Fat)
+  - Added Fiber to nutrition information
+  - Stacked layout for each nutrition item (vertical display)
+
+### Add Quick Food with AI
+- Implemented **"Add Quick Food" function** with AI auto-population:
+  - Floating Action Button (FAB) in top-right corner
+  - Single description input field (e.g., "a cup of brown rice")
+  - **AI Auto-Fill button** calls Gemini API (`gemini-2.5-flash`)
+  - Auto-populates: portion unit, calories, nutrition (protein, carbs, fat, fiber), emoji, and category
+- **Firebase integration** for custom quick foods:
+  - Saves to `quickFoods` collection with `userId` and `isCustom: true`
+  - Real-time loading of user's custom quick foods
+  - Updated Firestore security rules for authenticated user access
+- Error handling with `AlertDialog`:
+  - "AI parsing failed" warning with retry or manual input options
+  - User-friendly fallback for API errors
+- Success message: "Quick food saved!"
+
+### Recipe Library Redesign
+- Redesigned Recipe Library with **sidebar layout**:
+  - Left sidebar: Protein source categories (All Recipes, Chicken, Beef, Pork, Fish, Seafood, Eggs, Vegetarian, Vegan)
+  - Right content area: Recipe cards filtered by selected category
+  - Added emojis to sidebar: 🍗 Chicken, 🍖 Pork, 🥦 Vegetarian, 🥚 Eggs
+- **Recipe card updates**:
+  - Removed prep and cook time display
+  - Changed delete button to trash can icon (`Trash2`) without text
+  - Positioned delete button at top-right corner of card with semi-transparent background
+  - Removed category tags/badges from cards
+  - Kept single-column layout with image on left, title on right
+- Removed "AI Recipe Ideas" button from Recipe Library
+- Increased sidebar button height (`py-8`) to ~1/2 recipe card length
+- Added "Eggs" as protein category to sidebar
+
+### Recipe Saving Process Redesign
+- **Simplified and automated** recipe saving with **3-step sequential flow**:
+  1. **Step 1: Confirm Recipe**
+     - Select and crop picture
+     - Review recipe ingredients and steps
+     - Removed prep/cook time and portion guidance
+  2. **Step 2: Calorie Confirmation**
+     - Confirm total servings and calories per serving
+     - Display AI calculation logic below (scrollable, formatted for readability)
+  3. **Step 3: Tagging Page**
+     - Three tag categories: Cuisine, Protein Type, Meal Type
+     - Multiple tag selection per category
+     - **Notion-style design**:
+       - Selected tags displayed inside input box as colored pills
+       - AI-suggested tags as clickable buttons below input
+       - Colored backgrounds for both selected and suggested tags
+       - Space key as separator for multiple keywords
+       - Auto-tag with color when typing
+     - Grey hint text in empty input boxes
+     - Suggestions show AI-extracted tags (no "+" sign)
+
+### Recipe Data Structure Updates
+- Updated `Recipe` interface to support **multiple tags**:
+  - Added array fields: `cuisines[]`, `proteinTypes[]`, `mealTypes[]`
+  - Kept singular fields for backwards compatibility: `cuisine`, `proteinType`, `mealType`
+- Created helper function `getProteinTypes()` to **unify tag handling**:
+  - Single source of truth for protein type filtering
+  - Handles both old (string) and new (array) formats seamlessly
+- **Bidirectional matching** for protein filters:
+  - Fixed issue where "egg" wouldn't match "Eggs" category
+  - Now checks both `proteinType.includes(category)` and `category.includes(proteinType)`
+  - Handles case-insensitive matching
+
+### Shopping List Export
+- Fixed exported shopping list to **match displayed list exactly**:
+  - Same grouping (by category)
+  - Same order (sorted categories and items)
+  - Same ingredient names (no quantities)
+  - Includes checkbox status (✓ or ☐)
+  - Category headers with separator lines
+
+### Meal Editing Flow Improvements
+- **"Add Recipe" → "Create New Recipe" flow**:
+  - Added "Create New Recipe" button in Add Recipe pop-out window
+  - Seamless redirect to Add New Recipe page
+  - Returns to Add Meal page after recipe is saved
+  - Newly added recipe automatically visible for selection
+- Fixed recipe filter logic to use new `mealTypes` array instead of deprecated `categories`
+- Implemented `pendingTodayMealSelection` in `AppContext`:
+  - Tracks which meal type user was adding when redirected
+  - Reopens correct modal and meal picker after recipe save
+- **Modal state management**:
+  - Added `useEffect` to reset `AddRecipeModal` state when reopened
+  - Prevents "asking for link directly" issue
+  - Clean initial view with all three options (URL, Paste, Upload)
+- **Eliminated flickering**:
+  - Added `isTransitioning` flag to immediately hide recipe picker
+  - Smooth transition between modals without animation flicker
+- **Immediate save feedback**:
+  - "Save Changes" button closes modal immediately
+  - Performs save and shopping list regeneration in background
+  - Better UX with no perceived lag
+
+### Recipe Details Modal Updates
+- **AI Nutrition Calculation display**:
+  - Updated pop-up window to match recipe save screen styling
+  - Changed modal width from `max-w-3xl` to `max-w-md` for phone consistency
+  - Fixed text wrapping in `<pre>` tag:
+    - Added `overflow-x-hidden` to container
+    - Inline styles: `whiteSpace: 'pre-wrap'`, `wordBreak: 'break-word'`, `overflowWrap: 'break-word'`
+    - Forces text to wrap within constrained width
+  - Removed gradient background, used `bg-gray-50` for clean look
+  - Small font (`text-xs`), monospace for calculation details
+- Fixed tag display to show **all multiple tags**:
+  - Displays all cuisines, protein types, and meal types
+  - Uses array fields (`cuisines[]`, etc.) with fallback to singular fields
+
+### Image Selector Scrolling Fix
+- Fixed **"not scrollable, not starting from beginning"** issue in image selector:
+  - Root cause: `max-h-[85vh]` Tailwind class wasn't constraining height properly
+  - Solution: Used inline `style={{ maxHeight: '85vh', height: 'auto' }}`
+  - Proper flexbox structure:
+    - `DialogContent`: `flex flex-col` with `overflow-hidden`
+    - `DialogHeader`: `flex-shrink-0` to stay fixed at top
+    - Scrollable content: `flex-1 overflow-y-auto min-h-0` with `WebkitOverflowScrolling: 'touch'`
+  - Added `onOpenAutoFocus={(e) => e.preventDefault()}` to prevent auto-focus issues
+- Applied same fix to URL/Paste recipe add page image selector
+- Changed modal width from `max-w-2xl` to `max-w-md` for consistency
+
+### Bug Fixes
+- Fixed Gemini API model name error (changed `gemini-1.5-flash` to `gemini-2.5-flash`)
+- Fixed custom quick foods not showing in database (Firebase integration)
+- Fixed delete button visibility on recipe cards (z-index and positioning)
+- Fixed "User must be signed in" error in recipe saving (`useRecipes(user?.uid || null)`)
+- Fixed saved recipes not loading in Recipe Library (`RecipeDetailsModal` using old `categories` field)
+- Fixed only one meal type showing when multiple saved (updated save logic to use arrays)
+- Fixed recipe not showing under "Eggs" filter despite having "egg" tag (bidirectional matching)
+- Fixed exported grocery list not matching displayed list (updated `handleExportList` logic)
+- Fixed "Add Recipe" blanking out on Today's edit page (filter logic using old `categories`)
+- Fixed image selector not scrollable and not starting from top (inline `maxHeight` style)
+
+### Technical Improvements
+- Created `getProteinTypes()` helper for unified protein type handling
+- Debug logging for modal state and recipe filtering (later removed)
+- Improved TypeScript typing for multiple tag arrays
+- Better state management across nested modals
+- Background async operations for better perceived performance
+- Text wrapping edge cases handled for `<pre>` tags with long unbreakable strings
+
+### Documentation
+- Updated `DEVELOPER_JOURNAL.md` with all session changes
+

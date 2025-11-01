@@ -59,6 +59,8 @@ interface AppContextType {
   setIsRecipeDetailsModalOpen: (isOpen: boolean) => void;
   isRecipeEditFormOpen: boolean;
   setIsRecipeEditFormOpen: (isOpen: boolean) => void;
+  pendingTodayMealSelection: { mealType: 'breakfast' | 'lunch' | 'dinner' } | null;
+  setPendingTodayMealSelection: (selection: { mealType: 'breakfast' | 'lunch' | 'dinner' } | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -107,6 +109,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isAddRecipeModalOpen, setIsAddRecipeModalOpen] = useState(false);
   const [isRecipeDetailsModalOpen, setIsRecipeDetailsModalOpen] = useState(false);
   const [isRecipeEditFormOpen, setIsRecipeEditFormOpen] = useState(false);
+  const [pendingTodayMealSelection, setPendingTodayMealSelection] = useState<{ mealType: 'breakfast' | 'lunch' | 'dinner' } | null>(null);
 
   return (
     <AppContext.Provider
@@ -164,6 +167,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsRecipeDetailsModalOpen,
         isRecipeEditFormOpen,
         setIsRecipeEditFormOpen,
+        pendingTodayMealSelection,
+        setPendingTodayMealSelection,
       }}
     >
       {children}

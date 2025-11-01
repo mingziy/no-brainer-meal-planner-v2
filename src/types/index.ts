@@ -169,14 +169,23 @@ export interface Recipe {
   id: string;
   name: string;
   image: string;
-  cuisine: RecipeCuisine;
-  categories: RecipeCategory[];
-  prepTime: number; // in minutes
-  cookTime: number; // in minutes
+  
+  // Simplified tag system (supports multiple selections)
+  cuisine: string; // Primary cuisine (for backwards compatibility)
+  proteinType: string; // Primary protein type (for backwards compatibility)
+  mealType: string; // Primary meal type (for backwards compatibility)
+  
+  // Multiple tags support
+  cuisines?: string[]; // All selected cuisines
+  proteinTypes?: string[]; // All selected protein types
+  mealTypes?: string[]; // All selected meal types
+  
+  // Core recipe data
   servings: number; // total number of servings (e.g., 4)
   caloriesPerServing: number; // calories per serving
   ingredients: Ingredient[];
   instructions: string[];
+  
   nutrition: {
     protein: number; // in grams PER SERVING
     proteinDV?: number; // % Daily Value
@@ -195,11 +204,7 @@ export interface Recipe {
     carbs: number; // percentage
     fats: number; // percentage
   };
-  portions: {
-    adult: string;
-    child5: string;
-    child2: string;
-  };
+  
   isFavorite: boolean;
   originalText?: string; // Raw extracted text from OCR or pasted text
   sourceUrl?: string; // Original recipe URL for attribution and linking back
@@ -209,6 +214,16 @@ export interface Recipe {
   nameZh?: string; // Chinese name
   ingredientsZh?: Ingredient[]; // Chinese ingredients
   instructionsZh?: string[]; // Chinese instructions
+  
+  // Legacy fields (deprecated but kept for backwards compatibility)
+  categories?: RecipeCategory[];
+  prepTime?: number; // in minutes (deprecated)
+  cookTime?: number; // in minutes (deprecated)
+  portions?: {
+    adult: string;
+    child5: string;
+    child2: string;
+  };
   
   createdAt: Date;
   updatedAt: Date;

@@ -171,7 +171,21 @@ export function ShoppingListScreen() {
   };
 
   const handleExportList = () => {
-    const listText = shoppingList.map(item => `${item.checked ? '✓' : '☐'} ${item.name} (${item.quantity})`).join('\n');
+    // Build the export text with the same grouping and order as displayed
+    const exportSections: string[] = [];
+    
+    sortedCategories.forEach(category => {
+      // Add category header
+      const categoryHeader = categoryNames[category as keyof typeof categoryNames];
+      exportSections.push(`\n${categoryHeader}\n${'─'.repeat(categoryHeader.length)}`);
+      
+      // Add items in the same order as displayed (alphabetically sorted)
+      groupedItems[category].forEach(item => {
+        exportSections.push(`${item.checked ? '✓' : '☐'} ${item.name}`);
+      });
+    });
+    
+    const listText = exportSections.join('\n').trim();
     
     if (navigator.share) {
       navigator.share({

@@ -89,10 +89,9 @@ export async function parseRecipeWithGemini(text: string, timeoutMs: number = 90
 Required JSON structure:
 {
   "name": "Recipe name (string)",
-  "cuisine": "One of: Korean, Chinese, Italian, American, Mexican, Japanese, Other",
-  "categories": ["Array of relevant tags from: Breakfast, Lunch, Dinner, Snack, Kid-Friendly, Toddler-Friendly, Picky-Eater-Friendly, Beef, Chicken, Pork, Fish, Shellfish, Turkey, Lamb, Tofu, Eggs, Batch-Cook Friendly, One-Pot, No-Cook, Slow-Cooker, Air-Fryer, Instant-Pot, Quick, 30-Min, Make-Ahead, Freezer-Friendly, Vegetarian, Vegan, Gluten-Free, Dairy-Free, Low-Carb, Keto, High-Protein, Veggie-Rich, Balanced, Meal-Prep, Comfort-Food, Healthy, Leftover-Friendly"],
-  "prepTime": 15,
-  "cookTime": 30,
+  "cuisine": "Cuisine type (e.g., Chinese, Italian, Mexican, Japanese, Thai, Indian, Korean, American, French, Mediterranean, etc.)",
+  "proteinType": "Main protein source (e.g., Chicken, Beef, Pork, Fish, Vegan, Tofu, Shrimp, Turkey, Lamb, Eggs, etc.)",
+  "mealType": "When to serve (e.g., Breakfast, Lunch, Dinner, Snack)",
   "servings": 4,
   "caloriesPerServing": 350,
   "nutritionCalculationReasoning": "Explain your calculation logic here, including: 1) How you determined serving size (from recipe text or estimated from ingredient amounts), 2) How you calculated calories per serving (cite USDA nutrition data, common nutrition databases, or standard calorie values), 3) Sources or reasoning for nutrition estimates (protein/carbs/fat/fiber)",
@@ -129,15 +128,18 @@ Required JSON structure:
 
 IMPORTANT Rules:
 - **PRESERVE THE ORIGINAL LANGUAGE**: If the recipe is in Chinese, output Chinese text for name, ingredients, and instructions. If in English, use English.
-- If cuisine is unclear, use "Other"
-- **CATEGORIES MUST BE ACCURATE**: Select ALL relevant tags (meal type + protein type + cooking method + dietary + goals). For example:
-  * Chicken stir-fry: ["Dinner", "Chicken", "Quick", "30-Min", "One-Pot", "High-Protein"]
-  * Vegan tofu scramble: ["Breakfast", "Tofu", "Vegetarian", "Vegan", "Quick", "High-Protein"]
-  * Slow cooker beef stew: ["Dinner", "Beef", "Slow-Cooker", "Comfort-Food", "Make-Ahead", "Batch-Cook Friendly"]
+- **cuisine**: Identify the primary cuisine type (e.g., Chinese, Italian, Mexican, Japanese, Thai, Indian, Korean, American, French, Mediterranean, etc.)
+- **proteinType**: Identify the MAIN protein source. Examples:
+  * Chicken dish → "Chicken"
+  * Beef stir-fry → "Beef"
+  * Tofu scramble → "Tofu"
+  * Grilled salmon → "Fish"
+  * Shrimp pasta → "Shrimp"
+  * No meat/fish → "Vegan"
+- **mealType**: When this dish is typically served (Breakfast, Lunch, Dinner, or Snack)
 - Extract all ingredients with amounts/units
 - Number each ingredient starting from "1"
 - Break instructions into clear steps
-- Times are in minutes
 
 **SERVING SIZE & NUTRITION CALCULATION (CRITICAL RULES)**:
 
