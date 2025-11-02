@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Recipe, Ingredient } from '../../types';
 import {
@@ -14,8 +14,10 @@ import { ScrollArea } from '../ui/scroll-area';
 import { ArrowLeft, ArrowRight, Plus, Trash2, Camera, Loader2 } from 'lucide-react';
 import { useRecipes } from '../../hooks/useRecipes';
 import { toast } from 'sonner';
+import Cropper from 'react-easy-crop';
+import type { Area } from 'react-easy-crop';
 
-type Step = 'recipe' | 'calories' | 'tags';
+type Step = 'image' | 'recipe' | 'calories' | 'tags';
 
 export function RecipeEditFormV2() {
   const { 
@@ -31,8 +33,16 @@ export function RecipeEditFormV2() {
   
   const { addRecipe, updateRecipe } = useRecipes(user?.uid || null);
   
-  const [currentStep, setCurrentStep] = useState<Step>('recipe');
+  const [currentStep, setCurrentStep] = useState<Step>('image');
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Step 0: Image selection
+  const [availableImages, setAvailableImages] = useState<string[]>([]);
+  const [showCropper, setShowCropper] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string>('');
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   
   // Step 1: Recipe data
   const [recipeName, setRecipeName] = useState('');
@@ -86,6 +96,31 @@ export function RecipeEditFormV2() {
         
         setRecipeName(recipe.name || '');
         setRecipeImage(recipe.image || '');
+        
+        // Set available images for selection
+        const images = [];
+        if ((recipe as any).originalImageForCropping) {
+          // Use original image for cropping
+          console.log('✅ Found originalImageForCropping');
+          images.push((recipe as any).originalImageForCropping);
+        } else if (recipe.image) {
+          console.log('✅ Found recipe.image');
+          images.push(recipe.image);
+        } else {
+          console.log('❌ No image found in recipe');
+        }
+        setAvailableImages(images);
+        console.log('🖼️ Set availableImages:', images.length);
+        
+        // Auto-open cropper if we have an image
+        if (images.length > 0) {
+          console.log('📸 Setting imageToCrop:', images[0].substring(0, 50) + '...');
+          setImageToCrop(images[0]);
+          setShowCropper(true);
+        } else {
+          console.log('❌ No images available for cropping');
+        }
+        
         setIngredients(recipe.ingredients || [{ id: '1', amount: '', unit: '', name: '' }]);
         setInstructions(recipe.instructions || ['']);
         setServings(recipe.servings || 4);
@@ -100,7 +135,7 @@ export function RecipeEditFormV2() {
         setProteinInput('');
         setMealTypeInput('');
       }
-      setCurrentStep('recipe');
+      setCurrentStep('image');
     }
   }, [isRecipeEditFormOpen, draftRecipe, selectedRecipe]);
   
@@ -113,8 +148,22 @@ export function RecipeEditFormV2() {
     console.log('🔴 RecipeEditFormV2: Closed, isRecipeEditFormOpen set to false');
   };
   
-  const handleNextStep = () => {
-    if (currentStep === 'recipe') {
+  const handleNextStep = async () => {
+    // If on image step, save the crop before proceeding
+    if (currentStep === 'image') {
+      if (imageToCrop && croppedAreaPixels) {
+        try {
+          const croppedImage = await createCroppedImage(imageToCrop, croppedAreaPixels);
+          setRecipeImage(croppedImage);
+          toast.success('Image cropped!');
+        } catch (error) {
+          console.error('Error cropping image:', error);
+          toast.error('Failed to crop image');
+          return; // Don't proceed if crop fails
+        }
+      }
+      setCurrentStep('recipe');
+    } else if (currentStep === 'recipe') {
       setCurrentStep('calories');
     } else if (currentStep === 'calories') {
       setCurrentStep('tags');
@@ -122,11 +171,76 @@ export function RecipeEditFormV2() {
   };
   
   const handlePrevStep = () => {
-    if (currentStep === 'calories') {
+    if (currentStep === 'recipe') {
+      setCurrentStep('image');
+    } else if (currentStep === 'calories') {
       setCurrentStep('recipe');
     } else if (currentStep === 'tags') {
       setCurrentStep('calories');
     }
+  };
+  
+  // Cropping functions
+  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const createCroppedImage = async (imageSrc: string, pixelCrop: Area): Promise<string> => {
+    const img = await new Promise<HTMLImageElement>((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.src = imageSrc;
+    });
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get canvas context');
+
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+
+    ctx.drawImage(
+      img,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      pixelCrop.width,
+      pixelCrop.height
+    );
+
+    return canvas.toDataURL('image/jpeg', 0.9);
+  };
+
+  const handleCropImage = (imageUrl: string) => {
+    setImageToCrop(imageUrl);
+    setShowCropper(true);
+  };
+
+  const handleCropSave = async () => {
+    if (!imageToCrop || !croppedAreaPixels) return;
+    
+    try {
+      const croppedImage = await createCroppedImage(imageToCrop, croppedAreaPixels);
+      setRecipeImage(croppedImage);
+      setShowCropper(false);
+      setImageToCrop('');
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      toast.success('Image cropped successfully!');
+    } catch (error) {
+      console.error('Error cropping image:', error);
+      toast.error('Failed to crop image');
+    }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    setImageToCrop('');
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
   };
   
   const addIngredient = () => {
@@ -220,20 +334,33 @@ export function RecipeEditFormV2() {
   };
   
   const handleSaveRecipe = async () => {
+    console.log('🚀 ========== SAVE RECIPE STARTED ==========');
+    console.log('📝 Recipe name:', recipeName);
+    console.log('🖼️ Recipe image:', recipeImage ? 'Set (' + recipeImage.substring(0, 50) + '...)' : 'Not set');
+    console.log('🥘 Ingredients count:', ingredients.length);
+    console.log('📋 Instructions count:', instructions.length);
+    console.log('🍽️ Servings:', servings);
+    console.log('🔥 Calories per serving:', caloriesPerServing);
+    console.log('🏷️ Cuisines:', cuisines);
+    console.log('🥩 Protein types:', proteinTypes);
+    console.log('🍴 Meal types:', mealTypes);
+    console.log('👤 User:', user ? user.uid : 'NO USER');
+    
     // Validation
     if (!recipeName.trim()) {
+      console.error('❌ Validation failed: No recipe name');
       toast.error('Please enter a recipe name');
       return;
     }
-    if (cuisines.length === 0 || proteinTypes.length === 0 || mealTypes.length === 0) {
-      toast.error('Please add at least one tag for each category');
-      return;
-    }
     
+    console.log('✅ Validation passed');
     setIsSaving(true);
+    console.log('⏳ isSaving set to true');
     
     try {
       const recipe = draftRecipe || selectedRecipe;
+      console.log('📦 Base recipe:', recipe);
+      
       const recipeData: Partial<Recipe> = {
         name: recipeName,
         image: recipeImage || 'https://via.placeholder.com/400x300?text=No+Image',
@@ -249,7 +376,6 @@ export function RecipeEditFormV2() {
         caloriesPerServing,
         ingredients: ingredients.filter(ing => ing.name.trim()),
         instructions: instructions.filter(inst => inst.trim()),
-        nutritionCalculationReasoning: calculationReasoning,
         nutrition: recipe?.nutrition || {
           protein: 0,
           fiber: 0,
@@ -265,38 +391,68 @@ export function RecipeEditFormV2() {
           fats: 25,
         },
         isFavorite: recipe?.isFavorite || false,
-        originalText: recipe?.originalText,
-        sourceUrl: recipe?.sourceUrl,
-        nameZh: recipe?.nameZh,
-        ingredientsZh: recipe?.ingredientsZh,
-        instructionsZh: recipe?.instructionsZh,
       };
+      
+      // Only add optional fields if they exist (Firestore doesn't accept undefined)
+      if (calculationReasoning) {
+        recipeData.nutritionCalculationReasoning = calculationReasoning;
+      }
+      if (recipe?.originalText) {
+        recipeData.originalText = recipe.originalText;
+      }
+      if (recipe?.sourceUrl) {
+        recipeData.sourceUrl = recipe.sourceUrl;
+      }
+      if (recipe?.nameZh) {
+        recipeData.nameZh = recipe.nameZh;
+      }
+      if (recipe?.ingredientsZh && recipe.ingredientsZh.length > 0) {
+        recipeData.ingredientsZh = recipe.ingredientsZh;
+      }
+      if (recipe?.instructionsZh && recipe.instructionsZh.length > 0) {
+        recipeData.instructionsZh = recipe.instructionsZh;
+      }
+      
+      console.log('💾 Recipe data prepared:', JSON.stringify(recipeData, null, 2));
       
       if (selectedRecipe?.id) {
         // Update existing recipe
+        console.log('🔄 Updating existing recipe with ID:', selectedRecipe.id);
         await updateRecipe(selectedRecipe.id, recipeData);
+        console.log('✅ Recipe updated successfully');
         toast.success('Recipe updated!');
       } else {
         // Create new recipe
-        await addRecipe(recipeData as Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>);
+        console.log('➕ Creating new recipe...');
+        console.log('🔍 addRecipe function:', addRecipe ? 'Available' : 'NOT AVAILABLE');
+        const result = await addRecipe(recipeData as Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>);
+        console.log('✅ Recipe created successfully. Result:', result);
         toast.success('Recipe saved!');
       }
       
+      console.log('🎉 Save completed, calling handleClose...');
       handleClose();
+      console.log('✅ ========== SAVE RECIPE COMPLETED ==========');
     } catch (error: any) {
-      console.error('Error saving recipe:', error);
+      console.error('❌ ========== ERROR SAVING RECIPE ==========');
+      console.error('❌ Error object:', error);
+      console.error('❌ Error message:', error?.message);
+      console.error('❌ Error code:', error?.code);
+      console.error('❌ Error stack:', error?.stack);
       const errorMessage = error?.message || 'Failed to save recipe';
       toast.error(`Error saving recipe: ${errorMessage}`);
     } finally {
+      console.log('🏁 Finally block: setting isSaving to false');
       setIsSaving(false);
     }
   };
   
   const renderStepIndicator = () => {
     const steps: { key: Step; label: string; number: number }[] = [
-      { key: 'recipe', label: 'Recipe', number: 1 },
-      { key: 'calories', label: 'Calories', number: 2 },
-      { key: 'tags', label: 'Tags', number: 3 },
+      { key: 'image', label: 'Image', number: 1 },
+      { key: 'recipe', label: 'Recipe', number: 2 },
+      { key: 'calories', label: 'Calories', number: 3 },
+      { key: 'tags', label: 'Tags', number: 4 },
     ];
     
     return (
@@ -325,6 +481,7 @@ export function RecipeEditFormV2() {
       <DialogContent className="max-w-md p-6 gap-4" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <DialogHeader>
           <DialogTitle>
+            {currentStep === 'image' && 'Select Recipe Image'}
             {currentStep === 'recipe' && 'Confirm Recipe'}
             {currentStep === 'calories' && 'Confirm Calories'}
             {currentStep === 'tags' && 'Add Tags'}
@@ -339,6 +496,52 @@ export function RecipeEditFormV2() {
           flex: 1,
           minHeight: 0
         }}>
+          {/* STEP 0: Image Selection - Direct to Cropper */}
+          {currentStep === 'image' && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 mb-2">
+                Move the picture to position the square crop area where you want
+              </p>
+              
+              <div 
+                className="relative w-full rounded-lg overflow-hidden bg-black aspect-square"
+              >
+                {imageToCrop ? (
+                  <Cropper
+                    image={imageToCrop}
+                    crop={crop}
+                    zoom={zoom}
+                    aspect={1}
+                    onCropChange={setCrop}
+                    onZoomChange={setZoom}
+                    onCropComplete={onCropComplete}
+                    showGrid={false}
+                    objectFit="cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                    <Camera className="w-12 h-12 opacity-50 mb-2" />
+                    <p className="text-sm">No image to crop</p>
+                    <p className="text-xs mt-1">Available: {availableImages.length}</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Zoom</label>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          )}
+          
           {/* STEP 1: Recipe Confirmation */}
           {currentStep === 'recipe' && (
             <div className="space-y-4">
@@ -493,11 +696,35 @@ export function RecipeEditFormV2() {
                 />
               </div>
               
-              {calculationReasoning && (
+              {calculationReasoning ? (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">🤖 AI Calculation Logic</label>
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-64 overflow-y-auto">
-                    <pre className="text-xs whitespace-pre-wrap font-mono">{calculationReasoning}</pre>
+                    <pre className="text-xs whitespace-pre-wrap font-mono text-gray-800 dark:text-gray-200"
+                      style={{ 
+                        whiteSpace: 'pre-wrap', 
+                        wordWrap: 'break-word', 
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word',
+                        width: '100%',
+                        maxWidth: '100%',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      {calculationReasoning}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">⚠️</span>
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">No calorie calculation available</p>
+                      <p className="text-xs text-amber-700 mt-1">
+                        AI could not extract ingredient information to calculate calories. Please enter the values manually.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -684,7 +911,7 @@ export function RecipeEditFormV2() {
         
         {/* Navigation Buttons */}
         <div className="flex gap-2 pt-2 border-t">
-          {currentStep !== 'recipe' && (
+          {currentStep !== 'image' && (
             <Button
               variant="outline"
               onClick={handlePrevStep}

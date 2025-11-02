@@ -228,51 +228,68 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                 </div>
               )}
               
-              {/* Macros and Nutrients */}
-              <div className="grid grid-cols-2 gap-x-16 gap-y-3 text-sm">
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-700 font-bold">{t('details.protein')}</span>
-                  <span className="font-bold text-primary">
-                    {selectedRecipe.nutrition.protein}g
-                    {selectedRecipe.nutrition.proteinDV && (
-                      <span className="text-xs ml-1">({selectedRecipe.nutrition.proteinDV}%)</span>
-                    )}
-                  </span>
+              {/* Macros and Nutrients - Two Column Layout with Proper Spacing */}
+              <div className="grid grid-cols-2 gap-6 text-sm">
+                {/* Left Column */}
+                <div className="space-y-2 pr-4">
+                  {/* Protein */}
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.protein')}</span>
+                    <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
+                      <span className="font-bold text-primary">{selectedRecipe.nutrition.protein}g</span>
+                      {selectedRecipe.nutrition.proteinDV && (
+                        <span className="text-xs text-gray-500">({selectedRecipe.nutrition.proteinDV}%)</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Fats */}
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.fats')}</span>
+                    <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
+                      <span className="font-bold text-primary">{selectedRecipe.nutrition.fat}g</span>
+                      {selectedRecipe.nutrition.fatDV && (
+                        <span className="text-xs text-gray-500">({selectedRecipe.nutrition.fatDV}%)</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Iron */}
+                  <div className="flex items-center justify-between py-2" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.iron')}</span>
+                    <span className="font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">{selectedRecipe.nutrition.iron}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-700 font-bold">{t('details.carbs')}</span>
-                  <span className="font-bold text-primary">
-                    {selectedRecipe.nutrition.carbs}g
-                    {selectedRecipe.nutrition.carbsDV && (
-                      <span className="text-xs ml-1">({selectedRecipe.nutrition.carbsDV}%)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-700 font-bold">{t('details.fats')}</span>
-                  <span className="font-bold text-primary">
-                    {selectedRecipe.nutrition.fat}g
-                    {selectedRecipe.nutrition.fatDV && (
-                      <span className="text-xs ml-1">({selectedRecipe.nutrition.fatDV}%)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-700 font-bold">{t('details.fiber')}</span>
-                  <span className="font-bold text-primary">
-                    {selectedRecipe.nutrition.fiber}g
-                    {selectedRecipe.nutrition.fiberDV && (
-                      <span className="text-xs ml-1">({selectedRecipe.nutrition.fiberDV}%)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-700 font-bold">{t('details.iron')}</span>
-                  <span className="font-semibold text-gray-700">{selectedRecipe.nutrition.iron}</span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-700 font-bold">{t('details.calcium')}</span>
-                  <span className="font-semibold text-gray-700">{selectedRecipe.nutrition.calcium}</span>
+                
+                {/* Right Column */}
+                <div className="space-y-2 pl-4">
+                  {/* Carbs */}
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.carbs')}</span>
+                    <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
+                      <span className="font-bold text-primary">{selectedRecipe.nutrition.carbs}g</span>
+                      {selectedRecipe.nutrition.carbsDV && (
+                        <span className="text-xs text-gray-500">({selectedRecipe.nutrition.carbsDV}%)</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Fiber */}
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.fiber')}</span>
+                    <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
+                      <span className="font-bold text-primary">{selectedRecipe.nutrition.fiber}g</span>
+                      {selectedRecipe.nutrition.fiberDV && (
+                        <span className="text-xs text-gray-500">({selectedRecipe.nutrition.fiberDV}%)</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Calcium */}
+                  <div className="flex items-center justify-between py-2" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.calcium')}</span>
+                    <span className="font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">{selectedRecipe.nutrition.calcium}</span>
+                  </div>
                 </div>
               </div>
             </div>

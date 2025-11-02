@@ -95,21 +95,41 @@ export function RecipeLibraryScreen() {
         cat.toLowerCase().includes(searchQuery.toLowerCase())
       ));
 
-    // Category filter by protein type
+    // Category filter by protein type with smart grouping
     let matchesCategory = true;
     if (selectedCategory === 'All') {
       matchesCategory = true;
-    } else if (selectedCategory === 'Vegetarian' || selectedCategory === 'Vegan') {
+    } else if (selectedCategory === 'Vegetarian') {
+      // Vegetarian includes: tofu, tempeh, beans, lentils, vegetables, eggs
+      const vegetarianProteins = ['vegetarian', 'tofu', 'tempeh', 'bean', 'lentil', 'vegetable', 'egg', 'paneer', 'cheese'];
       matchesCategory = 
-        getProteinTypes(recipe).some(pt => pt.toLowerCase().includes(selectedCategory.toLowerCase())) ||
-        (recipe.categories && recipe.categories.some(cat => cat.toLowerCase().includes(selectedCategory.toLowerCase())));
+        getProteinTypes(recipe).some(pt => {
+          const ptLower = pt.toLowerCase();
+          return vegetarianProteins.some(vp => ptLower.includes(vp));
+        }) ||
+        (recipe.categories && recipe.categories.some(cat => cat.toLowerCase().includes('vegetarian')));
+    } else if (selectedCategory === 'Vegan') {
+      // Vegan includes: tofu, tempeh, beans, lentils, vegetables (NO eggs, dairy)
+      const veganProteins = ['vegan', 'tofu', 'tempeh', 'bean', 'lentil', 'vegetable', 'seitan', 'chickpea', 'mushroom'];
+      matchesCategory = 
+        getProteinTypes(recipe).some(pt => {
+          const ptLower = pt.toLowerCase();
+          return veganProteins.some(vp => ptLower.includes(vp));
+        }) ||
+        (recipe.categories && recipe.categories.some(cat => cat.toLowerCase().includes('vegan')));
     } else if (selectedCategory === 'Seafood') {
-      matchesCategory = getProteinTypes(recipe).some(pt => 
-        pt.toLowerCase().includes('fish') ||
-        pt.toLowerCase().includes('shrimp') ||
-        pt.toLowerCase().includes('seafood') ||
-        pt.toLowerCase().includes('shellfish')
-      );
+      // Seafood includes: fish, shrimp, shellfish, crab, lobster, etc.
+      matchesCategory = getProteinTypes(recipe).some(pt => {
+        const ptLower = pt.toLowerCase();
+        return ptLower.includes('fish') ||
+          ptLower.includes('shrimp') ||
+          ptLower.includes('seafood') ||
+          ptLower.includes('shellfish') ||
+          ptLower.includes('crab') ||
+          ptLower.includes('lobster') ||
+          ptLower.includes('salmon') ||
+          ptLower.includes('tuna');
+      });
     } else {
       // Match protein type using unified helper
       // Check both directions: "Eggs" matches "egg" and "Eggs" matches "Eggs"

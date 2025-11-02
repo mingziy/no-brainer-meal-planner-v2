@@ -213,11 +213,14 @@ export function AddRecipeModal() {
       // Store original image data for later cropping in the form
       (parsedRecipe as any).originalImageForCropping = imageDataUrl;
       
-      setSelectedRecipe(null);
-      setDraftRecipe(parsedRecipe);
-      
+      // Show image selector to let user crop/select the image
+      // NOTE: Image selection is now handled in RecipeEditFormV2 as Step 1
+      // So we pass the image directly and open the edit form
       setIsProcessing(false);
       setOcrProgress(0);
+      
+      setSelectedRecipe(null);
+      setDraftRecipe(parsedRecipe);
       handleClose();
       
       setTimeout(() => {
@@ -451,18 +454,30 @@ export function AddRecipeModal() {
   };
 
   const handleImageSelected = (imageUrl: string) => {
+    console.log('🖼️ Image selected:', imageUrl.substring(0, 50) + '...');
+    console.log('📦 tempParsedRecipe exists:', !!tempParsedRecipe);
+    
     if (tempParsedRecipe) {
       tempParsedRecipe.image = imageUrl;
+      console.log('✅ Set tempParsedRecipe.image');
+      
       setSelectedRecipe(null);
       setDraftRecipe(tempParsedRecipe);
+      console.log('✅ Set draft recipe, closing modal');
+      
       handleClose();
       setTimeout(() => {
+        console.log('✅ Opening RecipeEditFormV2');
         setIsRecipeEditFormOpen(true);
       }, 50);
+    } else {
+      console.error('❌ tempParsedRecipe is null!');
     }
   };
 
   const handleSkipImageSelection = () => {
+    console.log('⏭️ Skipping image selection');
+    
     if (tempParsedRecipe) {
       setSelectedRecipe(null);
       setDraftRecipe(tempParsedRecipe);
@@ -568,181 +583,125 @@ export function AddRecipeModal() {
   return (
     <>
     <Dialog open={isAddRecipeModalOpen && !showImageSelector} onOpenChange={setIsAddRecipeModalOpen}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add a New Recipe</DialogTitle>
-                <DialogDescription>
-                  Choose how you'd like to add your recipe
-                </DialogDescription>
-              </DialogHeader>
+          <DialogDescription>
+            Choose how you'd like to add your recipe
+          </DialogDescription>
+        </DialogHeader>
 
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageFileSelected}
-                className="hidden"
-              />
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageFileSelected}
+          className="hidden"
+        />
 
-              <div className="space-y-4 py-4">
-          {/* Option 1: AI Extraction */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm text-gray-700">
-              Option 1: AI Extraction (Primary)
-            </h3>
-            <p className="text-sm text-gray-600">
-              Upload a recipe screenshot, paste a URL, or paste text - AI extracts everything instantly.
-            </p>
-
-            {/* Upload Screenshot Button */}
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={handleUploadImage}
+        <div className="space-y-3 py-4">
+          {/* Option 1: URL (Recommended) */}
+          {!showUrlInput ? (
+            <button
+              onClick={() => setShowUrlInput(true)}
               disabled={isProcessing}
+              className="w-full p-4 border-2 border-primary rounded-lg hover:bg-primary/5 transition-colors text-left disabled:opacity-50"
             >
-              {isProcessing && ocrProgress > 0 ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  AI Processing... {ocrProgress}%
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Recipe Screenshot
-                </>
-              )}
-            </Button>
+              <div className="flex items-start gap-3">
+                <Link className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-base mb-1">
+                    1. URL <span className="text-primary text-sm">(Recommended)</span>
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Paste a recipe link and AI extracts everything
+                  </p>
+                </div>
+              </div>
+            </button>
+          ) : (
+            <div className="p-4 border-2 border-primary rounded-lg space-y-3">
+              <div className="flex items-start gap-3">
+                <Link className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-base mb-2">
+                    1. URL <span className="text-primary text-sm">(Recommended)</span>
+                  </h3>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/recipe"
+                    value={pasteUrl}
+                    onChange={(e) => setPasteUrl(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={isProcessing}
+                  />
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      onClick={handleFetchUrl}
+                      disabled={!pasteUrl.trim() || isProcessing}
+                      className="flex-1"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Extracting...
+                        </>
+                      ) : (
+                        'Extract Recipe'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowUrlInput(false);
+                        setPasteUrl('');
+                      }}
+                      disabled={isProcessing}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-            {/* Paste URL */}
-            {!showUrlInput ? (
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => setShowUrlInput(true)}
-                disabled={isProcessing}
-              >
-                <Link className="mr-2 h-4 w-4" />
-                Import from URL
-              </Button>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-gray-600">
-                  🌐 Enter a recipe URL and we'll automatically extract the recipe
+          {/* Option 2: Recipe Screenshot */}
+          <button
+            onClick={handleUploadImage}
+            disabled={isProcessing}
+            className="w-full p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
+          >
+            <div className="flex items-start gap-3">
+              <Upload className="w-5 h-5 text-gray-700 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-base mb-1">2. Recipe Screenshot</h3>
+                <p className="text-sm text-gray-600">
+                  {isProcessing && ocrProgress > 0 
+                    ? `AI Processing... ${ocrProgress}%`
+                    : 'Upload an image and AI reads the text'}
                 </p>
-                <input
-                  type="url"
-                  placeholder="https://example.com/recipe"
-                  value={pasteUrl}
-                  onChange={(e) => setPasteUrl(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={isProcessing}
-                />
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleFetchUrl}
-                    disabled={!pasteUrl.trim() || isProcessing}
-                    className="flex-1"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Extracting Recipe...
-                      </>
-                    ) : (
-                      'Fetch Recipe'
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowUrlInput(false);
-                      setPasteUrl('');
-                    }}
-                    disabled={isProcessing}
-                  >
-                    Cancel
-                  </Button>
-                </div>
               </div>
-            )}
+            </div>
+          </button>
 
-            {/* Paste Recipe Text */}
-            {!showPasteInput ? (
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => setShowPasteInput(true)}
-                disabled={isProcessing}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Paste Recipe Text
-              </Button>
-            ) : (
-              <div className="space-y-2">
-                <Textarea
-                  placeholder="Paste recipe text here (e.g., from a website or cookbook)..."
-                  value={pasteText}
-                  onChange={(e) => setPasteText(e.target.value)}
-                  rows={8}
-                  className="resize-none font-mono text-sm"
-                  disabled={isProcessing}
-                />
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handlePasteRecipe}
-                    disabled={!pasteText.trim() || isProcessing}
-                    className="flex-1"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing with AI...
-                      </>
-                    ) : (
-                      'Process with AI'
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowPasteInput(false);
-                      setPasteText('');
-                    }}
-                    disabled={isProcessing}
-                  >
-                    Cancel
-                  </Button>
-                </div>
+          {/* Option 3: Manual Type */}
+          <button
+            onClick={handleManualEntry}
+            disabled={isProcessing}
+            className="w-full p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
+          >
+            <div className="flex items-start gap-3">
+              <FileText className="w-5 h-5 text-gray-700 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-base mb-1">3. Manual Type</h3>
+                <p className="text-sm text-gray-600">
+                  Enter recipe details yourself
+                </p>
               </div>
-            )}
-          </div>
-
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or</span>
-            </div>
-          </div>
-
-          {/* Option 2: Manual Entry */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm text-gray-700">
-              Option 2: Manual Entry
-            </h3>
-            <Button
-              variant="default"
-              className="w-full justify-start"
-              onClick={handleManualEntry}
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              Enter Manually
-            </Button>
-          </div>
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -761,6 +720,17 @@ export function AddRecipeModal() {
           </DialogDescription>
         </DialogHeader>
         
+        {/* Debug Info */}
+        <div className="px-6 py-2 bg-yellow-50 border-y border-yellow-200 text-xs font-mono">
+          <div>🖼️ Images: {extractedImages.length}</div>
+          <div>📦 Recipe data: {tempParsedRecipe ? '✅ Exists' : '❌ Missing'}</div>
+          {extractedImages.map((url, i) => (
+            <div key={i} className="truncate">
+              Image {i + 1}: {url.substring(0, 30)}...
+            </div>
+          ))}
+        </div>
+        
         <div 
           className="flex-1 overflow-y-auto px-6 pb-6 min-h-0"
           style={{ WebkitOverflowScrolling: 'touch' }}
@@ -770,15 +740,21 @@ export function AddRecipeModal() {
               <div
                 key={index}
                 className="relative group cursor-pointer rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-500 transition-all"
-                onClick={() => handleImageSelected(imageUrl)}
+                onClick={() => {
+                  console.log(`🖱️ Clicked image ${index + 1}`);
+                  handleImageSelected(imageUrl);
+                }}
               >
                 <img
                   src={imageUrl}
                   alt={`Recipe option ${index + 1}`}
                   className="w-full h-48 object-cover"
                   onError={(e) => {
-                    // Hide broken images
+                    console.error(`❌ Failed to load image ${index + 1}`);
                     (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                  onLoad={() => {
+                    console.log(`✅ Image ${index + 1} loaded successfully`);
                   }}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
@@ -791,7 +767,10 @@ export function AddRecipeModal() {
           </div>
           
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={handleSkipImageSelection}>
+            <Button variant="outline" onClick={() => {
+              console.log('⏭️ Skip button clicked');
+              handleSkipImageSelection();
+            }}>
               Skip - Use Default
             </Button>
           </div>

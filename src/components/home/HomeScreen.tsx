@@ -52,7 +52,15 @@ export function HomeScreen() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowDay = tomorrow.toLocaleDateString('en-US', { weekday: 'long' });
-  const tomorrowsPlan = thisWeekPlan?.days.find(d => d.day === tomorrowDay);
+  
+  // Check if tomorrow is in next week (if today is Sunday and tomorrow is Monday)
+  const todayDate = new Date();
+  const isTomorrowNextWeek = todayDate.getDay() === 0; // Sunday = 0
+  
+  // Get tomorrow's plan from the correct week
+  const tomorrowsPlan = isTomorrowNextWeek 
+    ? nextWeekPlan?.days.find(d => d.day === tomorrowDay)
+    : thisWeekPlan?.days.find(d => d.day === tomorrowDay);
   
   // Check if today/tomorrow have meals
   const hasTodayMeals = todaysPlan && (

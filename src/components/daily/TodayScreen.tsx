@@ -10,9 +10,14 @@ import { Recipe, QuickFood } from '../../types';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 export function TodayScreen() {
-  const { currentWeeklyPlan, userProfile, viewingDayOffset, pendingTodayMealSelection } = useApp();
+  const { currentWeeklyPlan, userProfile, viewingDayOffset, pendingTodayMealSelection, getThisWeekPlan, getNextWeekPlan } = useApp();
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Scroll to top immediately when viewing day changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [viewingDayOffset]);
 
   // Reopen Edit Meals modal when returning from creating a new recipe
   useEffect(() => {
@@ -29,7 +34,14 @@ export function TodayScreen() {
   viewDate.setDate(viewDate.getDate() + viewingDayOffset);
   const viewingDay = viewDate.toLocaleDateString('en-US', { weekday: 'long' });
   
-  const todaysPlan = currentWeeklyPlan?.days.find(d => d.day === viewingDay);
+  // Check if viewing day crosses into next week
+  const today = new Date();
+  const isTodaySunday = today.getDay() === 0; // Sunday = 0
+  const isViewingNextWeek = isTodaySunday && viewingDayOffset === 1; // Tomorrow is Monday (next week)
+  
+  // Get the plan from the correct week
+  const planToUse = isViewingNextWeek ? getNextWeekPlan() : getThisWeekPlan();
+  const todaysPlan = planToUse?.days.find(d => d.day === viewingDay);
 
   if (!todaysPlan) {
     return (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useApp } from '../../context/AppContext';
@@ -57,6 +57,11 @@ export function WeeklyPlanScreen() {
     getThisWeekPlan,
     getNextWeekPlan
   } = useApp();
+  
+  // Scroll to top immediately when component mounts or planningWeekOffset changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [planningWeekOffset]);
   
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   
