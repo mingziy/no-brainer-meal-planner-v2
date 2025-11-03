@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { useApp } from '../../context/AppContext';
 import { BottomNav } from '../shared/BottomNav';
-import { Plus, Calendar, Sparkles, RefreshCw, Save, RotateCcw } from 'lucide-react';
+import { Plus, Calendar, Sparkles, RefreshCw, Save, RotateCcw, X, PlusCircle } from 'lucide-react';
 import { Recipe, RecipeCategory, ShoppingItem, QuickFood } from '../../types';
 import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
 import { defaultQuickFoods } from '../../data/quickFoods';
@@ -64,6 +65,9 @@ export function WeeklyPlanScreen() {
   }, [planningWeekOffset]);
   
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [addingQuickFood, setAddingQuickFood] = useState<{ dayIndex: number; mealType: MealType } | null>(null);
+  const [selectedQuickFoodCategory, setSelectedQuickFoodCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Initialize 7 days starting from today, or load from saved plan
   const [weekPlan, setWeekPlan] = useState<DayMealPlan[]>(() => {
@@ -114,7 +118,14 @@ export function WeeklyPlanScreen() {
   
   // Get recipes by category
   const getRecipesByMealType = (mealType: MealType): Recipe[] => {
-    return recipes.filter(recipe => recipe.categories.includes(mealType as RecipeCategory));
+    const mealTypeFilter = mealType.charAt(0).toUpperCase() + mealType.slice(1);
+    
+    return recipes.filter(recipe => {
+      // Check new mealTypes array first, fall back to mealType, then legacy categories
+      return recipe.mealTypes?.some(mt => mt.toLowerCase() === mealTypeFilter.toLowerCase()) ||
+        (recipe.mealType && recipe.mealType.toLowerCase() === mealTypeFilter.toLowerCase()) ||
+        (recipe.categories && recipe.categories.includes(mealType as RecipeCategory));
+    });
   };
   
   // Reset the entire weekly plan
@@ -610,6 +621,80 @@ export function WeeklyPlanScreen() {
     setTimeout(() => handleSaveMealPlan(true), 100);
   };
   
+  const handleRemoveQuickFood = (dayIndex: number, mealType: MealType, quickFoodIndex: number) => {
+    setWeekPlan(prev => {
+      const newPlan = [...prev];
+      const quickFoodKey = `${mealType.toLowerCase()}QuickFoods` as 'breakfastQuickFoods' | 'lunchQuickFoods' | 'dinnerQuickFoods';
+      
+      // Remove the quick food at the specified index
+      newPlan[dayIndex][quickFoodKey] = newPlan[dayIndex][quickFoodKey]?.filter((_, i) => i !== quickFoodIndex) || [];
+      
+      return newPlan;
+    });
+    
+    // Auto-save after change
+    setTimeout(() => handleSaveMealPlan(true), 100);
+  };
+  
+  // Add quick food to a meal
+  const handleAddQuickFood = (food: QuickFood) => {
+    if (!addingQuickFood) return;
+    
+    setWeekPlan(prev => {
+      const newPlan = [...prev];
+      const quickFoodKey = `${addingQuickFood.mealType.toLowerCase()}QuickFoods` as 'breakfastQuickFoods' | 'lunchQuickFoods' | 'dinnerQuickFoods';
+      
+      // Add the quick food
+      newPlan[addingQuickFood.dayIndex][quickFoodKey] = [
+        ...(newPlan[addingQuickFood.dayIndex][quickFoodKey] || []),
+        food
+      ];
+      
+      return newPlan;
+    });
+    
+    // Close the picker
+    setAddingQuickFood(null);
+    setSelectedQuickFoodCategory(null);
+    
+    // Auto-save after change
+    setTimeout(() => handleSaveMealPlan(true), 100);
+  };
+  
+  // Quick food categories for picker
+  const quickFoodCategories = [
+    { name: 'Fruits', categoryKey: 'fruit', emoji: '🍎', count: defaultQuickFoods.filter(f => f.category === 'fruit').length },
+    { name: 'Veggies', categoryKey: 'veggie', emoji: '🥕', count: defaultQuickFoods.filter(f => f.category === 'veggie').length },
+    { name: 'Dairy', categoryKey: 'dairy', emoji: '🥛', count: defaultQuickFoods.filter(f => f.category === 'dairy').length },
+    { name: 'Grains', categoryKey: 'grain', emoji: '🍞', count: defaultQuickFoods.filter(f => f.category === 'grain').length },
+    { name: 'Protein', categoryKey: 'protein', emoji: '🥩', count: defaultQuickFoods.filter(f => f.category === 'protein').length },
+    { name: 'Snacks', categoryKey: 'snack', emoji: '🍿', count: defaultQuickFoods.filter(f => f.category === 'snack').length },
+    { name: 'Drinks', categoryKey: 'drink', emoji: '🥤', count: defaultQuickFoods.filter(f => f.category === 'drink').length },
+  ];
+  
+  // Get quick foods by category
+  const getQuickFoodsByCategory = (category: string) => {
+    return defaultQuickFoods.filter(food => food.category === category);
+  };
+  
+  // Filter recipes based on search and meal type
+  const getFilteredRecipes = (mealType: MealType) => {
+    const mealTypeFilter = mealType.charAt(0).toUpperCase() + mealType.slice(1);
+    
+    return recipes.filter(recipe => {
+      const matchesSearch = searchQuery === '' || 
+        recipe.name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Check new mealTypes array first, fall back to mealType, then legacy categories
+      const matchesMealType = 
+        recipe.mealTypes?.some(mt => mt.toLowerCase() === mealTypeFilter.toLowerCase()) ||
+        (recipe.mealType && recipe.mealType.toLowerCase() === mealTypeFilter.toLowerCase()) ||
+        (recipe.categories && recipe.categories.some(cat => cat.toLowerCase() === mealTypeFilter.toLowerCase()));
+      
+      return matchesSearch && matchesMealType;
+    });
+  };
+  
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="max-w-md mx-auto p-6 space-y-6">
@@ -621,136 +706,293 @@ export function WeeklyPlanScreen() {
               <h1 className="text-2xl font-bold">Weekly Meal Plan</h1>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleAutoFillWeek} variant="default" size="sm">
-                <Sparkles className="w-4 h-4 mr-2" />
+              <button 
+                onClick={handleAutoFillWeek} 
+                className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
                 Auto-Fill
-              </Button>
+              </button>
             </div>
           </div>
           <p className="text-muted-foreground">
             Plan your meals for the week from your recipe library
           </p>
         </div>
-        
-        {/* Days */}
-        <div className="space-y-4">
-          {weekPlan.map((day, dayIndex) => (
-            <Card key={day.day}>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{day.day}</span>
-                  <span className="text-sm font-normal text-muted-foreground">
-                    {day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Breakfast */}
-                <MealSlot
-                  label="Breakfast"
-                  recipes={day.breakfast}
-                  quickFoods={day.breakfastQuickFoods}
-                  onAdd={() => setAddingMeal({ dayIndex, mealType: 'Breakfast' })}
-                  onRemove={(index) => handleRemoveRecipe(dayIndex, 'Breakfast', index)}
-                  onRandomPick={() => handleRandomPick(dayIndex, 'Breakfast')}
-                  onManualPick={() => setAddingMeal({ dayIndex, mealType: 'Breakfast' })}
-                />
-                
-                {/* Lunch */}
-                <MealSlot
-                  label="Lunch"
-                  recipes={day.lunch}
-                  quickFoods={day.lunchQuickFoods}
-                  onAdd={() => setAddingMeal({ dayIndex, mealType: 'Lunch' })}
-                  onRemove={(index) => handleRemoveRecipe(dayIndex, 'Lunch', index)}
-                  onRandomPick={() => handleRandomPick(dayIndex, 'Lunch')}
-                  onManualPick={() => setAddingMeal({ dayIndex, mealType: 'Lunch' })}
-                />
-                
-                {/* Dinner */}
-                <MealSlot
-                  label="Dinner"
-                  recipes={day.dinner}
-                  quickFoods={day.dinnerQuickFoods}
-                  onAdd={() => setAddingMeal({ dayIndex, mealType: 'Dinner' })}
-                  onRemove={(index) => handleRemoveRecipe(dayIndex, 'Dinner', index)}
-                  onRandomPick={() => handleRandomPick(dayIndex, 'Dinner')}
-                  onManualPick={() => setAddingMeal({ dayIndex, mealType: 'Dinner' })}
-                />
-                
-                {/* Snacks */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-muted-foreground">Snacks</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setAddingMeal({ dayIndex, mealType: 'Snack' })}
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add
-                    </Button>
-                  </div>
-                  {day.snacks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground italic">No snacks planned</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {day.snacks.map((snack, snackIndex) => (
-                        <div key={snackIndex} className="flex items-center gap-2 p-2 bg-secondary/30 rounded-lg">
-                          <img src={snack.image} alt={snack.name} className="w-12 h-12 object-cover rounded" />
-                          <span className="flex-1 text-sm">{snack.name}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveRecipe(dayIndex, 'Snack', snackIndex)}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
+
+        {/* Days - Horizontal Scrolling Day Cards */}
+        <div 
+          style={{ 
+            overflow: 'hidden',
+            width: '100%',
+            position: 'relative'
+          }}
+        >
+          <div
+            className="overflow-x-scroll overflow-y-visible pb-4"
+            style={{ 
+              WebkitOverflowScrolling: 'touch',
+              scrollSnapType: 'x mandatory',
+              scrollPadding: '0',
+              width: '100%',
+              overflowX: 'scroll',
+              overflowY: 'visible'
+            }}
+          >
+          <div 
+            className="flex gap-3 p-3" 
+            style={{ 
+              display: 'inline-flex'
+            }}
+          >
+            {weekPlan.map((day, dayIndex) => (
+              <Card 
+                key={day.day} 
+                className="flex-shrink-0 overflow-hidden"
+                style={{ 
+                  width: '280px',
+                  scrollSnapAlign: 'start'
+                }}
+              >
+                {/* Day Header */}
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-center">
+                    <div className="text-lg font-bold">{day.day}</div>
+                    <div className="text-xs font-normal text-muted-foreground">
+                      {day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </CardTitle>
+                </CardHeader>
+
+                {/* Meals - Vertical Stack */}
+                <CardContent className="pt-0 space-y-3">
+                  {/* Breakfast */}
+                  <MealRow
+                    icon="🍳"
+                    label="Breakfast"
+                    recipes={day.breakfast}
+                    quickFoods={day.breakfastQuickFoods}
+                    onAdd={() => setAddingMeal({ dayIndex, mealType: 'Breakfast' })}
+                    onAddQuickFood={() => setAddingQuickFood({ dayIndex, mealType: 'Breakfast' })}
+                    onRemove={(index) => handleRemoveRecipe(dayIndex, 'Breakfast', index)}
+                    onRemoveQuickFood={(index) => handleRemoveQuickFood(dayIndex, 'Breakfast', index)}
+                  />
+
+                  {/* Lunch */}
+                  <MealRow
+                    icon="☀️"
+                    label="Lunch"
+                    recipes={day.lunch}
+                    quickFoods={day.lunchQuickFoods}
+                    onAdd={() => setAddingMeal({ dayIndex, mealType: 'Lunch' })}
+                    onAddQuickFood={() => setAddingQuickFood({ dayIndex, mealType: 'Lunch' })}
+                    onRemove={(index) => handleRemoveRecipe(dayIndex, 'Lunch', index)}
+                    onRemoveQuickFood={(index) => handleRemoveQuickFood(dayIndex, 'Lunch', index)}
+                  />
+
+                  {/* Dinner */}
+                  <MealRow
+                    icon="🌙"
+                    label="Dinner"
+                    recipes={day.dinner}
+                    quickFoods={day.dinnerQuickFoods}
+                    onAdd={() => setAddingMeal({ dayIndex, mealType: 'Dinner' })}
+                    onAddQuickFood={() => setAddingQuickFood({ dayIndex, mealType: 'Dinner' })}
+                    onRemove={(index) => handleRemoveRecipe(dayIndex, 'Dinner', index)}
+                    onRemoveQuickFood={(index) => handleRemoveQuickFood(dayIndex, 'Dinner', index)}
+                  />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          {/* Custom Scrollbar Indicator */}
+          <div className="mt-2 h-3 bg-gray-200 rounded-full overflow-hidden" style={{ border: '2px solid red' }}>
+            <div 
+              className="h-full bg-blue-500 transition-all duration-150"
+              style={{ 
+                width: '30%',
+                marginLeft: '0%'
+              }}
+            />
+          </div>
+          </div>
         </div>
         
         {/* Action Buttons */}
         <div className="space-y-3 sticky bottom-20 pb-4">
-          <Button 
-            className="w-full" 
-            size="lg"
-            variant="default"
+          <button 
+            className="w-full py-3 bg-primary text-primary-foreground rounded-md text-base font-medium hover:bg-primary/90 flex items-center justify-center gap-2"
             onClick={() => handleSaveMealPlan(false)}
           >
-            <Save className="w-5 h-5 mr-2" />
+            <Save className="w-5 h-5" />
             Save Meal Plan
-          </Button>
+          </button>
 
-          <Button 
-            className="w-full" 
-            size="lg"
-            variant="outline"
+          <button 
+            className="w-full py-3 border border-gray-200 rounded-md text-base font-medium hover:bg-gray-50 flex items-center justify-center gap-2"
             onClick={() => setIsResetDialogOpen(true)}
           >
-            <RotateCcw className="w-5 h-5 mr-2" />
+            <RotateCcw className="w-5 h-5" />
             Reset Weekly Plan
-          </Button>
+          </button>
         </div>
       </div>
       
       <BottomNav />
       
       {/* Recipe Selection Modal */}
+      {/* Recipe Picker Modal */}
       {addingMeal && (
-        <RecipeSelectionModal
-          mealType={addingMeal.mealType}
-          recipes={getRecipesByMealType(addingMeal.mealType)}
-          onSelect={(recipe) => handleSelectRecipe(addingMeal.dayIndex, addingMeal.mealType, recipe)}
-          onCreate={() => handleCreateRecipe(addingMeal.dayIndex, addingMeal.mealType)}
-          onClose={() => setAddingMeal(null)}
-        />
+        <Dialog open={!!addingMeal} onOpenChange={() => {
+          setAddingMeal(null);
+          setSearchQuery('');
+        }}>
+          <DialogContent className="max-w-md p-6 gap-4" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <DialogHeader>
+              <DialogTitle>Add Recipe to {addingMeal.mealType}</DialogTitle>
+            </DialogHeader>
+
+            <input
+              type="text"
+              placeholder="Search recipes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+
+            {/* Add New Recipe Button */}
+            <Button
+              variant="default"
+              className="w-full"
+              onClick={() => handleCreateRecipe(addingMeal.dayIndex, addingMeal.mealType)}
+            >
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Create New Recipe
+            </Button>
+
+            <div style={{ 
+              overflowY: 'scroll', 
+              WebkitOverflowScrolling: 'touch',
+              flex: 1,
+              minHeight: 0
+            }}>
+              <div className="space-y-2">
+                {getFilteredRecipes(addingMeal.mealType).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No recipes found
+                  </p>
+                ) : (
+                  getFilteredRecipes(addingMeal.mealType).map(recipe => (
+                    <Card
+                      key={recipe.id}
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleSelectRecipe(addingMeal.dayIndex, addingMeal.mealType, recipe)}
+                    >
+                      <CardContent className="p-3 flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">{recipe.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {recipe.caloriesPerServing} cal
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Quick Food Picker - Redirect to Quick Foods Screen */}
+      {/* Quick Food Picker Modal */}
+      {addingQuickFood && (
+        <Dialog open={!!addingQuickFood} onOpenChange={() => {
+          setAddingQuickFood(null);
+          setSelectedQuickFoodCategory(null);
+        }}>
+          <DialogContent className="max-w-md p-6 gap-4" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <DialogHeader>
+              <DialogTitle>
+                {!selectedQuickFoodCategory 
+                  ? `Add Quick Food to ${addingQuickFood.mealType}`
+                  : quickFoodCategories.find(c => c.categoryKey === selectedQuickFoodCategory)?.name || selectedQuickFoodCategory
+                }
+              </DialogTitle>
+            </DialogHeader>
+
+            {/* Back button when in category view */}
+            {selectedQuickFoodCategory && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedQuickFoodCategory(null)}
+                className="w-full"
+              >
+                ← Back to Categories
+              </Button>
+            )}
+
+            <div style={{ 
+              overflowY: 'scroll', 
+              WebkitOverflowScrolling: 'touch',
+              flex: 1,
+              minHeight: 0
+            }}>
+              {/* Category selection view */}
+              {!selectedQuickFoodCategory && (
+                <div className="grid grid-cols-2 gap-3">
+                  {quickFoodCategories.map(category => (
+                    <Card
+                      key={category.name}
+                      className="cursor-pointer hover:bg-accent/50 transition-colors"
+                      onClick={() => setSelectedQuickFoodCategory(category.categoryKey)}
+                    >
+                      <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                        <span className="text-4xl">{category.emoji}</span>
+                        <p className="font-medium text-sm">{category.name}</p>
+                        <p className="text-xs text-muted-foreground">{category.count} items</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Items within selected category */}
+              {selectedQuickFoodCategory && (
+                <div className="space-y-2">
+                  {getQuickFoodsByCategory(selectedQuickFoodCategory).map(food => (
+                    <Card
+                      key={food.id}
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => handleAddQuickFood(food)}
+                    >
+                      <CardContent className="p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{food.emoji}</span>
+                          <div>
+                            <p className="font-medium text-sm">{food.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {food.servingSize} • {food.calories} cal
+                            </p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Reset Confirmation Dialog */}
@@ -775,7 +1017,103 @@ export function WeeklyPlanScreen() {
   );
 }
 
-// Meal Slot Component - now handles multiple recipes + quick foods
+// Meal Row Component for vertical meal stacking within day cards
+interface MealRowProps {
+  icon: string;
+  label: string;
+  recipes: Recipe[];
+  quickFoods?: QuickFood[];
+  onAdd: () => void;
+  onAddQuickFood: () => void;
+  onRemove: (index: number) => void;
+  onRemoveQuickFood: (index: number) => void;
+}
+
+function MealRow({ icon, label, recipes, quickFoods = [], onAdd, onAddQuickFood, onRemove, onRemoveQuickFood }: MealRowProps) {
+  return (
+    <div className="border-b border-gray-200 last:border-b-0 pb-3 last:pb-0 px-2">
+      {/* Meal Header */}
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-base">{icon}</span>
+        <span className="text-sm font-semibold text-gray-900">{label}</span>
+      </div>
+      
+      {/* Meal Content - matches EditTodayMealsModal exactly */}
+      <div className="space-y-2">
+        {/* Recipes Section */}
+        <div className="space-y-2">
+          {recipes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No recipes</p>
+          ) : (
+            recipes.map((recipe, index) => (
+              <div key={recipe.id} className="flex items-center justify-between p-2 hover:bg-accent/50 rounded">
+                <div className="flex items-center gap-2 flex-1">
+                  {/* Recipe Thumbnail */}
+                  {recipe.image ? (
+                    <img 
+                      src={recipe.image} 
+                      alt={recipe.name}
+                      className="w-10 h-10 rounded object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg">🍽️</span>
+                    </div>
+                  )}
+                  <span className="text-sm">• {recipe.name}</span>
+                </div>
+                <button
+                  className="p-1 hover:bg-gray-200 rounded flex-shrink-0"
+                  onClick={() => onRemove(index)}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))
+          )}
+          
+          {/* Add Recipe Button - right after recipes */}
+          <button
+            className="w-full py-1 px-2 border border-gray-200 rounded text-xs hover:bg-gray-50 flex items-center justify-center gap-1"
+            onClick={onAdd}
+          >
+            <Plus className="w-3 h-3" />
+            Add Recipe
+          </button>
+        </div>
+        
+        {/* Quick Foods Section */}
+        {quickFoods.length > 0 && (
+          <div className="pl-4 space-y-1 pt-2 border-t">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Quick Add-ons:</p>
+            {quickFoods.map((food, index) => (
+              <div key={`${food.id}-${index}`} className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{food.emoji} {food.name}</span>
+                <button
+                  className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
+                  onClick={() => onRemoveQuickFood(index)}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Add Quick Food Button - at the bottom */}
+        <button
+          className="w-full py-1 px-2 border border-gray-200 rounded text-xs hover:bg-gray-50 flex items-center justify-center gap-1"
+          onClick={onAddQuickFood}
+        >
+          <Plus className="w-3 h-3" />
+          Add Quick Food
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Old Meal Slot Component (kept for backwards compatibility)
 interface MealSlotProps {
   label: string;
   recipes: Recipe[];
