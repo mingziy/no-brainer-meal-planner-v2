@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Edit, Save, X, Plus, Sparkles, RotateCcw, PlusCircle } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Edit, Save, X, Plus, Sparkles, RotateCcw, PlusCircle, Pencil } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -47,7 +47,7 @@ export function HomeScreen() {
   } = useApp();
   
   const [isEditing, setIsEditing] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('3-day');
+  const [viewMode, setViewMode] = useState<ViewMode>('full-week'); // Default to show all cards
   const [editedPlans, setEditedPlans] = useState<{ thisWeek: DayMealPlan[], nextWeek: DayMealPlan[] } | null>(null);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [addingMeal, setAddingMeal] = useState<{ weekOffset: number; dayIndex: number; mealType: MealType } | null>(null);
@@ -107,29 +107,37 @@ export function HomeScreen() {
   // Get the days to display based on view mode and edit state
   const getDisplayDays = (): DayMealPlan[] => {
     if (isEditing) {
-      // Edit mode: show from today to next Sunday (up to 14 days)
+      // Edit mode: show both weeks starting from Monday of this week
       const days: DayMealPlan[] = [];
       const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       
-      // Start from today and go until next Sunday
-      let currentDate = new Date(today);
-      let daysUntilNextSunday = (7 - todayDayOfWeek) % 7;
-      if (daysUntilNextSunday === 0) daysUntilNextSunday = 7; // If today is Sunday, go to next Sunday
+      // Calculate Monday of this week
+      const mondayOfThisWeek = new Date(today);
+      const currentDayIndex = (todayDayOfWeek + 6) % 7; // Convert Sunday=0 to Monday=0
+      mondayOfThisWeek.setDate(today.getDate() - currentDayIndex);
       
-      for (let i = 0; i <= daysUntilNextSunday + 7; i++) {
-        const date = new Date(currentDate);
-        date.setDate(currentDate.getDate() + i);
+      // Show all 14 days (this week + next week)
+      for (let i = 0; i < 14; i++) {
+        const date = new Date(mondayOfThisWeek);
+        date.setDate(mondayOfThisWeek.getDate() + i);
         const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
         const dayIndex = dayNames.indexOf(dayName);
         
         // Determine if this date is in this week or next week
-        const isNextWeek = date > new Date(thisWeekPlan?.weekEndDate || 0);
-        const weekPlan = isNextWeek ? (editedPlans?.nextWeek || []) : (editedPlans?.thisWeek || []);
+        const weekPlan = i < 7 ? (editedPlans?.thisWeek || []) : (editedPlans?.nextWeek || []);
         const dayPlan = weekPlan[dayIndex];
         
-        if (dayPlan) {
-          days.push({ ...dayPlan, date });
-        }
+        // Always push the day, even if no plan exists
+        days.push(dayPlan ? { ...dayPlan, date } : {
+          day: dayName,
+          date,
+          breakfast: [],
+          lunch: [],
+          dinner: [],
+          breakfastQuickFoods: [],
+          lunchQuickFoods: [],
+          dinnerQuickFoods: []
+        });
       }
       
       return days;
@@ -140,14 +148,23 @@ export function HomeScreen() {
       
       dayNames.forEach((dayName, index) => {
         const dayPlan = getDayPlanFromWeek(thisWeekPlan, dayName);
-        if (dayPlan) {
-          // Calculate actual date for this day
-          const date = new Date(today);
-          const currentDayIndex = (todayDayOfWeek + 6) % 7; // Convert Sunday=0 to Monday=0
-          const dayOffset = index - currentDayIndex;
-          date.setDate(today.getDate() + dayOffset);
-          days.push({ ...dayPlan, date });
-        }
+        // Calculate actual date for this day
+        const date = new Date(today);
+        const currentDayIndex = (todayDayOfWeek + 6) % 7; // Convert Sunday=0 to Monday=0
+        const dayOffset = index - currentDayIndex;
+        date.setDate(today.getDate() + dayOffset);
+        
+        // Always push the day, even if no plan exists
+        days.push(dayPlan ? { ...dayPlan, date } : {
+          day: dayName,
+          date,
+          breakfast: [],
+          lunch: [],
+          dinner: [],
+          breakfastQuickFoods: [],
+          lunchQuickFoods: [],
+          dinnerQuickFoods: []
+        });
       });
       
       return days;
@@ -181,20 +198,57 @@ export function HomeScreen() {
     day.day === todayName && day.date.toDateString() === today.toDateString()
   );
   
-  // Scroll to today on mount and update centered card on scroll
+  // Scroll to today on mount and when entering edit mode
   useEffect(() => {
     if (scrollContainerRef.current && todayIndex !== -1) {
-      // Scroll to today's card (centered)
       const container = scrollContainerRef.current;
-      const cardWidth = 280;
-      const gap = 12;
-      const scrollTo = (cardWidth + gap) * todayIndex;
       
-      // Use setTimeout to ensure DOM is ready
-      setTimeout(() => {
-        container.scrollLeft = scrollTo;
+      const scrollToToday = () => {
+        const cardWidth = 280;
+        const gap = 12;
+        
+        // Wait for container to have actual scrollable content
+        if (container.scrollWidth <= container.offsetWidth) {
+          return false;
+        }
+        
+        // Calculate scroll position
+        // The inner div has paddingLeft: calc(50% - 140px)
+        // So card at index i starts at: paddingLeft + (cardWidth + gap) * i
+        const containerWidth = container.offsetWidth;
+        const centeringPadding = containerWidth / 2 - 140; // calc(50% - 140px)
+        
+        // Position of today's card start
+        const cardStartPosition = centeringPadding + (cardWidth + gap) * todayIndex;
+        
+        // To center this card, we need to scroll so the card's center is at viewport center
+        const cardCenterPosition = cardStartPosition + cardWidth / 2;
+        const scrollTo = cardCenterPosition - containerWidth / 2;
+        
+        // Use requestAnimationFrame to ensure DOM is fully rendered
+        requestAnimationFrame(() => {
+          container.scrollLeft = scrollTo;
+          container.scrollTo({
+            left: scrollTo,
+            behavior: isEditing ? 'smooth' : 'auto'
+          });
+        });
+        
         setCenteredCardIndex(todayIndex);
-      }, 100);
+        return true;
+      };
+      
+      // Try immediately, then retry with delays if not ready
+      if (!scrollToToday()) {
+        const attempts = isEditing ? [100, 300, 500, 800, 1200] : [50, 150, 300, 500, 800];
+        attempts.forEach(delay => {
+          setTimeout(() => {
+            if (container.scrollWidth > container.offsetWidth) {
+              scrollToToday();
+            }
+          }, delay);
+        });
+      }
     }
   }, [viewMode, isEditing, todayIndex]);
   
@@ -207,13 +261,34 @@ export function HomeScreen() {
       const cardWidth = 280;
       const gap = 12;
       const scrollLeft = container.scrollLeft;
-      const centeredIndex = Math.round(scrollLeft / (cardWidth + gap));
-      setCenteredCardIndex(centeredIndex);
+      const containerWidth = container.offsetWidth;
+      
+      // Calculate which card is at the center of the viewport
+      // We need to find which card's center is closest to the viewport center
+      const viewportCenter = scrollLeft + containerWidth / 2;
+      const centeringPadding = containerWidth / 2 - 140;
+      
+      // Each card center is at: centeringPadding + (cardWidth + gap) * i + cardWidth / 2
+      // Find the card whose center is closest to viewportCenter
+      let closestIndex = 0;
+      let minDistance = Infinity;
+      
+      for (let i = 0; i < displayDays.length; i++) {
+        const cardCenterPosition = centeringPadding + (cardWidth + gap) * i + cardWidth / 2;
+        const distance = Math.abs(cardCenterPosition - viewportCenter);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestIndex = i;
+        }
+      }
+      
+      setCenteredCardIndex(closestIndex);
     };
     
     container.addEventListener('scroll', handleScroll);
+    handleScroll(); // Call once immediately to set initial state
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [displayDays]);
+  }, [displayDays, viewMode, isEditing]);
   
   // Initialize edited plans when entering edit mode
   const handleEnterEditMode = () => {
@@ -513,8 +588,9 @@ export function HomeScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="max-w-md mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-background">
+      {/* Upper content area - scrollable */}
+      <div className="max-w-md mx-auto p-6 space-y-6" style={{ paddingBottom: '80px' }}>
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="space-y-2">
@@ -525,15 +601,7 @@ export function HomeScreen() {
           </div>
           <div className="flex items-center gap-2">
             {!isEditing ? (
-              <>
-                <UserButton />
-                <button
-                  onClick={handleEnterEditMode}
-                  className="p-2 hover:bg-gray-100 rounded-md"
-                >
-                  <Edit className="w-5 h-5" />
-                </button>
-              </>
+              <UserButton />
             ) : (
               <>
                 <button
@@ -554,82 +622,91 @@ export function HomeScreen() {
           </div>
         </div>
 
-        {/* Date display */}
-        <div className="text-center">
-          <p className="text-lg font-medium">
-            {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-        </div>
-
-        {/* View mode toggle + edit controls */}
-        {!isEditing && (
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setViewMode(viewMode === '3-day' ? 'full-week' : '3-day')}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50"
-            >
-              {viewMode === '3-day' ? 'Show Full Week' : 'Show 3 Days'}
-            </button>
-            
-            {/* Special case: Sunday with no next week plan */}
-            {todayDayOfWeek === 0 && !hasNextWeekPlan && (
-              <button
-                onClick={handleEnterEditMode}
-                className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Plan Next Week
-              </button>
-            )}
-          </div>
-        )}
-
         {/* Edit mode controls */}
         {isEditing && (
           <div className="flex items-center gap-2">
             <button
               onClick={handleAutoFill}
-              className="flex-1 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 flex items-center justify-center gap-2"
+              className="flex-1 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary/90 flex items-center justify-center gap-1.5"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-3.5 h-3.5" />
               Auto-Fill
             </button>
             <button
               onClick={() => setIsResetDialogOpen(true)}
-              className="flex-1 py-2 border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 flex items-center justify-center gap-2"
+              className="flex-1 py-1.5 border border-gray-200 rounded-md text-xs font-medium hover:bg-gray-50 flex items-center justify-center gap-1.5"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
               Reset
             </button>
           </div>
         )}
+      </div>
 
-        {/* Horizontal Scrollable Day Cards */}
+      {/* Sticky Card Section - Fixed container with flex layout */}
+      <div 
+        className="fixed left-0 right-0 bg-background flex flex-col"
+        style={{ 
+          maxWidth: '448px',
+          margin: '0 auto',
+          zIndex: 40,
+          top: isEditing ? '168px' : '140px',
+          bottom: '5rem'
+        }}
+      >
+        {/* Day Header - Fixed outside scroll */}
+        <div className="px-4 py-3 bg-background flex-shrink-0 relative">
+          <div className="text-center">
+            <div className="text-lg font-bold">
+              {displayDays[centeredCardIndex]?.day}
+              {displayDays[centeredCardIndex]?.day === todayName && 
+               displayDays[centeredCardIndex]?.date.toDateString() === today.toDateString() && ' 🌟'}
+            </div>
+            <div className="text-xs font-normal text-muted-foreground">
+              {displayDays[centeredCardIndex]?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </div>
+          </div>
+          
+          {/* Edit button in top right of header */}
+          {!isEditing && (
+            <button
+              onClick={handleEnterEditMode}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-md"
+            >
+              <Edit className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Vertical scroll for entire card suite */}
         <div 
+          className="flex-1 overflow-y-auto overflow-x-hidden"
           style={{ 
-            overflow: 'hidden',
-            width: '100%',
-            position: 'relative'
+            WebkitOverflowScrolling: 'touch',
+            paddingTop: '8px'
           }}
         >
+          {/* Horizontal scroll container */}
           <div
             ref={scrollContainerRef}
-            className="overflow-x-scroll overflow-y-visible pb-4"
             style={{ 
+              overflowX: 'auto',
+              overflowY: 'visible',
               WebkitOverflowScrolling: 'touch',
               scrollSnapType: 'x mandatory',
-              scrollPadding: 'calc(50% - 140px)', // Center the snapped card
+              scrollPadding: 'calc(50% - 140px)',
               width: '100%',
-              overflowX: 'scroll',
-              overflowY: 'visible'
+              padding: '16px 0'
             }}
           >
             <div 
-              className="flex gap-3 p-3" 
+              className="flex gap-3" 
               style={{ 
-                display: 'inline-flex',
-                paddingLeft: 'calc(50% - 140px)', // Offset first card to center
-                paddingRight: 'calc(50% - 140px)' // Offset last card to center
+                display: 'flex',
+                paddingLeft: 'calc(50% - 140px)',
+                paddingRight: 'calc(50% - 140px)',
+                width: 'fit-content',
+                minWidth: '100%'
               }}
             >
               {displayDays.map((day, dayIndex) => {
@@ -643,7 +720,7 @@ export function HomeScreen() {
                 return (
                   <Card 
                     key={`${day.day}-${day.date.toDateString()}`}
-                    className="flex-shrink-0 overflow-hidden transition-all duration-300"
+                    className="flex-shrink-0 transition-all duration-300"
                     style={{ 
                       width: '280px',
                       scrollSnapAlign: 'center',
@@ -652,21 +729,8 @@ export function HomeScreen() {
                       transform: isCentered ? 'scale(1)' : 'scale(0.95)'
                     }}
                   >
-                    {/* Day Header */}
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-center">
-                        <div className="text-lg font-bold">
-                          {day.day}
-                          {isToday && ' 🌟'}
-                        </div>
-                        <div className="text-xs font-normal text-muted-foreground">
-                          {day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </div>
-                      </CardTitle>
-                    </CardHeader>
-
                     {/* Meals */}
-                    <CardContent className="pt-0 space-y-3">
+                    <CardContent className="pt-6 space-y-3 pb-6">
                       {isEditing ? (
                         <>
                           {/* Edit Mode: Show full controls */}
@@ -709,8 +773,8 @@ export function HomeScreen() {
                           <MealRowReadOnly icon="🌙" label="Dinner" recipes={day.dinner} quickFoods={day.dinnerQuickFoods} />
                         </>
                       )}
-                    </CardContent>
-                  </Card>
+          </CardContent>
+        </Card>
                 );
               })}
             </div>
@@ -789,7 +853,7 @@ export function HomeScreen() {
                               {recipe.caloriesPerServing} cal
                             </p>
                           </div>
-                        </div>
+              </div>
                         <Button variant="ghost" size="sm">
                           <Plus className="w-4 h-4" />
                         </Button>
@@ -798,7 +862,7 @@ export function HomeScreen() {
                   ))
                 )}
               </div>
-            </div>
+              </div>
           </DialogContent>
         </Dialog>
       )}
@@ -820,8 +884,8 @@ export function HomeScreen() {
             </DialogHeader>
 
             {selectedQuickFoodCategory && (
-              <Button
-                variant="outline"
+              <Button 
+                variant="outline" 
                 size="sm"
                 onClick={() => setSelectedQuickFoodCategory(null)}
                 className="w-full"
@@ -848,8 +912,8 @@ export function HomeScreen() {
                         <span className="text-4xl">{category.emoji}</span>
                         <p className="font-medium text-sm">{category.name}</p>
                         <p className="text-xs text-muted-foreground">{category.count} items</p>
-                      </CardContent>
-                    </Card>
+            </CardContent>
+          </Card>
                   ))}
                 </div>
               )}
@@ -875,8 +939,8 @@ export function HomeScreen() {
                         <Button variant="ghost" size="sm">
                           <Plus className="w-4 h-4" />
                         </Button>
-                      </CardContent>
-                    </Card>
+            </CardContent>
+          </Card>
                   ))}
                 </div>
               )}

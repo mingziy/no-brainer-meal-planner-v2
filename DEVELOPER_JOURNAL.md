@@ -581,3 +581,135 @@
 ### Documentation
 - Updated `DEVELOPER_JOURNAL.md` with all session changes
 
+## November 4, 2025
+
+### Home Page Redesign - Horizontal Card Carousel
+- **Complete redesign** of Home page with horizontal scrollable meal plan cards:
+  - Replaced vertical Today/Week view with horizontal carousel layout
+  - Cards arranged left-to-right (Monday → Sunday)
+  - Smooth horizontal scroll with snap-to-center behavior
+  - Auto-scroll to today's card on page load
+  - Centered card highlighted with full opacity, others dimmed (40% opacity)
+  - Scale transition: centered card at 100%, others at 95%
+  - Today's card marked with border when centered
+
+### Fixed Day Header with Dynamic Content
+- **Sticky header** showing currently centered day information:
+  - Displays day name and date (e.g., "Tuesday 🌟 Nov 4")
+  - Updates dynamically as user scrolls between cards
+  - Star emoji (🌟) appears for today
+  - Positioned above card carousel, stays fixed on scroll
+  - Clean design with no borders
+
+### Edit Mode Improvements
+- **Edit button** repositioned to top-right of day header:
+  - Simple icon-only design (no text, no border)
+  - Removed from original location near user profile
+  - More discoverable and contextually placed
+  - Hover effect with gray background
+
+- **Edit mode layout** optimized for space:
+  - Shows all 14 days (this week + next week) starting from Monday
+  - Auto-Fill and Reset buttons shrunk for compactness:
+    - Smaller font (text-xs), tighter padding (py-1.5)
+    - Smaller icons (w-3.5 h-3.5) with reduced gap
+  - Dynamic header positioning:
+    - View mode: `top: 140px`
+    - Edit mode: `top: 168px` (reveals Auto-Fill/Reset buttons)
+  - Cancel and Save buttons remain in top-right corner
+
+### Card Design Simplification
+- **Removed redundant information** from cards:
+  - No day name header (already in fixed header)
+  - No date display (already in fixed header)
+  - Cards show only meal content: Breakfast, Lunch, Dinner
+  - Added top padding (pt-6) for breathing room
+  - Clean, minimal design focused on meals
+
+### Vertical Scroll Behavior
+- **Single vertical scroll** controls entire card suite:
+  - All cards move together when scrolling vertically
+  - No individual card scrolling
+  - Scroll down to see lunch/dinner across all days
+  - Better for comparing meals across the week
+
+### Scroll Logic and Centering
+- **Complex scroll implementation** with multiple fixes:
+  - Proper calculation of card positions with centering padding
+  - `scrollPadding: calc(50% - 140px)` for centering alignment
+  - Dynamic scroll calculation accounting for container width
+  - Multiple retry attempts (50ms, 150ms, 300ms, 500ms, 800ms) to ensure DOM ready
+  - `requestAnimationFrame` for smooth scroll application
+  - Scroll event handler tracks which card is at viewport center
+
+### View Mode Options
+- **Default view**: Shows all 7 days (Monday-Sunday) in full-week mode
+  - Changed from 3-day view to full-week for better overview
+  - All days visible in carousel
+
+### Edit Mode Day Logic
+- **Smart day calculation** for edit mode:
+  - Always starts from Monday of current week (not from today)
+  - Shows exactly 14 days (2 weeks)
+  - Empty days included (not skipped) for consistent indexing
+  - Proper week offset calculation for thisWeek/nextWeek data
+  - Today's index correctly calculated regardless of day of week
+
+### Technical Improvements
+- **Fixed multiple scroll issues**:
+  - Cards overflowing outside viewport (fixed with flex layout)
+  - Cards hidden behind header (adjusted top positioning)
+  - Scroll not working (changed `minWidth: '100%'` to `width: 'fit-content'`)
+  - Today's card not centering (fixed day array indexing)
+  - Highlighting not updating on scroll (fixed scroll event handler)
+
+- **Proper container hierarchy**:
+  - Fixed outer container: `display: flex`, `flex-direction: column`
+  - Day header: `flex-shrink-0` (doesn't shrink)
+  - Vertical scroll area: `flex-1` (takes remaining space)
+  - Horizontal scroll container: `overflowX: auto`, `overflowY: visible`
+  - Cards: No height constraints, grow naturally with content
+
+### Debug Process
+- **Extensive debugging** with temporary visual aids:
+  - Colored borders (red, blue, green, purple, orange, lime)
+  - Debug info box showing: card count, today index, centered index, scroll positions
+  - "Center Today" button for manual scroll testing
+  - Console logs for scroll calculations
+  - All debug code removed before deployment
+
+### Bug Fixes
+- Fixed `Pencil` icon import error (added to lucide-react imports)
+- Fixed cards overflowing bottom of screen (proper flex layout)
+- Fixed buttons hidden behind header (dynamic top positioning)
+- Fixed today's card not centered on load (multiple scroll retry attempts)
+- Fixed highlighting not working on scroll (corrected centering calculation)
+- Fixed empty days being skipped (always push days even if no plan)
+- Fixed today showing at wrong index in edit mode (start from Monday, not today)
+
+### State Management
+- Added `centeredCardIndex` state to track which card is centered
+- `scrollContainerRef` for direct DOM manipulation
+- `isEditing` controls layout and button visibility
+- `viewMode` determines which days to show
+- `displayDays` array dynamically calculated based on mode
+
+### User Experience Enhancements
+- **Smooth transitions** with `transition-all duration-300`
+- **Scroll snap** for precise card alignment
+- **Visual feedback**: opacity and scale changes
+- **Touch-friendly**: `WebkitOverflowScrolling: 'touch'`
+- **Responsive**: Adjusts to different screen sizes
+- **Contextual controls**: Edit button in header, not hidden in top corner
+
+### Deployment
+- Successfully deployed to Firebase Hosting
+- Production URL: https://meal-planer-v2.web.app
+- All features tested and working in production
+
+### Known Considerations
+- Removed `shadow-lg` from fixed header for cleaner look
+- Card width: 280px (optimal for mobile viewing)
+- Gap between cards: 12px (0.75rem)
+- Centering padding: `calc(50% - 140px)` (half card width)
+
