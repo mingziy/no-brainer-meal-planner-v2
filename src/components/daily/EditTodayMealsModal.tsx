@@ -423,7 +423,21 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
                     ) : (
                       breakfast.map(recipe => (
                         <div key={recipe.id} className="flex items-center justify-between p-2 hover:bg-accent/50 rounded">
-                          <span className="text-sm">• {recipe.name}</span>
+                          <div className="flex items-center gap-2 flex-1">
+                            {/* Recipe Thumbnail */}
+                            {recipe.image ? (
+                              <img 
+                                src={recipe.image} 
+                                alt={recipe.name}
+                                className="w-10 h-10 rounded object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                <span className="text-lg">🍽️</span>
+                              </div>
+                            )}
+                            <span className="text-sm">• {recipe.name}</span>
+                          </div>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -495,7 +509,21 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
                     ) : (
                       lunch.map(recipe => (
                         <div key={recipe.id} className="flex items-center justify-between p-2 hover:bg-accent/50 rounded">
-                          <span className="text-sm">• {recipe.name}</span>
+                          <div className="flex items-center gap-2 flex-1">
+                            {/* Recipe Thumbnail */}
+                            {recipe.image ? (
+                              <img 
+                                src={recipe.image} 
+                                alt={recipe.name}
+                                className="w-10 h-10 rounded object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                <span className="text-lg">🍽️</span>
+                              </div>
+                            )}
+                            <span className="text-sm">• {recipe.name}</span>
+                          </div>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -567,7 +595,21 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
                     ) : (
                       dinner.map(recipe => (
                         <div key={recipe.id} className="flex items-center justify-between p-2 hover:bg-accent/50 rounded">
-                          <span className="text-sm">• {recipe.name}</span>
+                          <div className="flex items-center gap-2 flex-1">
+                            {/* Recipe Thumbnail */}
+                            {recipe.image ? (
+                              <img 
+                                src={recipe.image} 
+                                alt={recipe.name}
+                                className="w-10 h-10 rounded object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                <span className="text-lg">🍽️</span>
+                              </div>
+                            )}
+                            <span className="text-sm">• {recipe.name}</span>
+                          </div>
                           <Button
                             variant="ghost"
                             size="sm"

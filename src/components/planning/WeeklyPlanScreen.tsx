@@ -249,7 +249,7 @@ export function WeeklyPlanScreen() {
       // Get the existing plan for this week (if any) to preserve its ID
       const existingPlan = planningWeekOffset === 0 ? getThisWeekPlan() : getNextWeekPlan();
       
-      // Convert to WeeklyPlan format (without shopping list first for immediate save)
+      // Convert to WeeklyPlan format (storing only recipe IDs to keep document size small)
       const weeklyPlan = {
         ...(existingPlan?.id && { id: existingPlan.id }), // Include ID if updating existing plan
         cuisine: 'Mixed',
@@ -258,10 +258,11 @@ export function WeeklyPlanScreen() {
         weekLabel,
         days: weekPlan.map(day => ({
           day: day.day,
-          breakfast: day.breakfast as any,
-          lunch: day.lunch as any,
-          dinner: day.dinner as any,
-          snacks: day.snacks as any[],
+          // Store only recipe IDs to avoid Firestore document size limit (1MB)
+          breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+          lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+          dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+          snacks: day.snacks.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any[],
           breakfastQuickFoods: day.breakfastQuickFoods,
           lunchQuickFoods: day.lunchQuickFoods,
           dinnerQuickFoods: day.dinnerQuickFoods
@@ -331,12 +332,18 @@ export function WeeklyPlanScreen() {
         
         console.log(`    Recipe: ${recipe.name}, ingredients: ${recipe.ingredients?.length || 0}`);
         
+        // If recipe doesn't have ingredients (lightweight object), look up the full recipe
+        let fullRecipe = recipe;
         if (!recipe.ingredients || recipe.ingredients.length === 0) {
-          console.log(`    ⚠️ Recipe "${recipe.name}" has no ingredients!`);
-          return;
+          console.log(`    ⚠️ Recipe "${recipe.name}" has no ingredients, looking up full recipe...`);
+          fullRecipe = recipes.find(r => r.id === recipe.id) || recipe;
+          if (!fullRecipe.ingredients || fullRecipe.ingredients.length === 0) {
+            console.log(`    ⚠️ Full recipe "${recipe.name}" still has no ingredients!`);
+            return;
+          }
         }
         
-        recipe.ingredients.forEach(ingredient => {
+        fullRecipe.ingredients.forEach(ingredient => {
           const key = ingredient.name.toLowerCase().trim();
           
           if (!ingredientMap.has(key)) {
@@ -807,7 +814,7 @@ export function WeeklyPlanScreen() {
           </div>
           
           {/* Custom Scrollbar Indicator */}
-          <div className="mt-2 h-3 bg-gray-200 rounded-full overflow-hidden" style={{ border: '2px solid red' }}>
+          <div className="mt-2 h-3 bg-gray-200 rounded-full overflow-hidden">
             <div 
               className="h-full bg-blue-500 transition-all duration-150"
               style={{ 
