@@ -2,7 +2,92 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Recipe } from '../types';
 
 /**
+ * Translate recipe ingredients and instructions to English
+ * Used when a recipe is extracted in Chinese to create bilingual versions
+ */
+export async function translateRecipeToEnglish(
+  ingredients: Array<{ id: string; amount: string; unit: string; name: string }>,
+  instructions: string[],
+  name: string
+): Promise<{
+  nameEn: string;
+  ingredientsEn: Array<{ id: string; amount: string; unit: string; name: string }>;
+  instructionsEn: string[];
+}> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('⚠️ Gemini API key not configured, skipping translation');
+    throw new Error('API_KEY_NOT_CONFIGURED');
+  }
+
+  try {
+    console.log('🌐 Translating recipe to English...');
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const prompt = `Translate this Chinese recipe to English. Return ONLY valid JSON with no markdown or explanations.
+
+Recipe Name: ${name}
+
+Ingredients:
+${ingredients.map(ing => `${ing.amount} ${ing.unit} ${ing.name}`).join('\n')}
+
+Instructions:
+${instructions.map((inst, i) => `${i + 1}. ${inst}`).join('\n')}
+
+Return JSON in this exact format:
+{
+  "nameEn": "English recipe name",
+  "ingredientsEn": [
+    {"id": "1", "amount": "2", "unit": "cups", "name": "flour"}
+  ],
+  "instructionsEn": [
+    "Step 1 in English",
+    "Step 2 in English"
+  ]
+}
+
+IMPORTANT:
+- Translate ingredient names naturally (e.g., 猪肉 → pork, 大蒜 → garlic)
+- Keep amounts and units the same
+- Keep ingredient IDs the same
+- Translate instructions clearly and naturally
+- Return ONLY the JSON, no other text`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text().trim();
+    
+    // Remove markdown code blocks if present
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    // Try to extract JSON if there's extra text
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      text = jsonMatch[0];
+    }
+    
+    const translated = JSON.parse(text);
+    
+    console.log('✅ Translation complete');
+    return translated;
+  } catch (error) {
+    console.error('❌ Error translating recipe:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if text contains Chinese characters
+ */
+function containsChinese(text: string): boolean {
+  return /[\u4e00-\u9fa5]/.test(text);
+}
+
+/**
  * Clean ingredient names using AI to remove processing details and punctuation
+ * Converts plurals to singular form to consolidate similar items
  * Batch processes multiple ingredients in one API call for efficiency
  */
 export async function cleanIngredientNames(ingredientNames: string[]): Promise<string[]> {
@@ -18,20 +103,24 @@ export async function cleanIngredientNames(ingredientNames: string[]): Promise<s
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `Clean these ingredient names for a shopping list. Remove ALL processing details, cooking instructions, punctuation, and descriptions. Return ONLY the core ingredient name.
+    const prompt = `Clean these ingredient names for a shopping list. Remove ALL processing details, cooking instructions, punctuation, and descriptions. Convert plurals to singular form. Return ONLY the core ingredient name in SINGULAR form.
 
 Examples:
 - "garlic (minced)" → "garlic"
-- "tomatoes, seeds removed" → "tomatoes"
+- "tomatoes, seeds removed" → "tomato"
 - "chicken breast, boneless skinless" → "chicken breast"
 - "olive oil (extra virgin)" → "olive oil"
-- "onion - diced" → "onion"
-- "bell pepper (red, chopped)" → "bell pepper"
+- "onions - diced" → "onion"
+- "bell peppers (red, chopped)" → "bell pepper"
+- "carrots" → "carrot"
+- "potatoes" → "potato"
+- "green beans" → "green bean"
+- "strawberries" → "strawberry"
 
 Ingredient names to clean (one per line):
 ${ingredientNames.join('\n')}
 
-Return ONLY the cleaned names, one per line, in the same order. No explanations, no numbering, no extra text.`;
+Return ONLY the cleaned names in SINGULAR form, one per line, in the same order. No explanations, no numbering, no extra text.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -74,13 +163,13 @@ export async function parseRecipeWithGemini(text: string, timeoutMs: number = 90
   let lastError: any = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     // Create timeout promise with configurable timeout
-    const timeoutPromise = new Promise((_, reject) => {
+  const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error(`AI request timeout after ${timeoutMs / 1000} seconds`)), timeoutMs);
-    });
+  });
 
-    try {
+  try {
       console.log(`📡 Sending request to Gemini API (attempt ${attempt}/3)...`);
-      const genAI = new GoogleGenerativeAI(apiKey);
+    const genAI = new GoogleGenerativeAI(apiKey);
       // Use gemini-2.5-flash for improved parsing
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
@@ -250,6 +339,11 @@ ${text}`;
     const parsed = JSON.parse(jsonText);
     
     console.log('✅ Gemini parsed recipe:', parsed);
+    console.log('🔢 Calorie data extracted:', {
+      caloriesPerServing: parsed.caloriesPerServing,
+      servings: parsed.servings,
+      hasReasoning: !!parsed.nutritionCalculationReasoning
+    });
     
     // Log nutrition calculation reasoning if provided
     if (parsed.nutritionCalculationReasoning) {
@@ -257,6 +351,8 @@ ${text}`;
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log(parsed.nutritionCalculationReasoning);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    } else {
+      console.warn('⚠️ No nutritionCalculationReasoning in parsed recipe');
     }
     
     // Add default image
@@ -264,14 +360,14 @@ ${text}`;
     
     // Add default nutrition if not provided by AI
     if (!parsed.nutrition) {
-      parsed.nutrition = {
-        protein: 0,
-        fiber: 0,
-        fat: 0,
-        carbs: 0,
-        iron: 'Moderate',
-        calcium: 'Moderate',
-      };
+    parsed.nutrition = {
+      protein: 0,
+      fiber: 0,
+      fat: 0,
+      carbs: 0,
+      iron: 'Moderate',
+      calcium: 'Moderate',
+    };
     }
     
     // Calculate % Daily Value if not provided by AI (based on FDA 2000 calorie diet)
@@ -308,7 +404,7 @@ ${text}`;
     
     return parsed;
     
-    } catch (error: any) {
+  } catch (error: any) {
       lastError = error;
       console.error(`❌ Gemini parsing attempt ${attempt} failed:`, error.message);
       
@@ -331,7 +427,7 @@ ${text}`;
   
   // All retries failed
   console.error('❌ All Gemini parsing attempts failed:', lastError);
-  console.error('Error details:', {
+    console.error('Error details:', {
     message: lastError.message,
     stack: lastError.stack,
     name: lastError.name,
@@ -483,11 +579,12 @@ export async function parseRecipeFromImage(imageDataUrl: string): Promise<Partia
 
   console.log('📸 Processing image directly with Gemini Vision...');
 
-  // Retry logic
+  // Retry logic with exponential backoff
   let lastError: any = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
+    // Increase timeout to 90 seconds for image processing
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('AI image processing timeout after 45 seconds')), 45000);
+      setTimeout(() => reject(new Error('AI image processing timeout after 90 seconds')), 90000);
     });
 
     try {
@@ -495,29 +592,28 @@ export async function parseRecipeFromImage(imageDataUrl: string): Promise<Partia
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-      const prompt = `Extract the recipe from this image and return ONLY valid JSON (no markdown, no explanations).
+      const prompt = `Extract recipe from image. Analyze ingredients and calculate nutrition. Return ONLY valid JSON.
 
-JSON format:
-{
-  "name": "Recipe name",
-  "cuisine": "Korean|Chinese|Italian|American|Mexican|Japanese|Other",
-  "categories": ["Select all relevant from: Breakfast, Lunch, Dinner, Snack, Kid-Friendly, Toddler-Friendly, Picky-Eater-Friendly, Beef, Chicken, Pork, Fish, Shellfish, Turkey, Lamb, Tofu, Eggs, Batch-Cook Friendly, One-Pot, No-Cook, Slow-Cooker, Air-Fryer, Instant-Pot, Quick, 30-Min, Make-Ahead, Freezer-Friendly, Vegetarian, Vegan, Gluten-Free, Dairy-Free, Low-Carb, Keto, High-Protein, Veggie-Rich, Balanced, Meal-Prep, Comfort-Food, Healthy, Leftover-Friendly"],
-  "prepTime": 15,
-  "cookTime": 30,
-  "servings": 4,
-  "ingredients": [{"id": "1", "amount": "2", "unit": "cups", "name": "flour"}],
-  "instructions": ["Step 1", "Step 2"]
-}
+Format:
+{"name":"Recipe Name","cuisine":"Vietnamese","proteinTypes":["Chicken","Pork"],"mealType":"Lunch","servings":4,"caloriesPerServing":350,"nutritionCalculationReasoning":"Brief reasoning","nutrition":{"protein":30,"fiber":5,"fat":15,"carbs":40,"iron":"Moderate","calcium":"Moderate"},"ingredients":[{"id":"1","amount":"1","unit":"cup","name":"ingredient"}],"instructions":["Step 1"]}
 
-Rules:
-- Preserve original language (Chinese/English)
-- **Select ALL relevant categories**: meal type + protein type + cooking method + dietary restrictions + time/effort
-- Extract all ingredients with amounts/units, number from "1"
-- Break instructions into clear steps
-- Times in minutes
-- Estimate servings from recipe or ingredient amounts
+CRITICAL - Read recipe and calculate nutrition:
+1. Preserve original language (Chinese/English)
+2. Number ingredients from "1"
+3. **cuisine**: Identify from dish name (Vietnamese, Chinese, Italian, Japanese, Korean, Thai, Indian, Mexican, American, French, Mediterranean, Other)
+4. **proteinTypes**: ARRAY of proteins - if multiple, list ALL: ["Chicken","Pork"]
+5. **mealType**: When eaten? (Breakfast, Lunch, Dinner, Snack)
+6. **caloriesPerServing**: Estimate from ingredients
+7. **nutrition**: Calculate per serving in grams:
+   - protein: grams of protein (e.g., 30)
+   - carbs: grams of carbohydrates (e.g., 40)
+   - fat: grams of fat (e.g., 15)
+   - fiber: grams of fiber (e.g., 5)
+   - iron: "Low", "Moderate", or "High"
+   - calcium: "Low", "Moderate", or "High"
+8. **nutritionCalculationReasoning**: Brief explanation of calorie/nutrition calculation
 
-Return ONLY the JSON.`;
+Return JSON only:`;
 
       // Convert base64 data URL to the format Gemini expects
       const base64Data = imageDataUrl.split(',')[1];
@@ -546,30 +642,88 @@ Return ONLY the JSON.`;
       let jsonText = aiText.trim();
       
       // Remove markdown code blocks if present
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/```\n?/g, '');
+      if (jsonText.includes('```json')) {
+        jsonText = jsonText.split('```json')[1].split('```')[0].trim();
+      } else if (jsonText.includes('```')) {
+        jsonText = jsonText.split('```')[1].split('```')[0].trim();
+      }
+      
+      // Remove "JSON:" prefix if present
+      if (jsonText.toLowerCase().startsWith('json:')) {
+        jsonText = jsonText.substring(5).trim();
+      }
+      
+      // Find the actual JSON object (starts with { and ends with })
+      const jsonStart = jsonText.indexOf('{');
+      const jsonEnd = jsonText.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
       }
 
+      console.log('📝 Cleaned JSON text:', jsonText.substring(0, 200) + '...');
       const parsedRecipe = JSON.parse(jsonText);
       
+      // Ensure required fields exist (AI might omit them)
+      if (!parsedRecipe.caloriesPerServing) {
+        parsedRecipe.caloriesPerServing = 0;
+      }
+      if (!parsedRecipe.nutritionCalculationReasoning) {
+        parsedRecipe.nutritionCalculationReasoning = '';
+      }
+      
+      // Handle proteinTypes array (new format) or proteinType string (old format)
+      if (parsedRecipe.proteinTypes && Array.isArray(parsedRecipe.proteinTypes)) {
+        // Store as array for the form to use
+        parsedRecipe.proteinTypesArray = parsedRecipe.proteinTypes;
+        // Keep first one as proteinType for backward compatibility
+        parsedRecipe.proteinType = parsedRecipe.proteinTypes[0];
+      } else if (parsedRecipe.proteinType) {
+        // Handle comma-separated string from old responses
+        if (parsedRecipe.proteinType.includes(',')) {
+          parsedRecipe.proteinTypesArray = parsedRecipe.proteinType.split(',').map((s: string) => s.trim());
+        } else {
+          parsedRecipe.proteinTypesArray = [parsedRecipe.proteinType];
+        }
+      }
+      
       console.log('✅ Successfully parsed recipe from image');
+      console.log('🔢 Calorie data from image:', {
+        caloriesPerServing: parsedRecipe.caloriesPerServing,
+        servings: parsedRecipe.servings,
+        hasReasoning: !!parsedRecipe.nutritionCalculationReasoning
+      });
+      console.log('🏷️ Tags extracted from image:', {
+        cuisine: parsedRecipe.cuisine || 'MISSING',
+        proteinTypes: parsedRecipe.proteinTypesArray || [parsedRecipe.proteinType] || 'MISSING',
+        mealType: parsedRecipe.mealType || 'MISSING'
+      });
+      
+      if (parsedRecipe.nutritionCalculationReasoning) {
+        console.log('📊 IMAGE NUTRITION CALCULATION:');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(parsedRecipe.nutritionCalculationReasoning);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      } else {
+        console.warn('⚠️ No nutritionCalculationReasoning in image parsing result');
+      }
+      
       return parsedRecipe;
       
     } catch (error: any) {
       console.error(`❌ Attempt ${attempt} failed:`, error.message);
       lastError = error;
       
-      // If it's a 503 (overloaded) or network error, retry after delay
-      if (error.message.includes('503') || error.message.includes('overloaded') || error.message.includes('ECONNREFUSED')) {
-        const delay = attempt * 3000; // 3s, 6s
-        console.log(`⏳ Waiting ${delay/1000}s before retry...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+      // Retry immediately for 503/timeout errors
+      if (attempt < 3 && 
+          (error.message.includes('503') || 
+           error.message.includes('overloaded') || 
+           error.message.includes('timeout') ||
+           error.message.includes('ECONNREFUSED'))) {
+        console.log(`🔄 Retrying immediately (${attempt + 1}/3)...`);
         continue;
       }
       
-      // For other errors, don't retry
+      // For other errors, stop
       break;
     }
   }

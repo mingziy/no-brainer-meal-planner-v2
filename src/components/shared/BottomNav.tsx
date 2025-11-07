@@ -9,7 +9,6 @@ export function BottomNav() {
     { id: 'recipes', label: 'Recipes', icon: ChefHat, screen: 'recipes' },
     { id: 'quickfoods', label: 'Quick Foods', icon: Apple, screen: 'quick-foods' },
     { id: 'shopping', label: 'Shopping', icon: ShoppingCart, screen: 'shopping-list' },
-    { id: 'profile', label: 'Profile', icon: User, screen: 'profile' },
   ];
 
   return (

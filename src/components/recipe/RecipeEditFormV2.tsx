@@ -11,11 +11,12 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { ScrollArea } from '../ui/scroll-area';
-import { ArrowLeft, ArrowRight, Plus, Trash2, Camera, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus, Trash2, Camera, Loader2, Sparkles } from 'lucide-react';
 import { useRecipes } from '../../hooks/useRecipes';
 import { toast } from 'sonner';
 import Cropper from 'react-easy-crop';
 import type { Area } from 'react-easy-crop';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 type Step = 'image' | 'recipe' | 'calories' | 'tags';
 
@@ -54,6 +55,8 @@ export function RecipeEditFormV2() {
   const [servings, setServings] = useState(4);
   const [caloriesPerServing, setCaloriesPerServing] = useState(0);
   const [calculationReasoning, setCalculationReasoning] = useState('');
+  const [isCalculatingCalories, setIsCalculatingCalories] = useState(false);
+  const [calculatedNutrition, setCalculatedNutrition] = useState<any>(null);
   
   // Step 3: Tags (now support multiple selections)
   const [cuisines, setCuisines] = useState<string[]>([]);
@@ -85,67 +88,98 @@ export function RecipeEditFormV2() {
   
   // Initialize form with draft or selected recipe
   useEffect(() => {
-    if (isRecipeEditFormOpen) {
-      const recipe = draftRecipe || selectedRecipe;
-      if (recipe) {
-        console.log('🏷️ Recipe data:', { 
-          cuisine: recipe.cuisine, 
-          proteinType: recipe.proteinType, 
-          mealType: recipe.mealType 
-        });
-        
-        setRecipeName(recipe.name || '');
-        setRecipeImage(recipe.image || '');
-        
-        // Set available images for selection
-        const images = [];
-        if ((recipe as any).originalImageForCropping) {
-          // Use original image for cropping
-          console.log('✅ Found originalImageForCropping');
-          images.push((recipe as any).originalImageForCropping);
-        } else if (recipe.image) {
-          console.log('✅ Found recipe.image');
-          images.push(recipe.image);
-        } else {
-          console.log('❌ No image found in recipe');
-        }
-        setAvailableImages(images);
-        console.log('🖼️ Set availableImages:', images.length);
-        
-        // Auto-open cropper if we have an image
-        if (images.length > 0) {
-          console.log('📸 Setting imageToCrop:', images[0].substring(0, 50) + '...');
-          setImageToCrop(images[0]);
-          setShowCropper(true);
-        } else {
-          console.log('❌ No images available for cropping');
-        }
-        
-        setIngredients(recipe.ingredients || [{ id: '1', amount: '', unit: '', name: '' }]);
-        setInstructions(recipe.instructions || ['']);
-        setServings(recipe.servings || 4);
-        setCaloriesPerServing(recipe.caloriesPerServing || 0);
-        setCalculationReasoning(recipe.nutritionCalculationReasoning || '');
-        
-        // Don't auto-select - let AI tags appear as suggestions only
-        setCuisines([]);
-        setProteinTypes([]);
-        setMealTypes([]);
-        setCuisineInput('');
-        setProteinInput('');
-        setMealTypeInput('');
+    if (!isRecipeEditFormOpen) {
+      // Modal is closed, don't populate anything
+      return;
+    }
+    
+    const recipe = draftRecipe || selectedRecipe;
+    if (recipe) {
+      
+      setRecipeName(recipe.name || '');
+      setRecipeImage(recipe.image || '');
+      
+      // Set available images for selection
+      const images = [];
+      if ((recipe as any).originalImageForCropping) {
+        images.push((recipe as any).originalImageForCropping);
+      } else if (recipe.image) {
+        images.push(recipe.image);
       }
+      setAvailableImages(images);
+      
+      // Auto-open cropper if we have an image
+      if (images.length > 0) {
+        setImageToCrop(images[0]);
+        setShowCropper(true);
+      }
+      
+      setIngredients(recipe.ingredients || [{ id: '1', amount: '', unit: '', name: '' }]);
+      setInstructions(recipe.instructions || ['']);
+      setServings(recipe.servings || 4);
+      setCaloriesPerServing(recipe.caloriesPerServing || 0);
+      setCalculationReasoning(recipe.nutritionCalculationReasoning || '');
+      
+      setCuisines(recipe.cuisine ? [recipe.cuisine] : []);
+      // Use proteinTypesArray if available (multiple proteins), otherwise use single proteinType
+      const proteinTypesToLoad = (recipe as any).proteinTypesArray || (recipe.proteinType ? [recipe.proteinType] : []);
+      setProteinTypes(proteinTypesToLoad);
+      setMealTypes(recipe.mealType ? [recipe.mealType] : []);
+      setCuisineInput('');
+      setProteinInput('');
+      setMealTypeInput('');
+      
+      setCurrentStep('image');
+    } else {
+      // No recipe data - this is a fresh manual upload - reset to empty state
+      setAvailableImages([]);
+      setImageToCrop('');
+      setRecipeName('');
+      setRecipeImage('');
+      setIngredients([{ id: '1', amount: '', unit: '', name: '' }]);
+      setInstructions(['']);
+      setServings(4);
+      setCaloriesPerServing(0);
+      setCalculationReasoning('');
+      setCuisines([]);
+      setProteinTypes([]);
+      setMealTypes([]);
       setCurrentStep('image');
     }
   }, [isRecipeEditFormOpen, draftRecipe, selectedRecipe]);
   
   const handleClose = () => {
-    console.log('🔴 RecipeEditFormV2: handleClose called');
-    setIsRecipeEditFormOpen(false);
+    // Clear draft/selected recipe FIRST to prevent useEffect from repopulating
     setDraftRecipe(null);
     setSelectedRecipe(null);
-    setCurrentStep('recipe');
-    console.log('🔴 RecipeEditFormV2: Closed, isRecipeEditFormOpen set to false');
+    
+    // Reset all form state
+    setAvailableImages([]);
+    setShowCropper(false);
+    setImageToCrop('');
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    
+    setRecipeName('');
+    setRecipeImage('');
+    setIngredients([{ id: '1', amount: '', unit: '', name: '' }]);
+    setInstructions(['']);
+    
+    setServings(4);
+    setCaloriesPerServing(0);
+    setCalculationReasoning('');
+    setCalculatedNutrition(null);
+    
+    setCuisines([]);
+    setProteinTypes([]);
+    setMealTypes([]);
+    setCuisineInput('');
+    setProteinInput('');
+    setMealTypeInput('');
+    
+    setCurrentStep('image');
+    setIsRecipeEditFormOpen(false);
   };
   
   const handleNextStep = async () => {
@@ -269,6 +303,110 @@ export function RecipeEditFormV2() {
   const updateInstruction = (index: number, value: string) => {
     setInstructions(instructions.map((inst, i) => i === index ? value : inst));
   };
+
+  const handleCalculateCaloriesWithAI = async () => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!apiKey || apiKey === 'your_api_key_here') {
+      toast.error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in .env.local');
+      return;
+    }
+
+    // Validate that we have recipe data
+    if (!recipeName || ingredients.length === 0) {
+      toast.error('Please add recipe name and ingredients first');
+      return;
+    }
+
+    setIsCalculatingCalories(true);
+    
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+      // Format ingredients and instructions for AI
+      const ingredientsText = ingredients
+        .filter(ing => ing.name.trim())
+        .map(ing => `${ing.amount} ${ing.unit} ${ing.name}`.trim())
+        .join('\n');
+      
+      const instructionsText = instructions
+        .filter(inst => inst.trim())
+        .map((inst, idx) => `${idx + 1}. ${inst}`)
+        .join('\n');
+
+      const prompt = `Calculate the complete nutrition information for this recipe. Return ONLY valid JSON (no markdown, no explanations).
+
+Recipe: ${recipeName}
+Servings: ${servings}
+
+Ingredients:
+${ingredientsText}
+
+${instructionsText ? `Instructions:\n${instructionsText}` : ''}
+
+Required JSON structure:
+{
+  "caloriesPerServing": 350,
+  "nutrition": {
+    "protein": 30,
+    "carbs": 40,
+    "fat": 15,
+    "fiber": 5,
+    "iron": "Moderate",
+    "calcium": "Moderate"
+  },
+  "nutritionCalculationReasoning": "Detailed explanation of your calculation including: 1) How you determined serving size, 2) How you calculated calories and macros per serving with specific values for each major ingredient, 3) Sources or reasoning (cite USDA data, nutrition databases, or standard values)"
+}
+
+IMPORTANT:
+- protein, carbs, fat, fiber: provide values in GRAMS per serving
+- iron, calcium: provide as "Low", "Moderate", or "High"
+- nutritionCalculationReasoning: explain your calculation methodology
+
+Return ONLY the JSON, no other text.`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text().trim();
+      
+      // Parse JSON response
+      let jsonText = text;
+      if (text.includes('```json')) {
+        jsonText = text.split('```json')[1].split('```')[0].trim();
+      } else if (text.includes('```')) {
+        jsonText = text.split('```')[1].split('```')[0].trim();
+      }
+
+      const parsed = JSON.parse(jsonText);
+      
+      // Update calorie data
+      setCaloriesPerServing(parsed.caloriesPerServing || 0);
+      setCalculationReasoning(parsed.nutritionCalculationReasoning || '');
+      
+      // Store nutrition data
+      if (parsed.nutrition) {
+        const nutritionData = {
+          protein: parsed.nutrition.protein || 0,
+          carbs: parsed.nutrition.carbs || 0,
+          fat: parsed.nutrition.fat || 0,
+          fiber: parsed.nutrition.fiber || 0,
+          iron: parsed.nutrition.iron || 'Moderate',
+          calcium: parsed.nutrition.calcium || 'Moderate',
+        };
+        setCalculatedNutrition(nutritionData);
+        // DO NOT update draftRecipe in manual entry mode
+        // The nutrition will be saved from calculatedNutrition state when user saves
+      }
+      
+      toast.success('Calories and nutrition calculated successfully!');
+    } catch (error) {
+      console.error('❌ Error calculating calories with AI:', error);
+      toast.error('Failed to calculate nutrition. Please enter manually.');
+    } finally {
+      setIsCalculatingCalories(false);
+    }
+  };
   
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -376,7 +514,7 @@ export function RecipeEditFormV2() {
         caloriesPerServing,
         ingredients: ingredients.filter(ing => ing.name.trim()),
         instructions: instructions.filter(inst => inst.trim()),
-        nutrition: recipe?.nutrition || {
+        nutrition: calculatedNutrition || recipe?.nutrition || {
           protein: 0,
           fiber: 0,
           fat: 0,
@@ -414,6 +552,43 @@ export function RecipeEditFormV2() {
       }
       
       console.log('💾 Recipe data prepared:', JSON.stringify(recipeData, null, 2));
+      
+      // Check if recipe is in Chinese and translate to create bilingual version
+      const containsChinese = (text: string) => /[\u4e00-\u9fa5]/.test(text);
+      const hasChineseContent = containsChinese(recipeName) || 
+                                ingredients.some(ing => containsChinese(ing.name)) ||
+                                instructions.some(inst => containsChinese(inst));
+      
+      if (hasChineseContent && !recipe?.nameZh) {
+        // Recipe is in Chinese but doesn't have English translation yet
+        console.log('🌐 Detected Chinese recipe, creating bilingual version...');
+        try {
+          const { translateRecipeToEnglish } = await import('../../utils/geminiRecipeParser');
+          const translation = await translateRecipeToEnglish(
+            ingredients.filter(ing => ing.name.trim()),
+            instructions.filter(inst => inst.trim()),
+            recipeName
+          );
+          
+          // Store Chinese as the "Zh" version
+          recipeData.nameZh = recipeName;
+          recipeData.ingredientsZh = ingredients.filter(ing => ing.name.trim());
+          recipeData.instructionsZh = instructions.filter(inst => inst.trim());
+          
+          // Store English as the main version
+          recipeData.name = translation.nameEn;
+          recipeData.ingredients = translation.ingredientsEn;
+          recipeData.instructions = translation.instructionsEn;
+          
+          console.log('✅ Bilingual recipe created:', {
+            chinese: recipeName,
+            english: translation.nameEn
+          });
+        } catch (error) {
+          console.error('❌ Translation failed, saving as Chinese-only:', error);
+          // Keep original Chinese version if translation fails
+        }
+      }
       
       if (selectedRecipe?.id) {
         // Update existing recipe
@@ -477,7 +652,11 @@ export function RecipeEditFormV2() {
   };
   
   return (
-    <Dialog open={isRecipeEditFormOpen} onOpenChange={setIsRecipeEditFormOpen}>
+    <Dialog open={isRecipeEditFormOpen} onOpenChange={(open) => {
+      if (!open) {
+        handleClose();
+      }
+    }}>
       <DialogContent className="max-w-md p-6 gap-4" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <DialogHeader>
           <DialogTitle>
@@ -522,7 +701,7 @@ export function RecipeEditFormV2() {
                   <div className="flex flex-col items-center justify-center h-full text-gray-500">
                     <Camera className="w-12 h-12 opacity-50 mb-2" />
                     <p className="text-sm">No image to crop</p>
-                    <p className="text-xs mt-1">Available: {availableImages.length}</p>
+                    <p className="text-xs mt-1">Upload a recipe card image below</p>
                   </div>
                 )}
               </div>
@@ -537,7 +716,46 @@ export function RecipeEditFormV2() {
                   value={zoom}
                   onChange={(e) => setZoom(Number(e.target.value))}
                   className="w-full"
+                  disabled={!imageToCrop}
                 />
+              </div>
+              
+              {/* Upload Button */}
+              <div className="space-y-2">
+                <input
+                  id="recipe-card-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const imageUrl = event.target?.result as string;
+                        setImageToCrop(imageUrl);
+                        setAvailableImages([imageUrl]);
+                        // Reset crop state
+                        setCrop({ x: 0, y: 0 });
+                        setZoom(1);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                <label htmlFor="recipe-card-upload">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    asChild
+                  >
+                    <span>
+                      <Camera className="w-4 h-4 mr-2" />
+                      {imageToCrop ? 'Change Recipe Card Image' : 'Upload Recipe Card Image'}
+                    </span>
+                  </Button>
+                </label>
               </div>
             </div>
           )}
@@ -545,31 +763,6 @@ export function RecipeEditFormV2() {
           {/* STEP 1: Recipe Confirmation */}
           {currentStep === 'recipe' && (
             <div className="space-y-4">
-              {/* Image Upload */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Recipe Image</label>
-                {recipeImage ? (
-                  <div className="relative">
-                    <img src={recipeImage} alt="Recipe" className="w-full h-48 object-cover rounded-lg" />
-                    <label htmlFor="image-upload" className="absolute bottom-2 right-2 bg-white/90 p-2 rounded-full cursor-pointer hover:bg-white shadow-lg">
-                      <Camera className="w-5 h-5" />
-                    </label>
-                  </div>
-                ) : (
-                  <label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400">
-                    <Camera className="w-8 h-8 text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-500">Click to upload image</span>
-                  </label>
-                )}
-                <input
-                  id="image-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageChange}
-                />
-              </div>
-              
               {/* Recipe Name */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Recipe Name</label>
@@ -585,6 +778,7 @@ export function RecipeEditFormV2() {
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Ingredients</label>
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     onClick={addIngredient}
@@ -616,6 +810,7 @@ export function RecipeEditFormV2() {
                       />
                       {ingredients.length > 1 && (
                         <Button
+                          type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => removeIngredient(ing.id)}
@@ -633,6 +828,7 @@ export function RecipeEditFormV2() {
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Cooking Steps</label>
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     onClick={addInstruction}
@@ -654,6 +850,7 @@ export function RecipeEditFormV2() {
                       />
                       {instructions.length > 1 && (
                         <Button
+                          type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => removeInstruction(index)}
@@ -685,6 +882,27 @@ export function RecipeEditFormV2() {
                   min={1}
                 />
               </div>
+
+              {/* AI Calculate Button - Right after servings */}
+              <Button
+                type="button"
+                onClick={handleCalculateCaloriesWithAI}
+                disabled={isCalculatingCalories || !recipeName || ingredients.length === 0}
+                variant="outline"
+                className="w-full"
+              >
+                {isCalculatingCalories ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Calculating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    {calculationReasoning ? 'Recalculate' : 'Calculate'} Calories with AI
+                  </>
+                )}
+              </Button>
               
               <div className="space-y-2">
                 <label className="text-sm font-medium">Calories per Serving</label>

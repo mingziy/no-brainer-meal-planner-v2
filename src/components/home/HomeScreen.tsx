@@ -16,8 +16,10 @@ import {
 import { useApp } from '../../context/AppContext';
 import { BottomNav } from '../shared/BottomNav';
 import { UserButton } from '../auth/UserButton';
-import { Recipe, RecipeCategory, QuickFood } from '../../types';
+import { Recipe, RecipeCategory, QuickFood, ShoppingItem } from '../../types';
 import { defaultQuickFoods } from '../../data/quickFoods';
+import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
+import { useTranslation } from 'react-i18next';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner';
 type ViewMode = '3-day' | 'full-week';
@@ -34,6 +36,7 @@ interface DayMealPlan {
 }
 
 export function HomeScreen() {
+  const { i18n } = useTranslation();
   const { 
     userProfile, 
     recipes,
@@ -45,6 +48,9 @@ export function HomeScreen() {
     setIsAddRecipeModalOpen,
     setPendingMealType,
   } = useApp();
+  
+  // Check if current language is Chinese
+  const isChineseMode = i18n.language === 'zh';
   
   const [isEditing, setIsEditing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('full-week'); // Default to show all cards
@@ -342,30 +348,210 @@ export function HomeScreen() {
     setIsEditing(true);
   };
   
+  // Check if text contains Chinese characters
+  const containsChinese = (text: string): boolean => {
+    return /[\u4e00-\u9fa5]/.test(text);
+  };
+
+  // Categorize ingredient for shopping list
+  const categorizeIngredient = (name: string): string => {
+    const nameLower = name.toLowerCase();
+    
+    // Produce
+    if (/vegetable|fruit|lettuce|tomato|onion|garlic|pepper|carrot|broccoli|spinach|kale|cabbage|potato|avocado|apple|banana|berry|lemon|lime|orange|herb|cilantro|parsley|basil/.test(nameLower)) {
+      return 'produce';
+    }
+    
+    // Meat
+    if (/chicken|beef|pork|fish|salmon|turkey|lamb|meat|bacon|sausage|shrimp|crab|lobster/.test(nameLower)) {
+      return 'meat';
+    }
+    
+    // Dairy
+    if (/milk|cheese|yogurt|butter|cream|egg|dairy/.test(nameLower)) {
+      return 'dairy';
+    }
+    
+    // Pantry (default for everything else like rice, pasta, oil, etc.)
+    return 'pantry';
+  };
+
+  // Generate shopping list from meal plan
+  const generateShoppingListFromPlan = async (planDays: DayMealPlan[]): Promise<ShoppingItem[]> => {
+    const ingredientMap = new Map<string, { original: string; category: string }>();
+    const quickFoodMap = new Map<string, QuickFood>();
+    
+    // Collect all unique ingredients from planned meals
+    planDays.forEach(day => {
+      const allRecipes = [...day.breakfast, ...day.lunch, ...day.dinner];
+      
+      allRecipes.forEach(recipe => {
+        // Look up the full recipe to get ingredients
+        const fullRecipe = recipes.find(r => r.id === recipe.id);
+        if (!fullRecipe) return;
+        
+        // Use language-appropriate ingredients
+        const ingredientsToUse = isChineseMode && fullRecipe.ingredientsZh 
+          ? fullRecipe.ingredientsZh 
+          : fullRecipe.ingredients;
+        
+        if (!ingredientsToUse || ingredientsToUse.length === 0) return;
+        
+        ingredientsToUse.forEach(ingredient => {
+          const key = ingredient.name.toLowerCase().trim();
+          
+          if (!ingredientMap.has(key)) {
+            const category = categorizeIngredient(ingredient.name);
+            ingredientMap.set(key, { original: ingredient.name, category });
+          }
+        });
+      });
+      
+      // Collect quick foods from each meal
+      const allQuickFoods = [
+        ...(day.breakfastQuickFoods || []),
+        ...(day.lunchQuickFoods || []),
+        ...(day.dinnerQuickFoods || [])
+      ];
+      
+      allQuickFoods.forEach(food => {
+        const key = food.name.toLowerCase().trim();
+        if (!quickFoodMap.has(key)) {
+          quickFoodMap.set(key, food);
+        }
+      });
+    });
+    
+    const ingredientNames = Array.from(ingredientMap.values()).map(v => v.original);
+    const quickFoods = Array.from(quickFoodMap.values());
+    
+    // Clean ingredient names using AI
+    let cleanedNames: string[] = [];
+    if (ingredientNames.length > 0) {
+      try {
+        cleanedNames = await cleanIngredientNames(ingredientNames);
+      } catch (error) {
+        console.error('❌ AI cleaning failed, using original names:', error);
+        cleanedNames = ingredientNames;
+      }
+    }
+    
+    // Create shopping list with cleaned ingredient names (deduplicated and capitalized)
+    const itemMap = new Map<string, { category: string }>();
+    
+    cleanedNames.forEach((cleanedName, index) => {
+      const originalData = Array.from(ingredientMap.values())[index];
+      const normalizedName = cleanedName.toLowerCase().trim();
+      
+      if (!itemMap.has(normalizedName)) {
+        itemMap.set(normalizedName, { category: originalData.category });
+      }
+    });
+    
+    // Create shopping list from deduplicated items
+    const newShoppingList: ShoppingItem[] = Array.from(itemMap.entries()).map(([name, data], index) => {
+      const capitalizedName = name.split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      
+      return {
+        id: `shopping-ingredient-${index}`,
+        name: capitalizedName,
+        quantity: '',
+        category: data.category as any,
+        checked: false,
+      };
+    });
+    
+    // Add quick foods to shopping list (deduplicate with existing items)
+    quickFoods.forEach((food, index) => {
+      const normalizedFoodName = food.name.toLowerCase().trim();
+      
+      const existingItem = newShoppingList.find(item => 
+        item.name.toLowerCase().trim() === normalizedFoodName
+      );
+      
+      if (!existingItem) {
+        let category: 'produce' | 'meat' | 'dairy' | 'pantry' = 'pantry';
+        if (food.category === 'fruit' || food.category === 'veggie') {
+          category = 'produce';
+        } else if (food.category === 'dairy') {
+          category = 'dairy';
+        } else if (food.category === 'protein') {
+          category = 'meat';
+        }
+        
+        const capitalizedName = food.name.split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        newShoppingList.push({
+          id: `shopping-quickfood-${index}`,
+          name: capitalizedName,
+          quantity: food.servingSize,
+          category,
+          checked: false,
+        });
+      }
+    });
+    
+    return newShoppingList;
+  };
+
   // Save edited plans
   const handleSave = async () => {
     if (!editedPlans) return;
     
     try {
-      // Save this week's plan
+      // Close edit window immediately
+      setIsEditing(false);
+      setEditedPlans(null);
+
+      // Save this week's plan with shopping list generation in background
       if (thisWeekPlan) {
-        const updatedThisWeek = {
-          ...thisWeekPlan,
-          days: editedPlans.thisWeek.map(day => ({
-            day: day.day,
-            breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
-            lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
-            dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
-            snacks: [] as any[],
-            breakfastQuickFoods: day.breakfastQuickFoods,
-            lunchQuickFoods: day.lunchQuickFoods,
-            dinnerQuickFoods: day.dinnerQuickFoods
-          })),
-        };
-        await saveMealPlan(updatedThisWeek);
+        // Generate shopping list for this week
+        console.log('🛒 Generating shopping list for this week...');
+        generateShoppingListFromPlan(editedPlans.thisWeek)
+          .then(async (shoppingList) => {
+            const updatedThisWeek = {
+              ...thisWeekPlan,
+              days: editedPlans.thisWeek.map(day => ({
+                day: day.day,
+                breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                snacks: [] as any[],
+                breakfastQuickFoods: day.breakfastQuickFoods,
+                lunchQuickFoods: day.lunchQuickFoods,
+                dinnerQuickFoods: day.dinnerQuickFoods
+              })),
+              shoppingList,
+            };
+            await saveMealPlan(updatedThisWeek);
+            console.log('✅ This week plan saved with', shoppingList.length, 'items in shopping list');
+          })
+          .catch((error) => {
+            console.error('❌ Error generating shopping list for this week:', error);
+            // Save without shopping list if generation fails
+            const updatedThisWeek = {
+              ...thisWeekPlan,
+              days: editedPlans.thisWeek.map(day => ({
+                day: day.day,
+                breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                snacks: [] as any[],
+                breakfastQuickFoods: day.breakfastQuickFoods,
+                lunchQuickFoods: day.lunchQuickFoods,
+                dinnerQuickFoods: day.dinnerQuickFoods
+              })),
+              shoppingList: thisWeekPlan.shoppingList || [],
+            };
+            saveMealPlan(updatedThisWeek);
+          });
       }
       
-      // Save next week's plan (if it has content)
+      // Save next week's plan (if it has content) with shopping list generation in background
       const hasNextWeekContent = editedPlans.nextWeek.some(day => 
         day.breakfast.length > 0 || day.lunch.length > 0 || day.dinner.length > 0
       );
@@ -377,31 +563,57 @@ export function HomeScreen() {
         const nextWeekEnd = new Date(nextWeekStart);
         nextWeekEnd.setDate(nextWeekStart.getDate() + 6);
         
-        const updatedNextWeek = {
-          ...(nextWeekPlan || {}),
-          id: nextWeekPlan?.id,
-          cuisine: 'Mixed',
-          weekStartDate: nextWeekStart,
-          weekEndDate: nextWeekEnd,
-          weekLabel: `${nextWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${nextWeekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-          days: editedPlans.nextWeek.map(day => ({
-            day: day.day,
-            breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
-            lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
-            dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
-            snacks: [] as any[],
-            breakfastQuickFoods: day.breakfastQuickFoods,
-            lunchQuickFoods: day.lunchQuickFoods,
-            dinnerQuickFoods: day.dinnerQuickFoods
-          })),
-          shoppingList: nextWeekPlan?.shoppingList || [],
-        };
-        await saveMealPlan(updatedNextWeek as any);
+        // Generate shopping list for next week
+        console.log('🛒 Generating shopping list for next week...');
+        generateShoppingListFromPlan(editedPlans.nextWeek)
+          .then(async (shoppingList) => {
+            const updatedNextWeek = {
+              ...(nextWeekPlan || {}),
+              id: nextWeekPlan?.id,
+              cuisine: 'Mixed',
+              weekStartDate: nextWeekStart,
+              weekEndDate: nextWeekEnd,
+              weekLabel: `${nextWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${nextWeekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+              days: editedPlans.nextWeek.map(day => ({
+                day: day.day,
+                breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                snacks: [] as any[],
+                breakfastQuickFoods: day.breakfastQuickFoods,
+                lunchQuickFoods: day.lunchQuickFoods,
+                dinnerQuickFoods: day.dinnerQuickFoods
+              })),
+              shoppingList,
+            };
+            await saveMealPlan(updatedNextWeek as any);
+            console.log('✅ Next week plan saved with', shoppingList.length, 'items in shopping list');
+          })
+          .catch((error) => {
+            console.error('❌ Error generating shopping list for next week:', error);
+            // Save without shopping list if generation fails
+            const updatedNextWeek = {
+              ...(nextWeekPlan || {}),
+              id: nextWeekPlan?.id,
+              cuisine: 'Mixed',
+              weekStartDate: nextWeekStart,
+              weekEndDate: nextWeekEnd,
+              weekLabel: `${nextWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${nextWeekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+              days: editedPlans.nextWeek.map(day => ({
+                day: day.day,
+                breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                snacks: [] as any[],
+                breakfastQuickFoods: day.breakfastQuickFoods,
+                lunchQuickFoods: day.lunchQuickFoods,
+                dinnerQuickFoods: day.dinnerQuickFoods
+              })),
+              shoppingList: nextWeekPlan?.shoppingList || [],
+            };
+            saveMealPlan(updatedNextWeek as any);
+          });
       }
-      
-      setIsEditing(false);
-      setEditedPlans(null);
-      alert('Saved successfully!');
     } catch (error) {
       console.error('Error saving plans:', error);
       alert('Failed to save. Please try again.');

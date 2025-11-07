@@ -4,6 +4,7 @@ import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { BottomNav } from '../shared/BottomNav';
+import { UserButton } from '../auth/UserButton';
 import { defaultQuickFoods } from '../../data/quickFoods';
 import { ScrollArea } from '../ui/scroll-area';
 import { QuickFood } from '../../types';
@@ -17,7 +18,7 @@ import {
   SelectValue,
 } from '../ui/select';
 
-type Category = 'fruit' | 'veggie' | 'dairy' | 'grain' | 'protein' | 'snack' | 'drink';
+type Category = 'all' | 'fruit' | 'veggie' | 'dairy' | 'grain' | 'protein' | 'snack' | 'drink';
 
 export function QuickFoodsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,6 +77,7 @@ export function QuickFoodsScreen() {
     { key: 'dairy', label: 'Dairy', emoji: '🥛' },
     { key: 'snack', label: 'Snacks', emoji: '🍪' },
     { key: 'drink', label: 'Drinks', emoji: '🥤' },
+    { key: 'all', label: 'All', emoji: '🍽️' },
   ];
 
   // Combine default and custom quick foods
@@ -83,7 +85,7 @@ export function QuickFoodsScreen() {
 
   // Filter foods by selected category and search
   const filteredFoods = allQuickFoods.filter(food => {
-    const matchesCategory = food.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || food.category === selectedCategory;
     const matchesSearch = searchQuery === '' || food.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
@@ -254,41 +256,48 @@ Return ONLY valid JSON, no additional text or explanation.`;
 
   return (
     <div className="min-h-screen bg-background pb-20 flex flex-col">
-      {/* Header */}
-      <div className="max-w-md mx-auto w-full px-6 py-6 space-y-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-50 bg-background border-b">
+        <div className="max-w-md mx-auto w-full px-6 py-6 space-y-4">
+          <div className="flex items-center justify-between">
             <h1>Quick Foods</h1>
-            <p className="text-muted-foreground">
-              Add grab-and-go items to supplement your meals
-            </p>
+            
+            <div className="flex items-center gap-2">
+              {/* Add Button */}
+              <Button 
+                onClick={() => setIsAddModalOpen(true)} 
+                size="sm" 
+                className="shrink-0"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add
+              </Button>
+              <UserButton />
+            </div>
           </div>
           
-          {/* Add Button */}
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="w-12 h-12 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center flex-shrink-0"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-        </div>
+          {/* Description */}
+          <p className="text-muted-foreground">
+            Add grab-and-go items to supplement your meals
+          </p>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Search foods..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Search foods..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Two Column Layout: Sidebar + Content */}
-      <div className="flex-1 flex max-w-md mx-auto w-full">
-        {/* Left Sidebar - Categories */}
-        <div className="w-24 bg-secondary/30 border-r">
+      {/* Two Column Layout: Fixed Sidebar + Scrollable Content */}
+      <div className="flex-1 flex max-w-md mx-auto w-full relative">
+        {/* Left Sidebar - Categories (Fixed) */}
+        <div className="w-24 bg-secondary/30 border-r sticky top-[200px] self-start" style={{ height: 'calc(100vh - 200px - 5rem)' }}>
           <ScrollArea className="h-full">
             <div className="py-2">
               {categories.map(category => (
@@ -311,10 +320,9 @@ Return ONLY valid JSON, no additional text or explanation.`;
           </ScrollArea>
         </div>
 
-        {/* Right Content - Food Items */}
-        <div className="flex-1">
-          <ScrollArea className="h-[calc(100vh-280px)]">
-            <div className="p-4">
+        {/* Right Content - Food Items (Scrollable) */}
+        <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px - 5rem)' }}>
+          <div className="p-4">
               {/* Category Title */}
               <h2 className="text-lg font-semibold mb-4">
                 {categories.find(c => c.key === selectedCategory)?.label}
@@ -360,7 +368,6 @@ Return ONLY valid JSON, no additional text or explanation.`;
                 </Card>
               )}
             </div>
-          </ScrollArea>
         </div>
       </div>
 

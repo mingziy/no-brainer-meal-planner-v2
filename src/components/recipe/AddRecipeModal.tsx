@@ -127,15 +127,23 @@ export function AddRecipeModal() {
   };
 
   const handleImageFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('🎯 handleImageFileSelected called');
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log('❌ No file selected');
+      return;
+    }
+
+    console.log('📁 File selected:', file.name, file.type, (file.size / 1024).toFixed(2), 'KB');
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
+      console.log('❌ Invalid file type:', file.type);
       alert('Please select an image file');
       return;
     }
 
+    console.log('✅ Starting image processing...');
     setIsProcessing(true);
     setOcrProgress(0);
 
@@ -489,8 +497,12 @@ export function AddRecipeModal() {
   };
 
   const handleManualEntry = () => {
+    setSelectedRecipe(null);
+    setDraftRecipe(null);
     handleClose();
-    setIsRecipeEditFormOpen(true);
+    setTimeout(() => {
+      setIsRecipeEditFormOpen(true);
+    }, 50);
   };
   
   const handleRetryAiParsing = async () => {
@@ -606,13 +618,13 @@ export function AddRecipeModal() {
             <button
               onClick={() => setShowUrlInput(true)}
               disabled={isProcessing}
-              className="w-full p-4 border-2 border-primary rounded-lg hover:bg-primary/5 transition-colors text-left disabled:opacity-50"
+              className="w-full p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
             >
               <div className="flex items-start gap-3">
-                <Link className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <Link className="w-5 h-5 text-gray-700 mt-0.5 flex-shrink-0" />
                 <div>
                   <h3 className="font-semibold text-base mb-1">
-                    1. URL <span className="text-primary text-sm">(Recommended)</span>
+                    1. URL <span className="text-gray-500 text-sm">(Recommended)</span>
                   </h3>
                   <p className="text-sm text-gray-600">
                     Paste a recipe link and AI extracts everything
@@ -621,7 +633,7 @@ export function AddRecipeModal() {
               </div>
             </button>
           ) : (
-            <div className="p-4 border-2 border-primary rounded-lg space-y-3">
+            <div className="p-4 border-2 border-primary rounded-lg space-y-3 bg-primary/5">
               <div className="flex items-start gap-3">
                 <Link className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                 <div className="flex-1">

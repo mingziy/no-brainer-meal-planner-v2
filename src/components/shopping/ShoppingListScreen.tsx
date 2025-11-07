@@ -1,14 +1,18 @@
-import { Share2 } from 'lucide-react';
+import { Share2, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useApp } from '../../context/AppContext';
 import { BottomNav } from '../shared/BottomNav';
+import { UserButton } from '../auth/UserButton';
 import { useEffect, useState } from 'react';
-import { ShoppingItem, WeeklyPlan } from '../../types';
+import { ShoppingItem, WeeklyPlan, QuickFood, Recipe } from '../../types';
+import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
+import { useTranslation } from 'react-i18next';
 
 export function ShoppingListScreen() {
+  const { i18n } = useTranslation();
   const { 
     shoppingList, 
     setShoppingList, 
@@ -16,11 +20,17 @@ export function ShoppingListScreen() {
     currentWeeklyPlan,
     mealPlans,
     getThisWeekPlan,
-    getNextWeekPlan
+    getNextWeekPlan,
+    recipes,
+    saveMealPlan
   } = useApp();
   
   const [selectedWeekPlanId, setSelectedWeekPlanId] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<WeeklyPlan | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  
+  // Check if current language is Chinese
+  const isChineseMode = i18n.language === 'zh';
   
   // Get current week's start date for comparison
   const getCurrentWeekStart = () => {
@@ -198,6 +208,272 @@ export function ShoppingListScreen() {
     }
   };
 
+  // Check if text contains Chinese characters
+  const containsChinese = (text: string): boolean => {
+    return /[\u4e00-\u9fa5]/.test(text);
+  };
+
+  // Translate Chinese ingredients to English using Gemini AI
+  const translateIngredientsToEnglish = async (ingredientNames: string[]): Promise<string[]> => {
+    const chineseIngredients = ingredientNames.filter(name => containsChinese(name));
+    
+    if (chineseIngredients.length === 0) {
+      return ingredientNames; // No translation needed
+    }
+
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        console.warn('⚠️ Gemini API key not configured, keeping Chinese ingredients as is');
+        return ingredientNames;
+      }
+
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+      const prompt = `Translate these Chinese ingredient names to English. Return ONLY the English translation, one per line, in the same order. Keep it simple and natural for a grocery shopping list.
+
+Chinese ingredients to translate:
+${chineseIngredients.join('\n')}
+
+Return ONLY the English translations, one per line, no explanations, no numbering.`;
+
+      console.log('🌐 Translating', chineseIngredients.length, 'Chinese ingredients to English...');
+      
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text().trim();
+      
+      const translations = text.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+      if (translations.length !== chineseIngredients.length) {
+        console.warn('⚠️ Translation count mismatch, keeping originals');
+        return ingredientNames;
+      }
+
+      // Create a map of Chinese to English translations
+      const translationMap = new Map<string, string>();
+      chineseIngredients.forEach((chinese, index) => {
+        translationMap.set(chinese, translations[index]);
+      });
+
+      // Replace Chinese ingredients with English translations
+      const translatedNames = ingredientNames.map(name => {
+        if (containsChinese(name) && translationMap.has(name)) {
+          const translation = translationMap.get(name)!;
+          console.log('🌐 Translated:', name, '→', translation);
+          return translation;
+        }
+        return name;
+      });
+
+      console.log('✅ Translation complete:', chineseIngredients.length, 'ingredients translated');
+      return translatedNames;
+    } catch (error) {
+      console.error('❌ Error translating ingredients:', error);
+      return ingredientNames; // Fallback to original names
+    }
+  };
+
+  // Categorize ingredient for shopping list
+  const categorizeIngredient = (name: string): string => {
+    const nameLower = name.toLowerCase();
+    
+    if (/vegetable|fruit|lettuce|tomato|onion|garlic|pepper|carrot|broccoli|spinach|kale|cabbage|potato|avocado|apple|banana|berry|lemon|lime|orange|herb|cilantro|parsley|basil/.test(nameLower)) {
+      return 'produce';
+    }
+    
+    if (/chicken|beef|pork|fish|salmon|turkey|lamb|meat|bacon|sausage|shrimp|crab|lobster/.test(nameLower)) {
+      return 'meat';
+    }
+    
+    if (/milk|cheese|yogurt|butter|cream|egg|dairy/.test(nameLower)) {
+      return 'dairy';
+    }
+    
+    return 'pantry';
+  };
+
+  // Regenerate shopping list from selected plan
+  const handleRegenerateShoppingList = async () => {
+    if (!selectedPlan) {
+      alert('No meal plan selected');
+      return;
+    }
+
+    setIsRegenerating(true);
+    
+    try {
+      const ingredientMap = new Map<string, { original: string; category: string }>();
+      const quickFoodMap = new Map<string, QuickFood>();
+      
+      // Collect all unique ingredients from planned meals
+      console.log('🌏 Current language mode:', isChineseMode ? 'Chinese' : 'English');
+      
+      selectedPlan.days.forEach(day => {
+        const allRecipes = [...day.breakfast, ...day.lunch, ...day.dinner, ...(day.snacks || [])];
+        
+        allRecipes.forEach(recipe => {
+          // Look up the full recipe to get ingredients
+          const fullRecipe = recipes.find(r => r.id === recipe.id);
+          if (!fullRecipe) {
+            console.log('⚠️ Recipe not found:', recipe.id);
+            return;
+          }
+          
+          console.log('📖 Processing recipe:', fullRecipe.name, {
+            hasEnglishIngredients: !!fullRecipe.ingredients?.length,
+            hasChineseIngredients: !!fullRecipe.ingredientsZh?.length,
+            isChineseMode,
+            englishCount: fullRecipe.ingredients?.length || 0,
+            chineseCount: fullRecipe.ingredientsZh?.length || 0
+          });
+          
+          // Use language-appropriate ingredients
+          const ingredientsToUse = isChineseMode && fullRecipe.ingredientsZh 
+            ? fullRecipe.ingredientsZh 
+            : fullRecipe.ingredients;
+          
+          if (!ingredientsToUse || ingredientsToUse.length === 0) {
+            console.log('⚠️ No ingredients found for recipe:', fullRecipe.name);
+            return;
+          }
+          
+          console.log('✅ Processing recipe:', fullRecipe.name, '- ingredients:', ingredientsToUse.length);
+          
+          ingredientsToUse.forEach(ingredient => {
+            const key = ingredient.name.toLowerCase().trim();
+            
+            if (!ingredientMap.has(key)) {
+              const category = categorizeIngredient(ingredient.name);
+              ingredientMap.set(key, { original: ingredient.name, category });
+            }
+          });
+        });
+        
+        // Collect quick foods from each meal
+        const allQuickFoods = [
+          ...(day.breakfastQuickFoods || []),
+          ...(day.lunchQuickFoods || []),
+          ...(day.dinnerQuickFoods || [])
+        ];
+        
+        allQuickFoods.forEach(food => {
+          const key = food.name.toLowerCase().trim();
+          if (!quickFoodMap.has(key)) {
+            quickFoodMap.set(key, food);
+          }
+        });
+      });
+      
+      const ingredientNames = Array.from(ingredientMap.values()).map(v => v.original);
+      const quickFoods = Array.from(quickFoodMap.values());
+      
+      console.log('🔄 Regenerating shopping list with', ingredientNames.length, 'ingredients');
+      
+      // Step 1: Translate Chinese ingredients to English if in English mode
+      let translatedNames = ingredientNames;
+      if (!isChineseMode) {
+        try {
+          translatedNames = await translateIngredientsToEnglish(ingredientNames);
+        } catch (error) {
+          console.error('❌ Translation failed, using original names:', error);
+          translatedNames = ingredientNames;
+        }
+      }
+      
+      // Step 2: Clean ingredient names using AI (including plural→singular conversion)
+      let cleanedNames: string[] = [];
+      if (translatedNames.length > 0) {
+        try {
+          cleanedNames = await cleanIngredientNames(translatedNames);
+        } catch (error) {
+          console.error('❌ AI cleaning failed, using translated names:', error);
+          cleanedNames = translatedNames;
+        }
+      }
+      
+      // Create shopping list with cleaned ingredient names (deduplicated and capitalized)
+      const itemMap = new Map<string, { category: string }>();
+      
+      cleanedNames.forEach((cleanedName, index) => {
+        const originalData = Array.from(ingredientMap.values())[index];
+        const normalizedName = cleanedName.toLowerCase().trim();
+        
+        if (!itemMap.has(normalizedName)) {
+          itemMap.set(normalizedName, { category: originalData.category });
+        }
+      });
+      
+      // Create shopping list from deduplicated items
+      const newShoppingList: ShoppingItem[] = Array.from(itemMap.entries()).map(([name, data], index) => {
+        const capitalizedName = name.split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        return {
+          id: `shopping-ingredient-${index}`,
+          name: capitalizedName,
+          quantity: '',
+          category: data.category as any,
+          checked: false,
+        };
+      });
+      
+      // Add quick foods to shopping list (deduplicate with existing items)
+      quickFoods.forEach((food, index) => {
+        const normalizedFoodName = food.name.toLowerCase().trim();
+        
+        const existingItem = newShoppingList.find(item => 
+          item.name.toLowerCase().trim() === normalizedFoodName
+        );
+        
+        if (!existingItem) {
+          let category: 'produce' | 'meat' | 'dairy' | 'pantry' = 'pantry';
+          if (food.category === 'fruit' || food.category === 'veggie') {
+            category = 'produce';
+          } else if (food.category === 'dairy') {
+            category = 'dairy';
+          } else if (food.category === 'protein') {
+            category = 'meat';
+          }
+          
+          const capitalizedName = food.name.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+          
+          newShoppingList.push({
+            id: `shopping-quickfood-${index}`,
+            name: capitalizedName,
+            quantity: food.servingSize,
+            category,
+            checked: false,
+          });
+        }
+      });
+      
+      // Update the selected plan with new shopping list
+      const updatedPlan = {
+        ...selectedPlan,
+        shoppingList: newShoppingList
+      };
+      
+      await saveMealPlan(updatedPlan);
+      setShoppingList(newShoppingList);
+      
+      console.log('✅ Shopping list regenerated with', newShoppingList.length, 'items');
+      alert(`Shopping list regenerated! ${newShoppingList.length} items (plurals converted to singular)`);
+    } catch (error) {
+      console.error('❌ Error regenerating shopping list:', error);
+      alert('Failed to regenerate shopping list. Please try again.');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   const groupedItems = shoppingList.reduce((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
@@ -228,33 +504,77 @@ export function ShoppingListScreen() {
     <div className="min-h-screen bg-background pb-20">
       <div className="max-w-md mx-auto p-6 space-y-6">
         <div className="space-y-2">
-          <h1>Shopping List</h1>
+          <div className="flex items-center justify-between">
+            <h1>Shopping List</h1>
+            
+            <div className="flex items-center gap-2">
+              {/* Action Buttons - Refresh and Export */}
+              {selectedPlan && shoppingList.length > 0 && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleRegenerateShoppingList}
+                    disabled={isRegenerating}
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isRegenerating ? 'animate-spin' : ''}`} />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleExportList}
+                  >
+                    <Share2 className="w-3 h-3" />
+                  </Button>
+                </>
+              )}
+              <UserButton />
+            </div>
+          </div>
           <p className="text-muted-foreground">
             Check off items you already have at home
           </p>
         </div>
 
-        {/* Week Selector */}
+        {/* Week Selector - Button Group */}
         {uniqueWeekPlans.length > 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Select Week</label>
-                <Select value={selectedWeekPlanId} onValueChange={handleWeekChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a week" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {uniqueWeekPlans.map(plan => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {plan.weekLabel}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex gap-2">
+            {/* Last Week */}
+            {uniqueWeekPlans.find(p => p.weekLabel?.includes('Last Week')) && (
+              <Button
+                key={uniqueWeekPlans.find(p => p.weekLabel?.includes('Last Week'))!.id}
+                variant={selectedWeekPlanId === uniqueWeekPlans.find(p => p.weekLabel?.includes('Last Week'))!.id ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => handleWeekChange(uniqueWeekPlans.find(p => p.weekLabel?.includes('Last Week'))!.id)}
+              >
+                Last Week
+              </Button>
+            )}
+            
+            {/* This Week */}
+            {uniqueWeekPlans.find(p => p.weekLabel?.includes('This Week')) && (
+              <Button
+                key={uniqueWeekPlans.find(p => p.weekLabel?.includes('This Week'))!.id}
+                variant={selectedWeekPlanId === uniqueWeekPlans.find(p => p.weekLabel?.includes('This Week'))!.id ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => handleWeekChange(uniqueWeekPlans.find(p => p.weekLabel?.includes('This Week'))!.id)}
+              >
+                This Week
+              </Button>
+            )}
+            
+            {/* Next Week */}
+            {uniqueWeekPlans.find(p => p.weekLabel?.includes('Next Week')) && (
+              <Button
+                key={uniqueWeekPlans.find(p => p.weekLabel?.includes('Next Week'))!.id}
+                variant={selectedWeekPlanId === uniqueWeekPlans.find(p => p.weekLabel?.includes('Next Week'))!.id ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => handleWeekChange(uniqueWeekPlans.find(p => p.weekLabel?.includes('Next Week'))!.id)}
+              >
+                Next Week
+              </Button>
+            )}
+          </div>
         )}
 
         {!selectedPlan ? (
@@ -306,13 +626,6 @@ export function ShoppingListScreen() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
-
-            <div className="space-y-3">
-              <Button variant="outline" className="w-full" onClick={handleExportList}>
-                <Share2 className="w-4 h-4 mr-2" />
-                Export List
-              </Button>
             </div>
           </>
         )}
