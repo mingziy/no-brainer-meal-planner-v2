@@ -140,6 +140,14 @@ export function ShoppingListScreen() {
     }
   }, [mealPlans, getThisWeekPlan]);
   
+  // Regenerate shopping list when language changes
+  useEffect(() => {
+    if (!selectedPlan) return;
+    
+    console.log('🌐 Language changed, regenerating shopping list for:', isChineseMode ? 'Chinese' : 'English');
+    handleRegenerateShoppingList();
+  }, [isChineseMode]);
+  
   // Update shopping list when selected plan changes
   useEffect(() => {
     if (!selectedPlan) {
