@@ -59,6 +59,19 @@ This document outlines the comprehensive language setting system for the Meal Pl
 - All items unified to selected language
 - Page refreshes to show translated list
 
+### 6. Cross-Language Search
+**Search Scope:**
+- All search bars search across both original AND translated content
+- Recipe search: searches both original and translated names, ingredients, instructions
+- Shopping list search: searches both original and translated item names
+- Quick food search: searches across all language inputs
+
+**Search Behavior:**
+- User types in English → finds matches in English AND Chinese content
+- User types in Chinese → finds matches in Chinese AND English content
+- Search is language-agnostic and bidirectional
+- Results display in current language preference when available
+
 ---
 
 ## Database Schema Design
@@ -372,20 +385,28 @@ Output: [
   - Update all items with translated names
   - Refresh display after translation
 
-- [ ] **Task 15**: Apply i18n to all components
+- [ ] **Task 15**: Implement cross-language search functionality
+  - Update recipe search to query both original and translated fields
+  - Update shopping list search to query both original and translated names
+  - Update quick food search to search across all languages
+  - Ensure search is bidirectional (EN↔ZH)
+  - Display results in user's current language preference
+
+- [ ] **Task 16**: Apply i18n to all components
   - Replace hardcoded strings with translation keys
   - Update all headers, buttons, labels
   - Update sidebars and navigation
   - Ensure all UI text is translatable
 
 ### Phase 4: Testing & Refinement (Priority: Low)
-- [ ] **Task 16**: End-to-end testing
+- [ ] **Task 17**: End-to-end testing
   - Test language switching flow
   - Test recipe extraction in both languages
   - Test recipe translation (EN→ZH, ZH→EN)
   - Test quick food detection
   - Test shopping list translation
   - Test mixed-language shopping lists
+  - Test cross-language search in all search bars
   - Test first-time user experience
   - Mobile responsiveness testing
 
@@ -417,6 +438,58 @@ Output: [
 - Existing recipes need `originalLanguage` detection
 - Run one-time migration script for existing data
 - Set default language based on content detection
+
+### 6. Cross-Language Search Implementation
+**Recipe Search:**
+- Query both `name` and `nameTranslated` fields
+- Query both `ingredients` and `ingredientsTranslated` arrays
+- Query both `instructions` and `instructionsTranslated` arrays
+- Use Firebase `where()` with array-contains for ingredient search
+- Return results if match found in either language
+
+**Shopping List Search:**
+- Query both `name` and `translatedName` fields
+- Filter items client-side for mixed-language lists
+
+**Quick Food Search:**
+- Query `name` field across all entries
+- Language detection happens at input time, so search is already cross-language
+
+**Implementation Example:**
+```typescript
+// Recipe search query
+const searchRecipes = async (searchTerm: string) => {
+  const recipesRef = collection(db, 'recipes');
+  
+  // Search in original fields
+  const originalQuery = query(
+    recipesRef,
+    where('name', '>=', searchTerm),
+    where('name', '<=', searchTerm + '\uf8ff')
+  );
+  
+  // Search in translated fields
+  const translatedQuery = query(
+    recipesRef,
+    where('nameTranslated', '>=', searchTerm),
+    where('nameTranslated', '<=', searchTerm + '\uf8ff')
+  );
+  
+  // Combine results and deduplicate
+  const [originalResults, translatedResults] = await Promise.all([
+    getDocs(originalQuery),
+    getDocs(translatedQuery)
+  ]);
+  
+  // Merge and deduplicate by ID
+  const allResults = [...originalResults.docs, ...translatedResults.docs];
+  const uniqueResults = Array.from(
+    new Map(allResults.map(doc => [doc.id, doc])).values()
+  );
+  
+  return uniqueResults;
+};
+```
 
 ---
 
