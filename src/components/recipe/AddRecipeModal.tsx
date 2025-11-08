@@ -75,6 +75,9 @@ export function AddRecipeModal() {
   };
 
   const handleUploadImage = () => {
+    console.log('🔵 handleUploadImage clicked');
+    console.log('🔵 fileInputRef exists:', !!fileInputRef.current);
+    console.log('🔵 isProcessing:', isProcessing);
     fileInputRef.current?.click();
   };
 
@@ -426,24 +429,22 @@ export function AddRecipeModal() {
 
       parsedRecipe.originalText = extractedText;
       parsedRecipe.sourceUrl = pasteUrl; // Save the original URL
+      parsedRecipe.extractedImages = recipeImages; // Save all extracted images for selection later
+      
+      // Set the first image as default
+      if (recipeImages.length > 0) {
+        parsedRecipe.image = recipeImages[0];
+      }
       
       setIsProcessing(false);
       
-      // If we found images, show image selector
-      if (recipeImages.length > 0) {
-        setExtractedImages(recipeImages);
-        setTempParsedRecipe(parsedRecipe);
-        setShowImageSelector(true);
-        console.log('🖼️ Showing image selector with', recipeImages.length, 'images');
-      } else {
-        // No images found, proceed directly
-        setSelectedRecipe(null);
-        setDraftRecipe(parsedRecipe);
-        handleClose();
-        setTimeout(() => {
-          setIsRecipeEditFormOpen(true);
-        }, 50);
-      }
+      // Go directly to edit form - Step 1 will show image selector
+      setSelectedRecipe(null);
+      setDraftRecipe(parsedRecipe);
+      handleClose();
+      setTimeout(() => {
+        setIsRecipeEditFormOpen(true);
+      }, 50);
     } catch (error: any) {
       console.error('❌ Error fetching URL:', error);
       setIsProcessing(false);
@@ -608,7 +609,16 @@ export function AddRecipeModal() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          onChange={handleImageFileSelected}
+          onChange={(e) => {
+            console.log('📥 File input onChange triggered');
+            console.log('📥 Files:', e.target.files);
+            handleImageFileSelected(e);
+          }}
+          onClick={(e) => {
+            console.log('🖱️ File input clicked');
+            // Reset value to allow selecting the same file again
+            (e.target as HTMLInputElement).value = '';
+          }}
           className="hidden"
         />
 
@@ -683,12 +693,20 @@ export function AddRecipeModal() {
           <button
             onClick={handleUploadImage}
             disabled={isProcessing}
-            className="w-full p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
+            className={`w-full p-4 border-2 rounded-lg transition-colors text-left ${
+              isProcessing && ocrProgress > 0
+                ? 'border-primary bg-primary/10 ring-2 ring-primary ring-offset-2'
+                : 'border-gray-300 hover:bg-gray-50'
+            }`}
           >
             <div className="flex items-start gap-3">
-              <Upload className="w-5 h-5 text-gray-700 mt-0.5 flex-shrink-0" />
+              <Upload className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+                isProcessing && ocrProgress > 0 ? 'text-primary' : 'text-gray-700'
+              }`} />
               <div>
-                <h3 className="font-semibold text-base mb-1">2. Recipe Screenshot</h3>
+                <h3 className={`font-semibold text-base mb-1 ${
+                  isProcessing && ocrProgress > 0 ? 'text-primary' : ''
+                }`}>2. Recipe Screenshot</h3>
                 <p className="text-sm text-gray-600">
                   {isProcessing && ocrProgress > 0 
                     ? `AI Processing... ${ocrProgress}%`
@@ -792,25 +810,25 @@ export function AddRecipeModal() {
 
     {/* AI Error Dialog */}
     <AlertDialog open={showAiErrorDialog} onOpenChange={setShowAiErrorDialog}>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md mx-auto">
         <AlertDialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
               <AlertTriangle className="w-6 h-6 text-yellow-600" />
             </div>
             <AlertDialogTitle className="text-lg">AI Parsing Failed</AlertDialogTitle>
           </div>
-          <AlertDialogDescription className="text-sm text-gray-600 whitespace-pre-line">
+          <AlertDialogDescription className="text-sm text-gray-600 whitespace-pre-wrap break-words">
             {aiErrorMessage}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-          <AlertDialogCancel onClick={handleProceedManually} className="w-full sm:w-auto">
-            Proceed with Manual Input
-          </AlertDialogCancel>
-          <AlertDialogAction onClick={handleRetryAiParsing} className="w-full sm:w-auto">
+        <AlertDialogFooter className="flex flex-col gap-2 sm:flex-row-reverse">
+          <AlertDialogAction onClick={handleRetryAiParsing} className="w-full">
             Try Again
           </AlertDialogAction>
+          <AlertDialogCancel onClick={handleProceedManually} className="w-full">
+            Proceed with Manual Input
+          </AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

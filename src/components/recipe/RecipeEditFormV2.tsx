@@ -99,17 +99,40 @@ export function RecipeEditFormV2() {
       setRecipeName(recipe.name || '');
       setRecipeImage(recipe.image || '');
       
+      // Check if this is from URL extraction with multiple images
+      const isFromUrlExtraction = (recipe as any).sourceUrl;
+      const extractedImages = (recipe as any).extractedImages || [];
+      
+      console.log('🎨 RecipeEditFormV2 - Recipe data:', {
+        hasSourceUrl: !!isFromUrlExtraction,
+        extractedImagesCount: extractedImages.length,
+        recipeImage: recipe.image,
+        extractedImages: extractedImages
+      });
+      
       // Set available images for selection
       const images = [];
-      if ((recipe as any).originalImageForCropping) {
+      if (isFromUrlExtraction && extractedImages.length > 0) {
+        // URL extraction: use all extracted images
+        images.push(...extractedImages);
+        console.log('🌐 URL extraction detected, using', extractedImages.length, 'images');
+      } else if ((recipe as any).originalImageForCropping) {
+        // Screenshot upload: use the uploaded image for cropping
         images.push((recipe as any).originalImageForCropping);
+        console.log('📸 Screenshot upload detected');
       } else if (recipe.image) {
         images.push(recipe.image);
+        console.log('🖼️ Single image detected');
       }
       setAvailableImages(images);
       
-      // Auto-open cropper if we have an image
-      if (images.length > 0) {
+      // Set imageToCrop based on extraction method
+      if (isFromUrlExtraction && recipe.image) {
+        // URL extraction: set to selected image (for display in grid)
+        setImageToCrop(recipe.image);
+        setShowCropper(false); // Don't show cropper for URL extraction
+      } else if (images.length > 0) {
+        // Screenshot/Manual: Auto-open cropper if we have an image
         setImageToCrop(images[0]);
         setShowCropper(true);
       }
@@ -129,6 +152,7 @@ export function RecipeEditFormV2() {
       setProteinInput('');
       setMealTypeInput('');
       
+      // Always start at image step - let user select/confirm image
       setCurrentStep('image');
     } else {
       // No recipe data - this is a fresh manual upload - reset to empty state
@@ -185,18 +209,36 @@ export function RecipeEditFormV2() {
   const handleNextStep = async () => {
     // If on image step, save the crop before proceeding
     if (currentStep === 'image') {
-      if (imageToCrop && croppedAreaPixels) {
+      // Check if image is from URL (external) or data URL (uploaded)
+      const isExternalUrl = imageToCrop && (imageToCrop.startsWith('http://') || imageToCrop.startsWith('https://'));
+      
+      if (isExternalUrl) {
+        // For external URLs (from recipe URL extraction), skip cropping and use directly
+        console.log('📸 Using external URL image directly (skipping crop):', imageToCrop);
+        setRecipeImage(imageToCrop);
+        setCurrentStep('recipe');
+      } else if (imageToCrop && croppedAreaPixels) {
+        // For uploaded images (data URLs), crop them
         try {
+          console.log('✂️ Cropping uploaded image...');
           const croppedImage = await createCroppedImage(imageToCrop, croppedAreaPixels);
           setRecipeImage(croppedImage);
           toast.success('Image cropped!');
+          setCurrentStep('recipe');
         } catch (error) {
           console.error('Error cropping image:', error);
-          toast.error('Failed to crop image');
+          toast.error('Failed to crop image. Please try uploading again.');
           return; // Don't proceed if crop fails
         }
+      } else if (!imageToCrop) {
+        // No image selected, proceed anyway
+        console.log('⚠️ No image selected, proceeding anyway');
+        setCurrentStep('recipe');
+      } else {
+        // Has image but no crop area yet
+        toast.error('Please adjust the crop area before continuing');
+        return;
       }
-      setCurrentStep('recipe');
     } else if (currentStep === 'recipe') {
       setCurrentStep('calories');
     } else if (currentStep === 'calories') {
@@ -220,9 +262,11 @@ export function RecipeEditFormV2() {
   }, []);
 
   const createCroppedImage = async (imageSrc: string, pixelCrop: Area): Promise<string> => {
-    const img = await new Promise<HTMLImageElement>((resolve) => {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const image = new Image();
+      image.crossOrigin = 'anonymous'; // Enable CORS for external images
       image.onload = () => resolve(image);
+      image.onerror = (e) => reject(new Error('Failed to load image'));
       image.src = imageSrc;
     });
 
@@ -675,88 +719,163 @@ Return ONLY the JSON, no other text.`;
           flex: 1,
           minHeight: 0
         }}>
-          {/* STEP 0: Image Selection - Direct to Cropper */}
+          {/* STEP 0: Image Selection */}
           {currentStep === 'image' && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-600 mb-2">
-                Move the picture to position the square crop area where you want
-              </p>
-              
-              <div 
-                className="relative w-full rounded-lg overflow-hidden bg-black aspect-square"
-              >
-                {imageToCrop ? (
-                  <Cropper
-                    image={imageToCrop}
-                    crop={crop}
-                    zoom={zoom}
-                    aspect={1}
-                    onCropChange={setCrop}
-                    onZoomChange={setZoom}
-                    onCropComplete={onCropComplete}
-                    showGrid={false}
-                    objectFit="cover"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                    <Camera className="w-12 h-12 opacity-50 mb-2" />
-                    <p className="text-sm">No image to crop</p>
-                    <p className="text-xs mt-1">Upload a recipe card image below</p>
+              {/* Check if this is URL extraction (multiple images to select from) */}
+              {availableImages.length > 1 ? (
+                // URL extraction: Show image grid selector
+                <>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Select a recipe image (from {availableImages.length} found images)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {availableImages.map((imgUrl, index) => (
+                      <div
+                        key={index}
+                        onClick={() => {
+                          console.log('Image selected:', imgUrl);
+                          setImageToCrop(imgUrl);
+                          setRecipeImage(imgUrl);
+                        }}
+                        className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all bg-gray-100 ${
+                          imageToCrop === imgUrl
+                            ? 'border-primary ring-2 ring-primary ring-offset-2'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        style={{ aspectRatio: '1' }}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Recipe option ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          loading="eager"
+                          onError={(e) => {
+                            console.error('Failed to load image:', imgUrl);
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=400&fit=crop';
+                          }}
+                          onLoad={() => console.log('Image loaded successfully:', imgUrl.substring(0, 50))}
+                        />
+                        {imageToCrop === imgUrl && (
+                          <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                            <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                              ✓
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Zoom</label>
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.1}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="w-full"
-                  disabled={!imageToCrop}
-                />
-              </div>
-              
-              {/* Upload Button */}
-              <div className="space-y-2">
-                <input
-                  id="recipe-card-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        const imageUrl = event.target?.result as string;
-                        setImageToCrop(imageUrl);
-                        setAvailableImages([imageUrl]);
-                        // Reset crop state
-                        setCrop({ x: 0, y: 0 });
-                        setZoom(1);
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
-                <label htmlFor="recipe-card-upload">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    asChild
+                  {imageToCrop && (
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      ✓ Selected image will be used for your recipe
+                    </p>
+                  )}
+                </>
+              ) : imageToCrop && (imageToCrop.startsWith('http://') || imageToCrop.startsWith('https://')) ? (
+                // Single external URL image - show preview only (no cropping due to CORS)
+                <>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Recipe image from URL (cropping not available for external images)
+                  </p>
+                  <div className="relative w-full rounded-lg overflow-hidden bg-black aspect-square">
+                    <img 
+                      src={imageToCrop} 
+                      alt="Recipe" 
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    ✓ This image will be used for your recipe
+                  </p>
+                </>
+              ) : (
+                // Uploaded image - show cropper
+                <>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Move the picture to position the square crop area where you want
+                  </p>
+                  
+                  <div 
+                    className="relative w-full rounded-lg overflow-hidden bg-black aspect-square"
                   >
-                    <span>
-                      <Camera className="w-4 h-4 mr-2" />
-                      {imageToCrop ? 'Change Recipe Card Image' : 'Upload Recipe Card Image'}
-                    </span>
-                  </Button>
-                </label>
-              </div>
+                    {imageToCrop ? (
+                      <Cropper
+                        image={imageToCrop}
+                        crop={crop}
+                        zoom={zoom}
+                        aspect={1}
+                        onCropChange={setCrop}
+                        onZoomChange={setZoom}
+                        onCropComplete={onCropComplete}
+                        showGrid={false}
+                        objectFit="cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                        <Camera className="w-12 h-12 opacity-50 mb-2" />
+                        <p className="text-sm">No image to crop</p>
+                        <p className="text-xs mt-1">Upload a recipe card image below</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Zoom</label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={3}
+                      step={0.1}
+                      value={zoom}
+                      onChange={(e) => setZoom(Number(e.target.value))}
+                      className="w-full"
+                      disabled={!imageToCrop}
+                    />
+                  </div>
+                </>
+              )}
+              
+              {/* Upload Button - only show for manual entry/screenshot */}
+              {availableImages.length <= 1 && (
+                <div className="space-y-2">
+                  <input
+                    id="recipe-card-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const imageUrl = event.target?.result as string;
+                          setImageToCrop(imageUrl);
+                          setAvailableImages([imageUrl]);
+                          // Reset crop state
+                          setCrop({ x: 0, y: 0 });
+                          setZoom(1);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <label htmlFor="recipe-card-upload">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      asChild
+                    >
+                      <span>
+                        <Camera className="w-4 h-4 mr-2" />
+                        {imageToCrop ? 'Change Recipe Card Image' : 'Upload Recipe Card Image'}
+                      </span>
+                    </Button>
+                  </label>
+                </div>
+              )}
             </div>
           )}
           

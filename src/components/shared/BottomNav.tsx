@@ -13,7 +13,7 @@ export function BottomNav() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border">
-      <div className="max-w-md mx-auto flex justify-around items-center h-16">
+      <div className="max-w-md mx-auto flex justify-around items-center h-12">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentScreen === item.screen;
@@ -26,8 +26,10 @@ export function BottomNav() {
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
-              <Icon className="w-6 h-6 mb-1" />
-              <span className="text-xs">{item.label}</span>
+              <Icon className="w-5 h-5 mb-1" />
+              <span style={{ fontSize: '11px', lineHeight: '13px' }}>
+                {item.label}
+              </span>
             </button>
           );
         })}

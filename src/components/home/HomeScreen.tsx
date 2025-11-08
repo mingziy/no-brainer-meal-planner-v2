@@ -801,19 +801,19 @@ export function HomeScreen() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Upper content area - scrollable */}
-      <div className="max-w-md mx-auto p-6 space-y-6" style={{ paddingBottom: '80px' }}>
+      {/* Upper content area - fixed (non-scrollable) */}
+      <div className="fixed top-0 left-0 right-0 bg-background z-50 max-w-md mx-auto p-6 space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <h1>Hi {userProfile?.name || 'there'}!</h1>
-            <p className="text-muted-foreground">
+          <div className="space-y-1">
+            <h1 className="text-2xl">Hi {userProfile?.name || 'there'}!</h1>
+            <p className="text-muted-foreground text-sm">
               {isEditing ? 'Editing your meal plan' : 'Your meal plan at a glance'}
             </p>
           </div>
           <div className="flex items-center gap-2">
             {!isEditing ? (
-              <UserButton />
+          <UserButton />
             ) : (
               <>
                 <button
@@ -862,14 +862,14 @@ export function HomeScreen() {
           maxWidth: '448px',
           margin: '0 auto',
           zIndex: 40,
-          top: isEditing ? '168px' : '140px',
-          bottom: '5rem'
+          top: isEditing ? '150px' : '100px',
+          bottom: '3rem'
         }}
       >
         {/* Day Header - Fixed outside scroll */}
-        <div className="px-4 py-3 bg-background flex-shrink-0 relative">
+        <div className="px-4 py-0 bg-background flex-shrink-0 relative">
           <div className="text-center">
-            <div className="text-lg font-bold">
+            <div className="text-sm font-bold">
               {displayDays[centeredCardIndex]?.day}
               {displayDays[centeredCardIndex]?.day === todayName && 
                displayDays[centeredCardIndex]?.date.toDateString() === today.toDateString() && ' 🌟'}
@@ -895,7 +895,7 @@ export function HomeScreen() {
           className="flex-1 overflow-y-auto overflow-x-hidden"
           style={{ 
             WebkitOverflowScrolling: 'touch',
-            paddingTop: '8px'
+            paddingTop: '0px'
           }}
         >
           {/* Horizontal scroll container */}

@@ -1,5 +1,84 @@
 # Developer Journal - Meal Planner App
 
+## November 8, 2025
+
+### URL Recipe Extraction - Image Selection Flow
+- Redesigned URL extraction workflow to improve user experience:
+  - Removed duplicate image selector modal
+  - Now goes directly to RecipeEditFormV2 with all extracted images
+  - **Step 1: Image Selection** shows grid of all found images (2 columns)
+  - User can select any image with visual feedback (highlight + checkmark)
+  - Can go back from Step 2 to change image selection
+  - Images load from external URLs with error handling
+
+### Recipe Edit Form - Smart Image Handling
+- Implemented context-aware image step based on extraction method:
+  - **URL Extraction**: Grid selector for multiple images (no cropping due to CORS)
+  - **Screenshot Upload**: Image cropper with zoom controls
+  - **Manual Entry**: Image upload button with cropper
+- Added detection logic using `sourceUrl` and `extractedImages` fields
+- Proper state management to prevent cropper showing for external URLs
+
+### UI/UX Improvements
+- Removed language switcher (中/EN button) from Recipe Library page header
+- Unified language control through user dropdown menu (three dots)
+- Home page layout optimizations:
+  - Reduced greeting header font size by 1/3 (from h1 to text-2xl)
+  - Reduced weekday header font size (from text-lg to text-sm)
+  - Adjusted scrolling window positioning to prevent overlap
+  - Fixed duplicate vertical scrollbar issue
+- Bottom navigation refinements:
+  - Removed Profile tab (moved to dropdown menu)
+  - Reduced tab bar height from 64px to 48px
+  - Optimized icon and text sizes for better spacing
+  - Font size increased to 11px for readability
+
+### User Profile Menu Redesign
+- Replaced avatar button with minimalist three dots (⋮) menu
+- Implemented dropdown menu with:
+  - Language switcher (English/中文)
+  - Switch Account option
+  - Proper styling with separators and spacing
+- Phone-width modals for consistency
+- Fixed click event handling for dropdown trigger
+
+### Shopping List Enhancements
+- Moved "Refresh List" and "Export" buttons to top right
+- Made buttons side-by-side and icon-only for cleaner UI
+- Changed week selector from dropdown to three buttons:
+  - Last Week | This Week | Next Week
+- Automatic refresh when language changes
+- Improved ingredient translation (Chinese → English in English mode)
+- Fixed plural-to-singular conversion with AI cleaning
+
+### Recipe Data Management
+- Enhanced bilingual recipe storage:
+  - Added `nameZh`, `ingredientsZh`, `instructionsZh` fields
+  - Automatic translation at extraction time (not display time)
+  - Language-appropriate data selection in shopping lists
+- Added `extractedImages` array to recipe object for URL extraction
+- Improved tag extraction:
+  - `cuisine`: Vietnamese, Chinese, Italian, Japanese, Korean, etc.
+  - `proteinTypes`: Array support for multiple proteins (e.g., ["Chicken", "Pork"])
+  - `mealType`: Breakfast, Lunch, Dinner, Snack
+- Enhanced nutrition calculation with detailed reasoning
+
+### Bug Fixes
+- Fixed SecurityError when cropping external URL images
+- Resolved issue where manual recipe edit retained old data
+- Fixed "Calculate Calories" button redirect issue in manual entry
+- Corrected meal plan save to close immediately without "Saving..." alert
+- Fixed grocery list not updating after meal plan changes
+- Resolved avatar button not responding to clicks
+
+### Technical Improvements
+- Added extensive console logging for debugging image loading
+- Improved error handling with fallback images
+- Better state management in RecipeEditFormV2
+- Proper cleanup of form state on close
+- Enhanced CORS handling for external images
+- Added `loading="eager"` for faster image display
+
 ## October 27, 2025
 
 ### Edit Today's Meals Feature
@@ -712,4 +791,103 @@
 - Card width: 280px (optimal for mobile viewing)
 - Gap between cards: 12px (0.75rem)
 - Centering padding: `calc(50% - 140px)` (half card width)
+
+## November 7, 2025
+
+### User Profile Dropdown Menu Redesign
+- **Replaced full-page Profile with dropdown menu**:
+  - Changed avatar button from circular user photo to minimalist three-dot (⋮) icon
+  - Implemented compact dropdown menu with two options:
+    - **Language**: Opens language selection dialog
+    - **Switch Account**: Opens account management dialog
+  - Light grey separator line between menu items
+  - Increased vertical spacing (`py-4`) for better touch targets
+  - Phone-width dialogs (`w-[calc(100vw-3rem)] max-w-sm`) for consistent mobile UX
+
+### Language Selection Dialog
+- **Clean, card-based design** for language switching:
+  - Two options: English (🇺🇸) and Chinese (🇨🇳)
+  - Flag emojis with language names and subtitles
+  - Active state: Primary border with light background
+  - Hover state: Grey border transition
+  - Immediate language switch using `i18n.changeLanguage()`
+  - Compact modal width for mobile consistency
+
+### Switch Account Dialog
+- **User account management** in modal format:
+  - Displays user avatar (initials in colored circle)
+  - Shows user name and email address
+  - "Sign Out" button with icon
+  - Clean layout with grey background card for user info
+  - Removed dropdown approach, kept focused dialog design
+
+### Shopping List Language Synchronization
+- **Automatic regeneration on language change**:
+  - Added `useEffect` watching `isChineseMode` state
+  - Triggers `handleRegenerateShoppingList()` when language switches
+  - Uses correct language field:
+    - Chinese mode: `fullRecipe.ingredientsZh`
+    - English mode: `fullRecipe.ingredients`
+  - AI cleaning applies to newly generated list
+  - Preserves category structure and sorting
+
+### Technical Implementation
+- **Dropdown menu debugging and fixes**:
+  - Initial issue: Dropdown opening but closing immediately
+  - Root cause: `modal={false}` and `onClick` handler conflicts
+  - Solution: Removed `modal={false}`, let Radix UI handle default behavior
+  - Used plain `<button>` element instead of `Button` component with `asChild`
+  - Removed manual state management (`isOpen`, `onOpenChange`)
+  - Added `z-index: 1000` wrapper to ensure proper stacking
+  - Applied solid white background (`bg-white`) to remove transparency
+
+### UI Refinements
+- **Dropdown menu styling**:
+  - Width: `w-56` (14rem) for compact appearance
+  - Side offset: `8px` from trigger button
+  - Grey icons (`text-gray-400`) for visual consistency
+  - Separator: 1px grey line (`bg-gray-300`) with inline styles for visibility
+  - Explicit `height: '1px'` and `backgroundColor: '#d1d5db'` to override defaults
+
+- **Dialog windows**:
+  - Narrower width for better mobile experience
+  - Changed from `sm:max-w-md` to `max-w-sm`
+  - Viewport-width calculation: `w-[calc(100vw-3rem)]`
+  - Consistent padding and spacing across all dialogs
+
+### Bug Fixes
+- Fixed dropdown not responding to clicks (removed conflicting event handlers)
+- Fixed dropdown closing immediately after opening (removed `modal={false}`)
+- Fixed separator line not visible (added inline styles with `!important`)
+- Fixed dialog windows too wide on mobile (reduced max-width)
+- Fixed shopping list not updating on language change (added `useEffect` trigger)
+
+### User Experience Improvements
+- **Cleaner navigation**: Three-dot menu is less intrusive than profile tab
+- **Faster access**: Language and account switching now 1-2 clicks away
+- **Consistent design**: All dialogs follow same width and spacing patterns
+- **Smooth transitions**: Fade/slide animations on dropdown open/close
+- **Immediate feedback**: Language switch updates UI instantly, shopping list regenerates in background
+
+### State Management
+- Removed profile screen from bottom navigation
+- UserButton component manages its own dropdown state
+- Language selection updates global `i18n` context
+- Shopping list watches language changes via `useEffect`
+- All dialogs use controlled state with `useState`
+
+### Component Structure
+- `UserButton.tsx`: Main component with dropdown and dialogs
+  - Uses Radix UI `DropdownMenu` components
+  - Two Dialog components (Language, Switch Account)
+  - `useAuth` for user data and sign-out
+  - `useTranslation` for i18n integration
+- Updated across all pages: Home, Recipes, Quick Foods, Shopping List
+
+### Known Improvements
+- Profile page content preserved (can be added back if needed)
+- Sign-out functionality integrated into Switch Account dialog
+- Direct navigation from bottom nav removed, now accessible via dropdown
+- Language switching triggers shopping list regeneration automatically
+- All system text, recipes, and grocery lists update to selected language
 

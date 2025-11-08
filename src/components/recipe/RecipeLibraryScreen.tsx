@@ -11,8 +11,6 @@ import { Search, Plus, Heart, Clock, Trash2 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { BottomNav } from '../shared/BottomNav';
 import { UserButton } from '../auth/UserButton';
-import { LanguageSwitcher } from '../shared/LanguageSwitcher';
-
 export function RecipeLibraryScreen() {
   const { t, i18n } = useTranslation('recipe');
   const {
@@ -187,7 +185,6 @@ export function RecipeLibraryScreen() {
                 <Plus className="w-4 h-4 mr-2" />
                 Add
               </Button>
-              <LanguageSwitcher />
               <UserButton />
             </div>
           </div>
