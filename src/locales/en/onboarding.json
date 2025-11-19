@@ -1,0 +1,50 @@
+{
+  "welcome": {
+    "title": "Welcome to Meal Planner",
+    "subtitle": "Your smart cooking companion",
+    "getStarted": "Get Started",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "continueWithGoogle": "Continue with Google"
+  },
+  "languageSelection": {
+    "title": "Select Your Language",
+    "subtitle": "Choose your preferred system language",
+    "description": "This will be used for all app menus and buttons. Recipe content will remain in its original language.",
+    "selectEnglish": "English",
+    "selectChinese": "中文 (Chinese)",
+    "continue": "Continue"
+  },
+  "dietaryPreferences": {
+    "title": "Dietary Preferences",
+    "subtitle": "Tell us about your dietary needs",
+    "allergies": "Allergies",
+    "avoidFoods": "Foods to Avoid",
+    "placeholder": "Enter items...",
+    "skip": "Skip for now",
+    "continue": "Continue"
+  },
+  "cookingStyle": {
+    "title": "Cooking Style",
+    "subtitle": "What's your cooking goal?",
+    "quick": "Quick Meals",
+    "quickDesc": "Fast and easy recipes",
+    "protein": "High Protein",
+    "proteinDesc": "Protein-rich meals",
+    "veggies": "Veggie-Rich",
+    "veggiesDesc": "Vegetable-focused",
+    "balanced": "Balanced",
+    "balancedDesc": "Well-rounded nutrition",
+    "continue": "Continue"
+  },
+  "familyInfo": {
+    "title": "Family Information",
+    "subtitle": "Help us personalize your experience",
+    "name": "Your Name",
+    "numberOfKids": "Number of Kids",
+    "kidsAges": "Kids' Ages",
+    "addAge": "Add Age",
+    "continue": "Finish"
+  }
+}
+

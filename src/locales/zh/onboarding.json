@@ -1,0 +1,50 @@
+{
+  "welcome": {
+    "title": "欢迎使用智能餐食规划",
+    "subtitle": "您的智能烹饪助手",
+    "getStarted": "开始使用",
+    "signIn": "登录",
+    "signUp": "注册",
+    "continueWithGoogle": "使用 Google 继续"
+  },
+  "languageSelection": {
+    "title": "选择您的语言",
+    "subtitle": "选择您偏好的系统语言",
+    "description": "这将用于所有应用菜单和按钮。食谱内容将保持其原始语言。",
+    "selectEnglish": "English",
+    "selectChinese": "中文 (Chinese)",
+    "continue": "继续"
+  },
+  "dietaryPreferences": {
+    "title": "饮食偏好",
+    "subtitle": "告诉我们您的饮食需求",
+    "allergies": "过敏源",
+    "avoidFoods": "避免的食物",
+    "placeholder": "输入项目...",
+    "skip": "暂时跳过",
+    "continue": "继续"
+  },
+  "cookingStyle": {
+    "title": "烹饪风格",
+    "subtitle": "您的烹饪目标是什么？",
+    "quick": "快速餐食",
+    "quickDesc": "快速简单的食谱",
+    "protein": "高蛋白",
+    "proteinDesc": "富含蛋白质的餐食",
+    "veggies": "蔬菜丰富",
+    "veggiesDesc": "以蔬菜为主",
+    "balanced": "均衡营养",
+    "balancedDesc": "全面均衡的营养",
+    "continue": "继续"
+  },
+  "familyInfo": {
+    "title": "家庭信息",
+    "subtitle": "帮助我们个性化您的体验",
+    "name": "您的姓名",
+    "numberOfKids": "孩子数量",
+    "kidsAges": "孩子年龄",
+    "addAge": "添加年龄",
+    "continue": "完成"
+  }
+}
+

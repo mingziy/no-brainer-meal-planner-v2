@@ -5,19 +5,37 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 console.log('🌍 i18n.ts file is loading...');
 
 // Import translation files
+import enCommon from './locales/en/common.json';
+import zhCommon from './locales/zh/common.json';
+import enNavigation from './locales/en/navigation.json';
+import zhNavigation from './locales/zh/navigation.json';
 import enRecipe from './locales/en/recipe.json';
 import zhRecipe from './locales/zh/recipe.json';
+import enShopping from './locales/en/shopping.json';
+import zhShopping from './locales/zh/shopping.json';
+import enOnboarding from './locales/en/onboarding.json';
+import zhOnboarding from './locales/zh/onboarding.json';
+import enQuickfoods from './locales/en/quickfoods.json';
+import zhQuickfoods from './locales/zh/quickfoods.json';
 
 console.log('📦 Translation files imported');
-console.log('English translations:', enRecipe);
-console.log('Chinese translations:', zhRecipe);
 
 const resources = {
   en: {
+    common: enCommon,
+    navigation: enNavigation,
     recipe: enRecipe,
+    shopping: enShopping,
+    onboarding: enOnboarding,
+    quickfoods: enQuickfoods,
   },
   zh: {
+    common: zhCommon,
+    navigation: zhNavigation,
     recipe: zhRecipe,
+    shopping: zhShopping,
+    onboarding: zhOnboarding,
+    quickfoods: zhQuickfoods,
   },
 };
 
@@ -46,8 +64,8 @@ i18n
       escapeValue: false, // React already escapes by default
     },
 
-    ns: ['recipe'], // Namespaces we're using
-    defaultNS: 'recipe', // Default namespace
+    ns: ['common', 'navigation', 'recipe', 'shopping', 'onboarding', 'quickfoods'], // Namespaces we're using
+    defaultNS: 'common', // Default namespace
     
     react: {
       useSuspense: false, // Disable suspense to avoid loading issues

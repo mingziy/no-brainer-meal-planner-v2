@@ -8,6 +8,13 @@ export interface UserProfile {
   hasCompletedOnboarding: boolean;
 }
 
+export interface UserPreferences {
+  userId: string;
+  systemLanguage: 'en' | 'zh';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Meal {
   id: string;
   name: string;
@@ -73,6 +80,11 @@ export interface QuickFood {
   };
   isCustom?: boolean; // user-created vs pre-populated
   userId?: string;    // for custom items
+  originalLanguage?: 'en' | 'zh'; // Detected language from user input
+  nameTranslated?: string; // Translated food name
+  servingSizeTranslated?: string; // Translated serving size
+  translatedTo?: 'en' | 'zh'; // Target language of translation
+  lastTranslated?: Date; // Timestamp of last translation
 }
 
 export interface ShoppingItem {
@@ -81,6 +93,8 @@ export interface ShoppingItem {
   quantity: string;
   category: 'produce' | 'meat' | 'pantry' | 'dairy' | 'other';
   checked: boolean;
+  originalLanguage?: 'en' | 'zh'; // Original language of the item
+  translatedName?: string; // Translated version of the item name
 }
 
 export interface PrepTask {
@@ -209,8 +223,21 @@ export interface Recipe {
   originalText?: string; // Raw extracted text from OCR or pasted text
   sourceUrl?: string; // Original recipe URL for attribution and linking back
   nutritionCalculationReasoning?: string; // AI explanation of how servings/calories/nutrition were calculated
+  extractedImages?: string[]; // Array of images extracted from URL
   
-  // Bilingual support - store both English and Chinese versions
+  // NEW Language System - replaces bilingual fields
+  originalLanguage?: 'en' | 'zh'; // Detected during extraction
+  nameTranslated?: string; // Translated version
+  ingredientsTranslated?: Ingredient[]; // Translated version
+  instructionsTranslated?: string[]; // Translated version
+  cuisineTranslated?: string; // Translated cuisine
+  proteinTypeTranslated?: string; // Translated protein type
+  mealTypeTranslated?: string; // Translated meal type
+  translatedTo?: 'en' | 'zh'; // Target language of translation
+  lastTranslated?: Date; // Timestamp of last translation
+  preferredDisplayLanguage?: 'original' | 'translated'; // User's preferred display version
+  
+  // Legacy bilingual support (deprecated but kept for backwards compatibility)
   nameZh?: string; // Chinese name
   ingredientsZh?: Ingredient[]; // Chinese ingredients
   instructionsZh?: string[]; // Chinese instructions

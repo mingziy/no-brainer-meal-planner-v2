@@ -983,9 +983,9 @@ export function WeeklyPlanScreen() {
                         <div className="flex items-center gap-2">
                           <span className="text-2xl">{food.emoji}</span>
                           <div>
-                            <p className="font-medium text-sm">{food.name}</p>
+                            <p className="font-medium text-sm">{food.nameTranslated || food.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {food.servingSize} • {food.calories} cal
+                              {food.servingSizeTranslated || food.servingSize} • {food.calories} cal
                             </p>
                           </div>
                         </div>
@@ -1095,7 +1095,7 @@ function MealRow({ icon, label, recipes, quickFoods = [], onAdd, onAddQuickFood,
             <p className="text-xs font-medium text-muted-foreground mb-1">Quick Add-ons:</p>
             {quickFoods.map((food, index) => (
               <div key={`${food.id}-${index}`} className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{food.emoji} {food.name}</span>
+                <span>{food.emoji} {food.nameTranslated || food.name}</span>
                 <button
                   className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
                   onClick={() => onRemoveQuickFood(index)}
@@ -1182,7 +1182,7 @@ function MealSlot({ label, recipes, quickFoods = [], onAdd, onRemove, onRandomPi
               {quickFoods.map((food, index) => (
                 <div key={`${food.id}-${index}`} className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full text-sm">
                   <span className="text-lg">{food.emoji}</span>
-                  <span>{food.name}</span>
+                  <span>{food.nameTranslated || food.name}</span>
                   <span className="text-xs text-muted-foreground">({food.calories} cal)</span>
                 </div>
               ))}

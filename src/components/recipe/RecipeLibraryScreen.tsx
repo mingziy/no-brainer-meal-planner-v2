@@ -57,21 +57,21 @@ export function RecipeLibraryScreen() {
 
   // Define protein source categories for sidebar
   const proteinCategories: Array<{ key: string; label: string; emoji: string }> = [
-    { key: 'All', label: 'All Recipes', emoji: '🍽️' },
-    { key: 'Chicken', label: 'Chicken', emoji: '🍗' },
-    { key: 'Beef', label: 'Beef', emoji: '🥩' },
-    { key: 'Pork', label: 'Pork', emoji: '🍖' },
-    { key: 'Seafood', label: 'Seafood', emoji: '🦐' },
-    { key: 'Eggs', label: 'Eggs', emoji: '🥚' },
-    { key: 'Plant-based', label: 'Plant-based', emoji: '🌱' },
+    { key: 'All', label: t('categories.allRecipes'), emoji: '🍽️' },
+    { key: 'Chicken', label: t('categories.chicken'), emoji: '🍗' },
+    { key: 'Beef', label: t('categories.beef'), emoji: '🥩' },
+    { key: 'Pork', label: t('categories.pork'), emoji: '🍖' },
+    { key: 'Seafood', label: t('categories.seafood'), emoji: '🦐' },
+    { key: 'Eggs', label: t('categories.eggs'), emoji: '🥚' },
+    { key: 'Plant-based', label: t('categories.plantBased'), emoji: '🌱' },
   ];
 
   // Define meal type tags for top filter
   const mealTypeTags: Array<{ key: string; label: string; emoji: string }> = [
-    { key: 'All', label: 'All', emoji: '' },
-    { key: 'Breakfast', label: 'Breakfast', emoji: '🍳' },
-    { key: 'Lunch', label: 'Lunch', emoji: '🍱' },
-    { key: 'Dinner', label: 'Dinner', emoji: '🍽️' },
+    { key: 'All', label: t('categories.all'), emoji: '' },
+    { key: 'Breakfast', label: t('categories.breakfast'), emoji: '🍳' },
+    { key: 'Lunch', label: t('categories.lunch'), emoji: '🍱' },
+    { key: 'Dinner', label: t('categories.dinner'), emoji: '🍽️' },
   ];
 
   // Helper function to get all protein types (handles both old and new format)
@@ -100,16 +100,39 @@ export function RecipeLibraryScreen() {
 
   // Filter recipes based on search and category
   const filteredRecipes = recipes.filter((recipe) => {
-    // Search filter
+    // Search filter - CROSS-LANGUAGE SEARCH
+    const searchLower = searchQuery.toLowerCase();
+    
+    // Debug logging for search
+    if (searchQuery) {
+      console.log('🔍 Searching:', {
+        searchQuery: searchQuery,
+        recipeName: recipe.name,
+        nameTranslated: recipe.nameTranslated,
+        hasTranslation: !!recipe.nameTranslated,
+        matchesOriginal: recipe.name.toLowerCase().includes(searchLower),
+        matchesTranslated: recipe.nameTranslated && recipe.nameTranslated.toLowerCase().includes(searchLower)
+      });
+    }
+    
     const matchesSearch =
       searchQuery === '' ||
-      recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      recipe.cuisine?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      getProteinTypes(recipe).some(pt => pt.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      recipe.mealType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      // Search in original name
+      recipe.name.toLowerCase().includes(searchLower) ||
+      // Search in translated name (if exists)
+      (recipe.nameTranslated && recipe.nameTranslated.toLowerCase().includes(searchLower)) ||
+      // Search in cuisine (original and translated)
+      recipe.cuisine?.toLowerCase().includes(searchLower) ||
+      (recipe.cuisineTranslated && recipe.cuisineTranslated.toLowerCase().includes(searchLower)) ||
+      // Search in protein types (original and translated)
+      getProteinTypes(recipe).some(pt => pt.toLowerCase().includes(searchLower)) ||
+      (recipe.proteinTypeTranslated && recipe.proteinTypeTranslated.toLowerCase().includes(searchLower)) ||
+      // Search in meal type (original and translated)
+      recipe.mealType?.toLowerCase().includes(searchLower) ||
+      (recipe.mealTypeTranslated && recipe.mealTypeTranslated.toLowerCase().includes(searchLower)) ||
       // Legacy support for old categories
       (recipe.categories && recipe.categories.some((cat) =>
-        cat.toLowerCase().includes(searchQuery.toLowerCase())
+        cat.toLowerCase().includes(searchLower)
       ));
 
     // Category filter by protein type with smart grouping
@@ -183,7 +206,7 @@ export function RecipeLibraryScreen() {
             <div className="flex items-center gap-2">
               <Button onClick={handleAddRecipe} size="sm" className="shrink-0">
                 <Plus className="w-4 h-4 mr-2" />
-                Add
+                {t('library.addButton')}
               </Button>
               <UserButton />
             </div>
@@ -294,8 +317,17 @@ interface RecipeCardProps {
 }
 
 function RecipeCard({ recipe, onClick, onDelete, t, currentLanguage }: RecipeCardProps) {
-  // Bilingual support: use Chinese name if available and language is Chinese
-  const displayName = (currentLanguage === 'zh' && recipe.nameZh) ? recipe.nameZh : recipe.name;
+  // NEW Language System: Use preferred display language
+  const getDisplayName = () => {
+    // If user prefers translated AND translation exists, show translated
+    if (recipe.preferredDisplayLanguage === 'translated' && recipe.nameTranslated) {
+      return recipe.nameTranslated;
+    }
+    // Otherwise show original
+    return recipe.name;
+  };
+  
+  const displayName = getDisplayName();
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     

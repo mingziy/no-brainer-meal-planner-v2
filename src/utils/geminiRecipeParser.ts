@@ -175,26 +175,29 @@ export async function parseRecipeWithGemini(text: string, timeoutMs: number = 90
 
     const prompt = `You are a recipe parsing assistant. Extract recipe information from the text below and return ONLY valid JSON (no markdown, no explanations).
 
+CRITICAL RULE: Detect the original language ('en' for English, 'zh' for Chinese/中文) and extract ALL content in that ORIGINAL language ONLY. DO NOT translate or provide bilingual content.
+
 Required JSON structure:
 {
-  "name": "Recipe name (string)",
-  "cuisine": "Cuisine type (e.g., Chinese, Italian, Mexican, Japanese, Thai, Indian, Korean, American, French, Mediterranean, etc.)",
-  "proteinType": "Main protein source (e.g., Chicken, Beef, Pork, Fish, Vegan, Tofu, Shrimp, Turkey, Lamb, Eggs, etc.)",
-  "mealType": "When to serve (e.g., Breakfast, Lunch, Dinner, Snack)",
+  "originalLanguage": "en" or "zh",
+  "name": "Recipe name in ORIGINAL language",
+  "cuisine": "Cuisine type in ORIGINAL language (e.g., Chinese, Italian, Mexican, Japanese, Thai, Indian, Korean, American, French, Mediterranean, etc.)",
+  "proteinType": "Main protein source in ORIGINAL language (e.g., Chicken, Beef, Pork, Fish, Vegan, Tofu, Shrimp, Turkey, Lamb, Eggs, etc.)",
+  "mealType": "When to serve in ORIGINAL language (e.g., Breakfast, Lunch, Dinner, Snack)",
   "servings": 4,
   "caloriesPerServing": 350,
-  "nutritionCalculationReasoning": "Explain your calculation logic here, including: 1) How you determined serving size (from recipe text or estimated from ingredient amounts), 2) How you calculated calories per serving (cite USDA nutrition data, common nutrition databases, or standard calorie values), 3) Sources or reasoning for nutrition estimates (protein/carbs/fat/fiber)",
+  "nutritionCalculationReasoning": "Explain in ORIGINAL language your calculation logic here, including: 1) How you determined serving size (from recipe text or estimated from ingredient amounts), 2) How you calculated calories per serving (cite USDA nutrition data, common nutrition databases, or standard calorie values), 3) Sources or reasoning for nutrition estimates (protein/carbs/fat/fiber)",
   "ingredients": [
     {
       "id": "1",
       "amount": "2",
       "unit": "cups",
-      "name": "flour"
+      "name": "flour in ORIGINAL language"
     }
   ],
   "instructions": [
-    "Step 1 instruction",
-    "Step 2 instruction"
+    "Step 1 instruction in ORIGINAL language",
+    "Step 2 instruction in ORIGINAL language"
   ],
   "nutrition": {
     "protein": 25,
@@ -216,7 +219,9 @@ Required JSON structure:
 }
 
 IMPORTANT Rules:
-- **PRESERVE THE ORIGINAL LANGUAGE**: If the recipe is in Chinese, output Chinese text for name, ingredients, and instructions. If in English, use English.
+- **Detect original language**: Set "originalLanguage" to "en" (English) or "zh" (Chinese/中文)
+- **NO TRANSLATION**: Extract ALL content in the detected ORIGINAL language ONLY
+- **NO BILINGUAL**: Do not provide both languages, only the original
 - **cuisine**: Identify the primary cuisine type (e.g., Chinese, Italian, Mexican, Japanese, Thai, Indian, Korean, American, French, Mediterranean, etc.)
 - **proteinType**: Identify the MAIN protein source. Examples:
   * Chicken dish → "Chicken"
@@ -594,11 +599,13 @@ export async function parseRecipeFromImage(imageDataUrl: string): Promise<Partia
 
       const prompt = `Extract recipe from image. Analyze ingredients and calculate nutrition. Return ONLY valid JSON.
 
+CRITICAL: Detect the original language ('en' for English or 'zh' for Chinese/中文) and extract ALL content in ORIGINAL language ONLY. DO NOT translate.
+
 Format:
-{"name":"Recipe Name","cuisine":"Vietnamese","proteinTypes":["Chicken","Pork"],"mealType":"Lunch","servings":4,"caloriesPerServing":350,"nutritionCalculationReasoning":"Brief reasoning","nutrition":{"protein":30,"fiber":5,"fat":15,"carbs":40,"iron":"Moderate","calcium":"Moderate"},"ingredients":[{"id":"1","amount":"1","unit":"cup","name":"ingredient"}],"instructions":["Step 1"]}
+{"originalLanguage":"en or zh","name":"Recipe Name in ORIGINAL","cuisine":"Vietnamese","proteinTypes":["Chicken","Pork"],"mealType":"Lunch","servings":4,"caloriesPerServing":350,"nutritionCalculationReasoning":"Brief reasoning","nutrition":{"protein":30,"fiber":5,"fat":15,"carbs":40,"iron":"Moderate","calcium":"Moderate"},"ingredients":[{"id":"1","amount":"1","unit":"cup","name":"ingredient in ORIGINAL"}],"instructions":["Step 1 in ORIGINAL"]}
 
 CRITICAL - Read recipe and calculate nutrition:
-1. Preserve original language (Chinese/English)
+1. **originalLanguage**: Detect 'en' or 'zh' - extract everything in that language
 2. Number ingredients from "1"
 3. **cuisine**: Identify from dish name (Vietnamese, Chinese, Italian, Japanese, Korean, Thai, Indian, Mexican, American, French, Mediterranean, Other)
 4. **proteinTypes**: ARRAY of proteins - if multiple, list ALL: ["Chicken","Pork"]
@@ -612,6 +619,7 @@ CRITICAL - Read recipe and calculate nutrition:
    - iron: "Low", "Moderate", or "High"
    - calcium: "Low", "Moderate", or "High"
 8. **nutritionCalculationReasoning**: Brief explanation of calorie/nutrition calculation
+9. **NO TRANSLATION**: Keep name, ingredients, instructions in original detected language
 
 Return JSON only:`;
 
@@ -881,4 +889,355 @@ Return ONLY the complete URL (starting with https://), nothing else.`;
     return searchUrl;
   }
 }
+
+/**
+ * Translate a recipe on-demand from one language to another
+ * @param recipe - The recipe to translate
+ * @param sourceLanguage - 'en' or 'zh'
+ * @param targetLanguage - 'en' or 'zh'
+ */
+export async function translateRecipe(
+  recipe: {
+    name: string;
+    ingredients: Array<{ id: string; amount: string; unit: string; name: string }>;
+    instructions: string[];
+    cuisine?: string;
+    proteinType?: string;
+    mealType?: string;
+  },
+  sourceLanguage: 'en' | 'zh',
+  targetLanguage: 'en' | 'zh'
+): Promise<{
+  nameTranslated: string;
+  ingredientsTranslated: Array<{ id: string; amount: string; unit: string; name: string }>;
+  instructionsTranslated: string[];
+  cuisineTranslated?: string;
+  proteinTypeTranslated?: string;
+  mealTypeTranslated?: string;
+}> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('⚠️ Gemini API key not configured, cannot translate');
+    throw new Error('API_KEY_NOT_CONFIGURED');
+  }
+
+  try {
+    console.log(`🌐 Translating recipe from ${sourceLanguage} to ${targetLanguage}...`);
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const targetLanguageName = targetLanguage === 'en' ? 'English' : 'Chinese (简体中文)';
+    const sourceLanguageName = sourceLanguage === 'en' ? 'English' : 'Chinese (简体中文)';
+
+    const prompt = `Your task: Translate this recipe from ${sourceLanguageName} to ${targetLanguageName}.
+
+Source Recipe:
+- Name: ${recipe.name}
+- Cuisine: ${recipe.cuisine || 'N/A'}
+- Protein Type: ${recipe.proteinType || 'N/A'}
+- Meal Type: ${recipe.mealType || 'N/A'}
+- Ingredients: ${JSON.stringify(recipe.ingredients)}
+- Instructions: ${JSON.stringify(recipe.instructions)}
+
+Translation Rules:
+1. Translate ALL fields accurately to ${targetLanguageName}
+2. Keep cooking terminology precise and culturally appropriate
+3. Convert units if culturally appropriate (e.g., cups vs. ml)
+4. Maintain ingredient specificity (don't generalize)
+5. Keep cooking technique names accurate
+6. For ingredients: keep amounts and units, translate only the ingredient names
+7. IMPORTANT: You MUST translate the tags (cuisine, proteinType, mealType):
+   - If source is "Chicken" -> translate to "鸡肉"
+   - If source is "Pork" -> translate to "猪肉"
+   - If source is "Beef" -> translate to "牛肉"
+   - If source is "Seafood" -> translate to "海鲜"
+   - If source is "Eggs" -> translate to "鸡蛋"
+   - If source is "Breakfast" -> translate to "早餐"
+   - If source is "Lunch" -> translate to "午餐"
+   - If source is "Dinner" -> translate to "晚餐"
+   - If source is "Japanese" -> translate to "日本料理"
+   - If source is "Chinese" -> translate to "中国菜"
+   - If source is "N/A" -> return empty string ""
+
+CRITICAL: You MUST include these three fields in your response:
+- cuisineTranslated
+- proteinTypeTranslated  
+- mealTypeTranslated
+
+Return JSON in this EXACT format (DO NOT omit any fields):
+{
+  "nameTranslated": "translated recipe name",
+  "cuisineTranslated": "translated cuisine or empty string",
+  "proteinTypeTranslated": "translated protein type or empty string",
+  "mealTypeTranslated": "translated meal type or empty string",
+  "ingredientsTranslated": [
+    {"id": "1", "amount": "2", "unit": "cups", "name": "translated ingredient name"}
+  ],
+  "instructionsTranslated": [
+    "translated step 1",
+    "translated step 2"
+  ]
+}
+
+IMPORTANT: Return ONLY valid JSON, no markdown, no explanations. ALL fields must be present.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text().trim();
+    
+    // Remove markdown code blocks if present
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    // Try to extract JSON if there's extra text
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      text = jsonMatch[0];
+    }
+    
+    const translated = JSON.parse(text);
+    
+    console.log('✅ Translation complete:', {
+      originalName: recipe.name,
+      translatedName: translated.nameTranslated,
+      originalCuisine: recipe.cuisine,
+      cuisineTranslated: translated.cuisineTranslated,
+      originalProteinType: recipe.proteinType,
+      proteinTypeTranslated: translated.proteinTypeTranslated,
+      originalMealType: recipe.mealType,
+      mealTypeTranslated: translated.mealTypeTranslated,
+      fullResponse: translated
+    });
+    return translated;
+  } catch (error) {
+    console.error('❌ Error translating recipe:', error);
+    throw error;
+  }
+}
+
+/**
+ * Detect language of quick food input
+ * @param foodName - The food name entered by user
+ */
+export async function detectQuickFoodLanguage(
+  foodName: string
+): Promise<{
+  originalLanguage: 'en' | 'zh';
+  name: string;
+}> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    // Simple fallback: check if it contains Chinese characters
+    const hasChinese = /[\u4e00-\u9fa5]/.test(foodName);
+    return {
+      originalLanguage: hasChinese ? 'zh' : 'en',
+      name: foodName
+    };
+  }
+
+  try {
+    console.log(`🔍 Detecting language of food: "${foodName}"`);
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const prompt = `Detect the language of this food name: "${foodName}"
+
+Detection Rules:
+1. Detect if the input is English ('en') or Chinese ('zh')
+2. Return the food name EXACTLY as entered (no translation)
+3. If mixed language, detect the dominant language
+
+Return JSON in this EXACT format:
+{
+  "originalLanguage": "en" or "zh",
+  "name": "${foodName}"
+}
+
+IMPORTANT: Return ONLY valid JSON, no markdown, no explanations.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text().trim();
+    
+    // Remove markdown code blocks if present
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    // Try to extract JSON if there's extra text
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      text = jsonMatch[0];
+    }
+    
+    const detected = JSON.parse(text);
+    
+    console.log('✅ Language detected:', detected.originalLanguage);
+    return detected;
+  } catch (error) {
+    console.error('❌ Error detecting language:', error);
+    // Fallback to simple detection
+    const hasChinese = /[\u4e00-\u9fa5]/.test(foodName);
+    return {
+      originalLanguage: hasChinese ? 'zh' : 'en',
+      name: foodName
+    };
+  }
+}
+
+/**
+ * Translate shopping list items to a target language
+ * @param items - Array of shopping item names
+ * @param targetLanguage - 'en' or 'zh'
+ */
+export async function translateShoppingList(
+  items: Array<{ name: string; originalLanguage?: 'en' | 'zh' }>,
+  targetLanguage: 'en' | 'zh'
+): Promise<Array<{ original: string; translated: string; originalLanguage: 'en' | 'zh' }>> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('⚠️ Gemini API key not configured, cannot translate shopping list');
+    throw new Error('API_KEY_NOT_CONFIGURED');
+  }
+
+  try {
+    console.log(`🛒 Translating ${items.length} shopping items to ${targetLanguage}...`);
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const targetLanguageName = targetLanguage === 'en' ? 'English' : 'Chinese (简体中文)';
+    const itemsList = items.map(item => item.name).join(', ');
+
+    const prompt = `Translate ALL these grocery items to ${targetLanguageName}:
+
+Items: ${itemsList}
+
+Translation Rules:
+1. Detect each item's current language
+2. Translate ALL items to ${targetLanguageName}
+3. Use grocery-appropriate terminology
+4. Keep items in singular form when appropriate
+5. Maintain ingredient specificity
+
+Return JSON array in this EXACT format:
+[
+  {"original": "original item name", "translated": "translated item name", "originalLanguage": "en" or "zh"},
+  {"original": "original item name", "translated": "translated item name", "originalLanguage": "en" or "zh"}
+]
+
+Example:
+Input: ["鸡蛋", "Milk", "面包", "Tomatoes"]
+Target: English
+Output: [
+  {"original": "鸡蛋", "translated": "Eggs", "originalLanguage": "zh"},
+  {"original": "Milk", "translated": "Milk", "originalLanguage": "en"},
+  {"original": "面包", "translated": "Bread", "originalLanguage": "zh"},
+  {"original": "Tomatoes", "translated": "Tomatoes", "originalLanguage": "en"}
+]
+
+IMPORTANT: Return ONLY valid JSON array, no markdown, no explanations.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text().trim();
+    
+    // Remove markdown code blocks if present
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    // Try to extract JSON array if there's extra text
+    const arrayMatch = text.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      text = arrayMatch[0];
+    }
+    
+    const translated = JSON.parse(text);
+    
+    console.log('✅ Shopping list translation complete');
+    return translated;
+  } catch (error) {
+    console.error('❌ Error translating shopping list:', error);
+    throw error;
+  }
+}
+
+/**
+ * Translate quick foods (food name and serving size)
+ */
+export async function translateQuickFoods(
+  foods: Array<{ id: string; name: string; servingSize: string; originalLanguage?: 'en' | 'zh' }>,
+  targetLanguage: 'en' | 'zh'
+): Promise<Array<{ id: string; nameTranslated: string; servingSizeTranslated: string }>> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your_api_key_here') {
+    console.warn('⚠️ Gemini API key not configured, skipping translation');
+    throw new Error('API_KEY_NOT_CONFIGURED');
+  }
+
+  try {
+    console.log(`🔄 Translating ${foods.length} quick foods to ${targetLanguage}...`);
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const foodList = foods.map(f => ({
+      id: f.id,
+      name: f.name,
+      servingSize: f.servingSize,
+      originalLanguage: f.originalLanguage || 'en'
+    }));
+
+    const prompt = `You are a professional food translator. Translate the following quick food items to ${targetLanguage === 'en' ? 'English' : 'Chinese'}.
+
+Rules:
+1. Translate both the food name and serving size
+2. Keep the translation natural and commonly used
+3. For serving sizes, translate units appropriately (e.g., "1 medium" → "1个中等大小", "1 cup" → "1杯")
+4. If already in target language, return the same text
+5. Maintain food item specificity and clarity
+
+Input:
+${JSON.stringify(foodList, null, 2)}
+
+Return JSON array in this EXACT format:
+[
+  {
+    "id": "food-id-1",
+    "nameTranslated": "translated food name",
+    "servingSizeTranslated": "translated serving size"
+  },
+  {
+    "id": "food-id-2",
+    "nameTranslated": "translated food name",
+    "servingSizeTranslated": "translated serving size"
+  }
+]
+
+IMPORTANT: 
+- Return ONLY valid JSON array, no markdown, no explanations
+- Include ALL ${foods.length} foods in the response
+- Keep the same order as input`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    console.log('📝 Raw AI response (first 200 chars):', text.substring(0, 200));
+
+    // Parse JSON response
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      throw new Error('No JSON array found in response');
+    }
+
+    const translated = JSON.parse(jsonMatch[0]);
+    console.log(`✅ Quick foods translation complete: ${translated.length} items`);
+    
+    return translated;
+  } catch (error) {
+    console.error('❌ Error translating quick foods:', error);
+    throw error;
+  }
+}
+
 

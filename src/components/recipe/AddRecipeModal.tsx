@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import {
   Dialog,
@@ -24,6 +25,7 @@ import { parseRecipeText } from '../../utils/recipeParser';
 import { parseRecipeWithGemini, parseRecipeWithBilingualSupport, parseRecipeFromImage } from '../../utils/geminiRecipeParser';
 
 export function AddRecipeModal() {
+  const { t } = useTranslation('recipe');
   const { 
     isAddRecipeModalOpen, 
     setIsAddRecipeModalOpen, 
@@ -598,9 +600,9 @@ export function AddRecipeModal() {
     <Dialog open={isAddRecipeModalOpen && !showImageSelector} onOpenChange={setIsAddRecipeModalOpen}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add a New Recipe</DialogTitle>
+          <DialogTitle>{t('add.title')}</DialogTitle>
           <DialogDescription>
-            Choose how you'd like to add your recipe
+            {t('add.subtitle')}
           </DialogDescription>
         </DialogHeader>
 
@@ -634,10 +636,10 @@ export function AddRecipeModal() {
                 <Link className="w-5 h-5 text-gray-700 mt-0.5 flex-shrink-0" />
                 <div>
                   <h3 className="font-semibold text-base mb-1">
-                    1. URL <span className="text-gray-500 text-sm">(Recommended)</span>
+                    {t('add.urlOptionTitle')} <span className="text-gray-500 text-sm">{t('add.urlRecommended')}</span>
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Paste a recipe link and AI extracts everything
+                    {t('add.urlDescription')}
                   </p>
                 </div>
               </div>
@@ -648,11 +650,11 @@ export function AddRecipeModal() {
                 <Link className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
                   <h3 className="font-semibold text-base mb-2">
-                    1. URL <span className="text-primary text-sm">(Recommended)</span>
+                    {t('add.urlOptionTitle')} <span className="text-primary text-sm">{t('add.urlRecommended')}</span>
                   </h3>
                   <input
                     type="url"
-                    placeholder="https://example.com/recipe"
+                    placeholder={t('add.urlPlaceholder')}
                     value={pasteUrl}
                     onChange={(e) => setPasteUrl(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -667,10 +669,10 @@ export function AddRecipeModal() {
                       {isProcessing ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Extracting...
+                          {t('add.extracting')}
                         </>
                       ) : (
-                        'Extract Recipe'
+                        t('add.extractRecipe')
                       )}
                     </Button>
                     <Button
@@ -681,7 +683,7 @@ export function AddRecipeModal() {
                       }}
                       disabled={isProcessing}
                     >
-                      Cancel
+                      {t('add.cancel')}
                     </Button>
                   </div>
                 </div>
@@ -706,11 +708,11 @@ export function AddRecipeModal() {
               <div>
                 <h3 className={`font-semibold text-base mb-1 ${
                   isProcessing && ocrProgress > 0 ? 'text-primary' : ''
-                }`}>2. Recipe Screenshot</h3>
+                }`}>{t('add.screenshotOptionTitle')}</h3>
                 <p className="text-sm text-gray-600">
                   {isProcessing && ocrProgress > 0 
-                    ? `AI Processing... ${ocrProgress}%`
-                    : 'Upload an image and AI reads the text'}
+                    ? t('add.screenshotProcessing', { progress: ocrProgress })
+                    : t('add.screenshotDescription')}
                 </p>
               </div>
             </div>
@@ -725,9 +727,9 @@ export function AddRecipeModal() {
             <div className="flex items-start gap-3">
               <FileText className="w-5 h-5 text-gray-700 mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-base mb-1">3. Manual Type</h3>
+                <h3 className="font-semibold text-base mb-1">{t('add.manualOptionTitle')}</h3>
                 <p className="text-sm text-gray-600">
-                  Enter recipe details yourself
+                  {t('add.manualDescription')}
                 </p>
               </div>
             </div>

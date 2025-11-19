@@ -1,0 +1,58 @@
+{
+  "title": "小食",
+  "subtitle": "添加即食食品来补充您的餐食",
+  "searchPlaceholder": "搜索食品...",
+  "categories": {
+    "fruits": "水果",
+    "veggies": "蔬菜",
+    "grains": "谷物",
+    "protein": "蛋白质",
+    "dairy": "乳制品",
+    "snacks": "零食",
+    "drinks": "饮品",
+    "all": "全部"
+  },
+  "addModal": {
+    "title": "添加小食",
+    "describeFoodLabel": "描述你的食物",
+    "describeFoodPlaceholder": "例如：一杯糙米饭、一个中等苹果、100克烤鸡胸肉",
+    "autoFillButton": "🤖 AI 自动填充",
+    "analyzingButton": "AI 分析中...",
+    "describeFoodHint": "描述食物和份量，然后点击按钮自动填充营养数据",
+    "analyzingMessage": "AI 正在分析你的食物...",
+    "analyzingSubtext": "这可能需要几秒钟",
+    "aiResultsHeader": "AI 生成结果 - 如需要可编辑",
+    "categoryLabel": "类别",
+    "categoryRequired": "类别 *",
+    "emojiLabel": "表情符号",
+    "emojiPlaceholder": "🍎",
+    "servingSizeLabel": "份量",
+    "servingSizePlaceholder": "例如：1个中等、100克、1杯",
+    "caloriesLabel": "卡路里 *",
+    "caloriesPlaceholder": "95",
+    "proteinLabel": "蛋白质 (克)",
+    "proteinPlaceholder": "0.5",
+    "carbsLabel": "碳水化合物 (克)",
+    "carbsPlaceholder": "25",
+    "fatLabel": "脂肪 (克)",
+    "fatPlaceholder": "0.3",
+    "fiberLabel": "纤维 (克)",
+    "fiberPlaceholder": "4",
+    "cancelButton": "取消",
+    "saveButton": "保存食物"
+  },
+  "nutrition": {
+    "serving": "份",
+    "cal": "卡",
+    "protein": "蛋白质",
+    "carbs": "碳水",
+    "fat": "脂肪",
+    "fiber": "纤维",
+    "grams": "克"
+  },
+  "messages": {
+    "foodSaved": "小食已保存！",
+    "saveFailed": "保存小食失败，请重试。"
+  }
+}
+
