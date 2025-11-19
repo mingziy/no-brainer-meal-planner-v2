@@ -88,14 +88,15 @@ function containsChinese(text: string): boolean {
 /**
  * Clean ingredient names using AI to remove processing details and punctuation
  * Converts plurals to singular form to consolidate similar items
+ * Also categorizes ingredients for shopping list grouping
  * Batch processes multiple ingredients in one API call for efficiency
  */
-export async function cleanIngredientNames(ingredientNames: string[]): Promise<string[]> {
+export async function cleanIngredientNames(ingredientNames: string[]): Promise<Array<{ name: string; category: string }>> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   
   if (!apiKey || apiKey === 'your_api_key_here') {
     console.warn('⚠️ Gemini API key not configured, falling back to regex cleaning');
-    return ingredientNames; // Fallback to original names
+    return ingredientNames.map(name => ({ name, category: 'pantry' })); // Fallback to original names
   }
 
   try {
@@ -103,45 +104,78 @@ export async function cleanIngredientNames(ingredientNames: string[]): Promise<s
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `Clean these ingredient names for a shopping list. Remove ALL processing details, cooking instructions, punctuation, and descriptions. Convert plurals to singular form. Return ONLY the core ingredient name in SINGULAR form.
+    const prompt = `You are a shopping list optimizer. Clean these ingredient names and categorize them for shopping.
+
+CRITICAL RULES:
+1. Remove ALL processing details (minced, diced, chopped, sliced, peeled, hulled, etc.)
+2. Remove ALL cooking instructions (boneless, skinless, seeds removed, deveined, etc.)
+3. Remove ALL punctuation, parentheses, and special characters
+4. Convert ALL plurals to SINGULAR form
+5. PRESERVE the specific type/variety (red onion stays "red onion", cherry tomato stays "cherry tomato", chicken breast stays "chicken breast")
+6. Remove quality descriptors ONLY if they don't change the ingredient (e.g., "extra virgin" from olive oil, "fresh" from garlic)
+
+CATEGORIES (choose ONE for each ingredient):
+- produce: vegetables, fruits, herbs, mushrooms (蔬菜, 水果, 香料, 蘑菇)
+- meat: all meat, poultry, seafood, fish (肉类, 禽类, 海鲜, 鱼)
+- dairy: milk, cheese, eggs, yogurt, butter, cream (奶制品, 鸡蛋, 奶酪, 黄油)
+- pantry: grains, pasta, rice, oil, spices, sauces, condiments, flour (主食, 油, 调料, 酱料, 面粉)
+
+OUTPUT FORMAT (CRITICAL):
+Each line must be: CLEANED_NAME | CATEGORY
 
 Examples:
-- "garlic (minced)" → "garlic"
-- "tomatoes, seeds removed" → "tomato"
-- "chicken breast, boneless skinless" → "chicken breast"
-- "olive oil (extra virgin)" → "olive oil"
-- "onions - diced" → "onion"
-- "bell peppers (red, chopped)" → "bell pepper"
-- "carrots" → "carrot"
-- "potatoes" → "potato"
-- "green beans" → "green bean"
-- "strawberries" → "strawberry"
+- "garlic (minced)" → "garlic | produce"
+- "tomatoes, seeds removed" → "tomato | produce"
+- "cherry tomatoes" → "cherry tomato | produce"
+- "香菇" → "香菇 | produce"
+- "香葱, 切碎" → "香葱 | produce"
+- "chicken breast, boneless skinless" → "chicken breast | meat"
+- "鸡腿肉片" → "鸡腿肉 | meat"
+- "olive oil (extra virgin)" → "olive oil | pantry"
+- "食用油（用于油炸）" → "食用油 | pantry"
+- "eggs, beaten" → "egg | dairy"
+- "鸡蛋（打散）" → "鸡蛋 | dairy"
+- "onions - diced" → "onion | produce"
+- "soy sauce" → "soy sauce | pantry"
+- "面粉" → "面粉 | pantry"
+- "高汤（鸡肉、牛肉或蔬菜高汤）" → "高汤 | pantry"
+- "姜，切碎（用于装饰）" → "姜 | produce"
 
 Ingredient names to clean (one per line):
 ${ingredientNames.join('\n')}
 
-Return ONLY the cleaned names in SINGULAR form, one per line, in the same order. No explanations, no numbering, no extra text.`;
+Return ONLY "cleaned_name | category" format, one per line, in the same order. No explanations, no numbering, no extra text.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text().trim();
     
-    // Split by newlines and clean up
-    const cleanedNames = text.split('\n')
+    // Split by newlines and parse "name | category" format
+    const lines = text.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
     
+    // Parse each line
+    const parsedResults = lines.map(line => {
+      const parts = line.split('|').map(p => p.trim());
+      if (parts.length === 2) {
+        return { name: parts[0], category: parts[1] };
+      }
+      // Fallback if format is wrong
+      return { name: line, category: 'pantry' };
+    });
+    
     // Validate we got the same number of results
-    if (cleanedNames.length !== ingredientNames.length) {
+    if (parsedResults.length !== ingredientNames.length) {
       console.warn('⚠️ AI returned different number of ingredients, using originals');
-      return ingredientNames;
+      return ingredientNames.map(name => ({ name, category: 'pantry' }));
     }
     
-    console.log('✅ Cleaned ingredient names:', cleanedNames);
-    return cleanedNames;
+    console.log('✅ Cleaned and categorized ingredients:', parsedResults);
+    return parsedResults;
   } catch (error) {
     console.error('❌ Error cleaning ingredient names with AI:', error);
-    return ingredientNames; // Fallback to original names
+    return ingredientNames.map(name => ({ name, category: 'pantry' })); // Fallback to original names
   }
 }
 

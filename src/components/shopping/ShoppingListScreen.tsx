@@ -290,18 +290,34 @@ Return ONLY the English translations, one per line, no explanations, no numberin
   const categorizeIngredient = (name: string): string => {
     const nameLower = name.toLowerCase();
     
+    // Produce (English + Chinese)
     if (/vegetable|fruit|lettuce|tomato|onion|garlic|pepper|carrot|broccoli|spinach|kale|cabbage|potato|avocado|apple|banana|berry|lemon|lime|orange|herb|cilantro|parsley|basil/.test(nameLower)) {
       return 'produce';
     }
+    // Chinese produce keywords
+    if (/蔬菜|水果|生菜|番茄|西红柿|洋葱|蒜|大蒜|辣椒|胡萝卜|西兰花|菠菜|白菜|土豆|马铃薯|牛油果|苹果|香蕉|柠檬|橙|橘|姜|葱|香菜|香葱|香菇|蘑菇|木耳|金针菇|豆芽|芹菜|茄子|黄瓜|青瓜|南瓜|冬瓜|丝瓜|苦瓜|韭菜|豆角|豌豆|玉米|青椒|红椒|彩椒|芦笋|西芹|花菜|莴笋|萝卜|山药|莲藕|竹笋|荸荠/.test(name)) {
+      return 'produce';
+    }
     
+    // Meat (English + Chinese)
     if (/chicken|beef|pork|fish|salmon|turkey|lamb|meat|bacon|sausage|shrimp|crab|lobster/.test(nameLower)) {
       return 'meat';
     }
+    // Chinese meat keywords
+    if (/鸡|鸡肉|鸡胸|鸡腿|鸡翅|牛肉|猪肉|鱼|鱼肉|三文鱼|鲑鱼|火鸡|羊肉|肉|培根|香肠|腊肠|虾|蟹|螃蟹|龙虾|鸭|鸭肉|排骨|五花肉|里脊|牛排|肉丸|肉馅|肉片|肉丁/.test(name)) {
+      return 'meat';
+    }
     
+    // Dairy (English + Chinese)
     if (/milk|cheese|yogurt|butter|cream|egg|dairy/.test(nameLower)) {
       return 'dairy';
     }
+    // Chinese dairy keywords
+    if (/牛奶|奶|芝士|奶酪|酸奶|黄油|奶油|蛋|鸡蛋|蛋黄|蛋清|蛋白/.test(name)) {
+      return 'dairy';
+    }
     
+    // Pantry (default for everything else like rice, pasta, oil, spices, sauces, etc.)
     return 'pantry';
   };
 
@@ -393,26 +409,28 @@ Return ONLY the English translations, one per line, no explanations, no numberin
         }
       }
       
-      // Step 2: Clean ingredient names using AI (including plural→singular conversion)
-      let cleanedNames: string[] = [];
+      // Step 2: Clean ingredient names and categorize using AI
+      let cleanedIngredients: Array<{ name: string; category: string }> = [];
       if (translatedNames.length > 0) {
         try {
-          cleanedNames = await cleanIngredientNames(translatedNames);
+          cleanedIngredients = await cleanIngredientNames(translatedNames);
         } catch (error) {
           console.error('❌ AI cleaning failed, using translated names:', error);
-          cleanedNames = translatedNames;
+          cleanedIngredients = translatedNames.map((name, index) => ({
+            name,
+            category: Array.from(ingredientMap.values())[index].category
+          }));
         }
       }
       
       // Create shopping list with cleaned ingredient names (deduplicated and capitalized)
       const itemMap = new Map<string, { category: string }>();
       
-      cleanedNames.forEach((cleanedName, index) => {
-        const originalData = Array.from(ingredientMap.values())[index];
-        const normalizedName = cleanedName.toLowerCase().trim();
+      cleanedIngredients.forEach((item) => {
+        const normalizedName = item.name.toLowerCase().trim();
         
         if (!itemMap.has(normalizedName)) {
-          itemMap.set(normalizedName, { category: originalData.category });
+          itemMap.set(normalizedName, { category: item.category });
         }
       });
       
