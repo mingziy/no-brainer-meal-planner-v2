@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { useApp } from '../../context/AppContext';
 import {
   Dialog,
@@ -12,9 +10,8 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Edit, Clock, Heart, FileText, ExternalLink, Calculator, Languages } from 'lucide-react';
+import { Edit, Clock, Heart, FileText, ExternalLink, Calculator } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { translateRecipe } from '../../utils/geminiRecipeParser';
 
 interface RecipeDetailsModalProps {
   recipe?: any; // Optional prop, if not provided, use context
@@ -29,85 +26,31 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
     setIsRecipeDetailsModalOpen,
     setIsRecipeEditFormOpen,
     toggleFavorite,
-    setSelectedRecipe,
   } = useApp();
 
   // Use prop if provided, otherwise use context
   const selectedRecipe = recipeProp || contextRecipe;
   const isOpen = recipeProp ? true : isRecipeDetailsModalOpen;
-  
-  // Save preferred display language when closing
-  const handleClose = async () => {
-    if (displayRecipe && displayRecipe.id) {
-      try {
-        // Update preferred display language in Firestore
-        const recipeRef = doc(db, 'recipes', displayRecipe.id);
-        await updateDoc(recipeRef, {
-          preferredDisplayLanguage: showingTranslated ? 'translated' : 'original'
-        });
-        console.log('✅ Saved preferred display language:', showingTranslated ? 'translated' : 'original');
-      } catch (error) {
-        console.error('❌ Failed to save preferred display language:', error);
-      }
-    }
-    
-    // Call the original close handler
-    if (onCloseProp) {
-      onCloseProp();
-    } else {
-      setIsRecipeDetailsModalOpen(false);
-    }
-  };
+  const handleClose = onCloseProp || (() => setIsRecipeDetailsModalOpen(false));
 
   const [showOriginalText, setShowOriginalText] = useState(false);
   const [showNutritionReasoning, setShowNutritionReasoning] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [showingTranslated, setShowingTranslated] = useState(false);
-  
-  // Local copy of recipe to update immediately after translation
-  const [localRecipe, setLocalRecipe] = useState(selectedRecipe);
-  
-  // Update localRecipe when selectedRecipe changes (new recipe opened)
-  useEffect(() => {
-    if (selectedRecipe) {
-      setLocalRecipe(selectedRecipe);
-      // Set initial view based on user's last preference
-      const hasTranslation = !!(selectedRecipe.nameTranslated && selectedRecipe.ingredientsTranslated);
-      const shouldShowTranslated = hasTranslation && selectedRecipe.preferredDisplayLanguage === 'translated';
-      setShowingTranslated(shouldShowTranslated);
-      console.log('🔄 Recipe opened:', selectedRecipe.name, 'preferredDisplayLanguage:', selectedRecipe.preferredDisplayLanguage, 'showingTranslated:', shouldShowTranslated);
-    }
-  }, [selectedRecipe?.id]); // Only update when recipe ID changes
-  
-  // Use localRecipe for display (updated after translation)
-  const displayRecipe = localRecipe || selectedRecipe;
 
-  if (!displayRecipe) return null;
+  if (!selectedRecipe) return null;
   
-  // NEW Language System: Use translated version if available and user wants it
-  const originalLanguage = displayRecipe.originalLanguage || 'en';
-  const hasTranslation = !!(displayRecipe.nameTranslated && displayRecipe.ingredientsTranslated && displayRecipe.instructionsTranslated);
-  const targetLanguage: 'en' | 'zh' = originalLanguage === 'en' ? 'zh' : 'en';
-  
-  // Determine what to display
-  const displayName = (showingTranslated && hasTranslation) ? displayRecipe.nameTranslated : displayRecipe.name;
-  const displayIngredients = (showingTranslated && hasTranslation && displayRecipe.ingredientsTranslated) 
-    ? displayRecipe.ingredientsTranslated 
-    : (displayRecipe.ingredients || []);
-  const displayInstructions = (showingTranslated && hasTranslation && displayRecipe.instructionsTranslated) 
-    ? displayRecipe.instructionsTranslated 
-    : (displayRecipe.instructions || []);
+  // Bilingual support: use Chinese version if available and current language is Chinese
+  const isChineseMode = i18n.language === 'zh';
+  const displayName = (isChineseMode && selectedRecipe.nameZh) ? selectedRecipe.nameZh : selectedRecipe.name;
+  const displayIngredients = (isChineseMode && selectedRecipe.ingredientsZh) ? selectedRecipe.ingredientsZh : selectedRecipe.ingredients;
+  const displayInstructions = (isChineseMode && selectedRecipe.instructionsZh) ? selectedRecipe.instructionsZh : selectedRecipe.instructions;
   
   console.log('🔍 Recipe Details Display:', {
-    originalLanguage,
-    hasTranslation,
-    showingTranslated,
+    currentLanguage: i18n.language,
+    isChineseMode,
+    hasChineseName: !!selectedRecipe.nameZh,
     displayingName: displayName,
-    hasIngredients: displayRecipe.ingredients?.length,
-    hasInstructions: displayRecipe.instructions?.length,
-    displayIngredientsLength: displayIngredients?.length,
-    displayInstructionsLength: displayInstructions?.length,
-    fullRecipe: displayRecipe,
+    englishName: selectedRecipe.name,
+    chineseName: selectedRecipe.nameZh
   });
 
   const handleEdit = () => {
@@ -120,76 +63,6 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
       await toggleFavorite(selectedRecipe.id, selectedRecipe.isFavorite);
     } catch (error) {
       console.error('Error toggling favorite:', error);
-    }
-  };
-
-  const handleTranslate = async () => {
-    if (isTranslating) return;
-    
-    // If translation exists, just toggle display
-    if (hasTranslation) {
-      setShowingTranslated(!showingTranslated);
-      return;
-    }
-    
-    // Otherwise, translate the recipe
-    try {
-      setIsTranslating(true);
-      console.log(`🌐 Translating recipe from ${originalLanguage} to ${targetLanguage}...`);
-      
-      const translated = await translateRecipe(
-        {
-          name: displayRecipe.name,
-          ingredients: displayRecipe.ingredients,
-          instructions: displayRecipe.instructions,
-          cuisine: displayRecipe.cuisine,
-          proteinType: displayRecipe.proteinType,
-          mealType: displayRecipe.mealType,
-        },
-        originalLanguage,
-        targetLanguage
-      );
-      
-      // Update recipe in Firestore
-      const recipeRef = doc(db, 'recipes', displayRecipe.id);
-      await updateDoc(recipeRef, {
-        nameTranslated: translated.nameTranslated,
-        ingredientsTranslated: translated.ingredientsTranslated,
-        instructionsTranslated: translated.instructionsTranslated,
-        cuisineTranslated: translated.cuisineTranslated || '',
-        proteinTypeTranslated: translated.proteinTypeTranslated || '',
-        mealTypeTranslated: translated.mealTypeTranslated || '',
-        translatedTo: targetLanguage,
-        lastTranslated: new Date(),
-        preferredDisplayLanguage: 'translated', // User wants to see translated version
-      });
-      
-      console.log('✅ Recipe translated and saved (including tags)');
-      
-      // Update local state with translated version
-      const updatedRecipe = {
-        ...displayRecipe,
-        nameTranslated: translated.nameTranslated,
-        ingredientsTranslated: translated.ingredientsTranslated,
-        instructionsTranslated: translated.instructionsTranslated,
-        cuisineTranslated: translated.cuisineTranslated || '',
-        proteinTypeTranslated: translated.proteinTypeTranslated || '',
-        mealTypeTranslated: translated.mealTypeTranslated || '',
-        translatedTo: targetLanguage,
-        lastTranslated: new Date(),
-        preferredDisplayLanguage: 'translated' as 'original' | 'translated',
-      };
-      
-      setLocalRecipe(updatedRecipe);
-      setSelectedRecipe(updatedRecipe); // Also update context
-      setShowingTranslated(true); // Show the translated version
-      
-      console.log('✅ Local state updated with translation');
-    } catch (error) {
-      console.error('❌ Translation failed:', error);
-      alert(t('details.translationFailed'));
-    } finally {
-      setIsTranslating(false);
     }
   };
 
@@ -209,7 +82,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
               >
                 <Heart
                   className={`w-5 h-5 ${
-                    displayRecipe.isFavorite
+                    selectedRecipe.isFavorite
                       ? 'text-red-500 fill-red-500'
                       : 'text-gray-400'
                   }`}
@@ -226,72 +99,54 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
           </DialogDescription>
           
           {/* Action Buttons - Below Title */}
-          <div className="flex gap-2 mt-3 flex-wrap">
-            {/* Translation Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleTranslate}
-              disabled={isTranslating}
-              className={hasTranslation && showingTranslated ? 'border-orange-500 bg-orange-50' : ''}
-            >
-              <Languages className="w-4 h-4 mr-2" />
-              {isTranslating
-                ? t('details.translating')
-                : hasTranslation && showingTranslated
-                ? t('details.showOriginalButton')
-                : t('details.translateButton')}
-            </Button>
-
-            {(displayRecipe.originalText || displayRecipe.sourceUrl || displayRecipe.nutritionCalculationReasoning) && (
-              <>
-                {displayRecipe.originalText && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setShowOriginalText(true)}
+          {(selectedRecipe.originalText || selectedRecipe.sourceUrl || selectedRecipe.nutritionCalculationReasoning) && (
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {selectedRecipe.originalText && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowOriginalText(true)}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  {t('details.viewExtractedText')}
+                </Button>
+              )}
+              {selectedRecipe.sourceUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                >
+                  <a
+                    href={selectedRecipe.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <FileText className="w-4 h-4 mr-2" />
-                    {t('details.viewExtractedText')}
-                  </Button>
-                )}
-                {displayRecipe.sourceUrl && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                  >
-                    <a
-                      href={displayRecipe.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      {t('details.openOriginalWebsite')}
-                    </a>
-                  </Button>
-                )}
-                {displayRecipe.nutritionCalculationReasoning && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowNutritionReasoning(true)}
-                  >
-                    <Calculator className="w-4 h-4 mr-2" />
-                    {t('details.viewNutritionCalculation')}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    {t('details.openOriginalWebsite')}
+                  </a>
+                </Button>
+              )}
+              {selectedRecipe.nutritionCalculationReasoning && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNutritionReasoning(true)}
+                >
+                  <Calculator className="w-4 h-4 mr-2" />
+                  {t('details.viewNutritionCalculation')}
+                </Button>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         <div className="space-y-6 py-4">
             {/* Recipe Image */}
             <div className="relative h-64 w-full overflow-hidden rounded-lg">
               <ImageWithFallback
-                src={displayRecipe.image}
-                alt={displayRecipe.name}
+                src={selectedRecipe.image}
+                alt={selectedRecipe.name}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -299,19 +154,19 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
             {/* Tags */}
             <div className="flex flex-wrap gap-2">
               {/* Cuisines */}
-              {(displayRecipe.cuisines || [displayRecipe.cuisine]).filter(Boolean).map((cuisine, idx) => (
+              {(selectedRecipe.cuisines || [selectedRecipe.cuisine]).filter(Boolean).map((cuisine, idx) => (
                 <Badge key={`cuisine-${idx}`} variant="default" style={{ backgroundColor: '#e9d5ff', color: '#1f2937' }}>
                   {cuisine}
                 </Badge>
               ))}
               {/* Protein Types */}
-              {(displayRecipe.proteinTypes || [displayRecipe.proteinType]).filter(Boolean).map((protein, idx) => (
+              {(selectedRecipe.proteinTypes || [selectedRecipe.proteinType]).filter(Boolean).map((protein, idx) => (
                 <Badge key={`protein-${idx}`} variant="default" style={{ backgroundColor: '#fed7aa', color: '#1f2937' }}>
                   {protein}
                 </Badge>
               ))}
               {/* Meal Types */}
-              {(displayRecipe.mealTypes || [displayRecipe.mealType]).filter(Boolean).map((meal, idx) => (
+              {(selectedRecipe.mealTypes || [selectedRecipe.mealType]).filter(Boolean).map((meal, idx) => (
                 <Badge key={`meal-${idx}`} variant="default" style={{ backgroundColor: '#bfdbfe', color: '#1f2937' }}>
                   {meal}
                 </Badge>
@@ -319,7 +174,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
             </div>
 
             {/* Source URL */}
-            {displayRecipe.sourceUrl && (
+            {selectedRecipe.sourceUrl && (
               <div className="border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-950 px-4 py-3 rounded">
                 <div className="flex items-start gap-2">
                   <ExternalLink className="w-4 h-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
@@ -328,12 +183,12 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                       {t('details.source')}
                     </p>
                     <a
-                      href={displayRecipe.sourceUrl}
+                      href={selectedRecipe.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-blue-600 dark:text-blue-400 hover:underline break-words"
                     >
-                      {displayRecipe.sourceUrl}
+                      {selectedRecipe.sourceUrl}
                     </a>
                   </div>
                 </div>
@@ -344,114 +199,100 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-1" />
-                <span>{t('library.prepTime')}: {displayRecipe.prepTime} min</span>
+                <span>{t('library.prepTime')}: {selectedRecipe.prepTime} min</span>
               </div>
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-1" />
-                <span>{t('library.cookTime')}: {displayRecipe.cookTime} min</span>
+                <span>{t('library.cookTime')}: {selectedRecipe.cookTime} min</span>
               </div>
             </div>
 
             {/* Nutrition Card */}
-            {displayRecipe.nutrition && (
-              <div className="p-5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg">
-                <h3 className="font-semibold text-lg mb-4 text-primary">{t('details.nutritionInfo')}</h3>
-                
-                {/* Servings and Calories - Top Row */}
-                {displayRecipe.servings > 0 && (
-                  <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-primary/20">
-                    <div className="text-center bg-background/60 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">{t('details.servings')}</p>
-                      <p className="text-5xl font-bold text-primary">{displayRecipe.servings}</p>
-                    </div>
-                    {displayRecipe.caloriesPerServing > 0 && (
-                      <div className="text-center bg-background/60 rounded-lg p-3">
-                        <p className="text-xs text-gray-600 mb-1">{t('details.calories')}</p>
-                        <p className="text-5xl font-bold text-primary">{displayRecipe.caloriesPerServing}</p>
-                        <p className="text-xs text-gray-500">{t('details.perServing')}</p>
-                      </div>
-                    )}
+            <div className="p-5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg">
+              <h3 className="font-semibold text-lg mb-4 text-primary">{t('details.nutritionInfo')}</h3>
+              
+              {/* Servings and Calories - Top Row */}
+              {selectedRecipe.servings > 0 && (
+                <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-primary/20">
+                  <div className="text-center bg-background/60 rounded-lg p-3">
+                    <p className="text-xs text-gray-600 mb-1">{t('details.servings')}</p>
+                    <p className="text-5xl font-bold text-primary">{selectedRecipe.servings}</p>
                   </div>
-                )}
-                
-                {/* Macros and Nutrients - Two Column Layout with Proper Spacing */}
-                <div className="grid grid-cols-2 gap-6 text-sm">
-                  {/* Left Column */}
-                  <div className="space-y-2 pr-4">
-                    {/* Protein */}
-                    {displayRecipe.nutrition.protein && (
-                      <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
-                        <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.protein')}</span>
-                        <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
-                          <span className="font-bold text-primary">{displayRecipe.nutrition.protein}g</span>
-                          {displayRecipe.nutrition.proteinDV && (
-                            <span className="text-xs text-gray-500">({displayRecipe.nutrition.proteinDV}%)</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Fats */}
-                    {displayRecipe.nutrition.fat && (
-                      <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
-                        <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.fats')}</span>
-                        <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
-                          <span className="font-bold text-primary">{displayRecipe.nutrition.fat}g</span>
-                          {displayRecipe.nutrition.fatDV && (
-                            <span className="text-xs text-gray-500">({displayRecipe.nutrition.fatDV}%)</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Iron */}
-                    {displayRecipe.nutrition.iron && (
-                      <div className="flex items-center justify-between py-2" style={{ gap: '12px' }}>
-                        <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.iron')}</span>
-                        <span className="font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">{displayRecipe.nutrition.iron}</span>
-                      </div>
-                    )}
+                  {selectedRecipe.caloriesPerServing > 0 && (
+                    <div className="text-center bg-background/60 rounded-lg p-3">
+                      <p className="text-xs text-gray-600 mb-1">{t('details.calories')}</p>
+                      <p className="text-5xl font-bold text-primary">{selectedRecipe.caloriesPerServing}</p>
+                      <p className="text-xs text-gray-500">{t('details.perServing')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Macros and Nutrients - Two Column Layout with Proper Spacing */}
+              <div className="grid grid-cols-2 gap-6 text-sm">
+                {/* Left Column */}
+                <div className="space-y-2 pr-4">
+                  {/* Protein */}
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.protein')}</span>
+                    <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
+                      <span className="font-bold text-primary">{selectedRecipe.nutrition.protein}g</span>
+                      {selectedRecipe.nutrition.proteinDV && (
+                        <span className="text-xs text-gray-500">({selectedRecipe.nutrition.proteinDV}%)</span>
+                      )}
+                    </div>
                   </div>
                   
-                  {/* Right Column */}
-                  <div className="space-y-2 pl-4">
-                    {/* Carbs */}
-                    {displayRecipe.nutrition.carbs && (
-                      <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
-                        <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.carbs')}</span>
-                        <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
-                          <span className="font-bold text-primary">{displayRecipe.nutrition.carbs}g</span>
-                          {displayRecipe.nutrition.carbsDV && (
-                            <span className="text-xs text-gray-500">({displayRecipe.nutrition.carbsDV}%)</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Fiber */}
-                    {displayRecipe.nutrition.fiber && (
-                      <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
-                        <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.fiber')}</span>
-                        <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
-                          <span className="font-bold text-primary">{displayRecipe.nutrition.fiber}g</span>
-                          {displayRecipe.nutrition.fiberDV && (
-                            <span className="text-xs text-gray-500">({displayRecipe.nutrition.fiberDV}%)</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Calcium */}
-                    {displayRecipe.nutrition.calcium && (
-                      <div className="flex items-center justify-between py-2" style={{ gap: '12px' }}>
-                        <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.calcium')}</span>
-                        <span className="font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">{displayRecipe.nutrition.calcium}</span>
-                      </div>
-                    )}
+                  {/* Fats */}
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.fats')}</span>
+                    <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
+                      <span className="font-bold text-primary">{selectedRecipe.nutrition.fat}g</span>
+                      {selectedRecipe.nutrition.fatDV && (
+                        <span className="text-xs text-gray-500">({selectedRecipe.nutrition.fatDV}%)</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Iron */}
+                  <div className="flex items-center justify-between py-2" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.iron')}</span>
+                    <span className="font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">{selectedRecipe.nutrition.iron}</span>
+                  </div>
+                </div>
+                
+                {/* Right Column */}
+                <div className="space-y-2 pl-4">
+                  {/* Carbs */}
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.carbs')}</span>
+                    <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
+                      <span className="font-bold text-primary">{selectedRecipe.nutrition.carbs}g</span>
+                      {selectedRecipe.nutrition.carbsDV && (
+                        <span className="text-xs text-gray-500">({selectedRecipe.nutrition.carbsDV}%)</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Fiber */}
+                  <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.fiber')}</span>
+                    <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
+                      <span className="font-bold text-primary">{selectedRecipe.nutrition.fiber}g</span>
+                      {selectedRecipe.nutrition.fiberDV && (
+                        <span className="text-xs text-gray-500">({selectedRecipe.nutrition.fiberDV}%)</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Calcium */}
+                  <div className="flex items-center justify-between py-2" style={{ gap: '12px' }}>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.calcium')}</span>
+                    <span className="font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">{selectedRecipe.nutrition.calcium}</span>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Ingredients List */}
             <div className="border rounded-lg p-4">
@@ -498,7 +339,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
         
         <div className="py-4">
           <pre className="whitespace-pre-wrap text-sm bg-gray-50 dark:bg-gray-900 p-4 rounded-md border font-mono">
-{displayRecipe.originalText}</pre>
+{selectedRecipe.originalText}</pre>
         </div>
         
         <div className="sticky bottom-0 bg-background border-t pt-4 flex justify-end">
@@ -536,7 +377,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                 boxSizing: 'border-box'
               }}
             >
-              {displayRecipe.nutritionCalculationReasoning}
+              {selectedRecipe.nutritionCalculationReasoning}
             </pre>
           </div>
           <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md">

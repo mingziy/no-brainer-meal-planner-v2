@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { Recipe, Ingredient } from '../../types';
 import {
@@ -22,7 +21,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 type Step = 'image' | 'recipe' | 'calories' | 'tags';
 
 export function RecipeEditFormV2() {
-  const { t, i18n } = useTranslation('recipe');
   const { 
     isRecipeEditFormOpen, 
     setIsRecipeEditFormOpen,
@@ -35,24 +33,6 @@ export function RecipeEditFormV2() {
   } = useApp();
   
   const { addRecipe, updateRecipe } = useRecipes(user?.uid || null);
-  
-  // Helper function to translate tag display (but store original English value)
-  const translateTagDisplay = (tag: string): string => {
-    if (!tag) return tag;
-    const lowerTag = tag.toLowerCase();
-    
-    // Try to find translation key
-    const translationKey = `tags.${lowerTag}`;
-    const translated = t(translationKey);
-    
-    // If translation exists and is different from the key, use it
-    if (translated !== translationKey) {
-      return translated;
-    }
-    
-    // Otherwise return original tag
-    return tag;
-  };
   
   const [currentStep, setCurrentStep] = useState<Step>('image');
   const [isSaving, setIsSaving] = useState(false);
@@ -163,28 +143,11 @@ export function RecipeEditFormV2() {
       setCaloriesPerServing(recipe.caloriesPerServing || 0);
       setCalculationReasoning(recipe.nutritionCalculationReasoning || '');
       
-      // Split cuisine if it contains commas
-      const cuisinesToLoad = recipe.cuisine 
-        ? recipe.cuisine.split(',').map(c => c.trim()).filter(c => c) 
-        : [];
-      setCuisines(cuisinesToLoad);
-      
-      // Use proteinTypesArray if available (multiple proteins), otherwise split proteinType by comma
-      let proteinTypesToLoad: string[] = [];
-      if ((recipe as any).proteinTypesArray) {
-        proteinTypesToLoad = (recipe as any).proteinTypesArray;
-      } else if (recipe.proteinType) {
-        // Split by comma in case AI returned multiple values as string
-        proteinTypesToLoad = recipe.proteinType.split(',').map(p => p.trim()).filter(p => p);
-      }
+      setCuisines(recipe.cuisine ? [recipe.cuisine] : []);
+      // Use proteinTypesArray if available (multiple proteins), otherwise use single proteinType
+      const proteinTypesToLoad = (recipe as any).proteinTypesArray || (recipe.proteinType ? [recipe.proteinType] : []);
       setProteinTypes(proteinTypesToLoad);
-      
-      // Split mealType if it contains commas
-      const mealTypesToLoad = recipe.mealType 
-        ? recipe.mealType.split(',').map(m => m.trim()).filter(m => m) 
-        : [];
-      setMealTypes(mealTypesToLoad);
-      
+      setMealTypes(recipe.mealType ? [recipe.mealType] : []);
       setCuisineInput('');
       setProteinInput('');
       setMealTypeInput('');
@@ -503,24 +466,17 @@ Return ONLY the JSON, no other text.`;
   // Tag management functions
   const addCuisineTag = (tag: string) => {
     console.log('🏷️ addCuisineTag called with:', tag);
-    
-    // Split by comma to handle multiple tags at once
-    const tags = tag.split(',').map(t => t.trim()).filter(t => t);
-    
-    console.log('🏷️ Split tags:', tags);
+    const trimmed = tag.trim();
+    console.log('🏷️ trimmed:', trimmed);
     console.log('🏷️ current cuisines:', cuisines);
-    
-    // Add each tag that's not already in the list
-    const newTags = tags.filter(t => !cuisines.includes(t));
-    
-    if (newTags.length > 0) {
-      const newCuisines = [...cuisines, ...newTags];
+    console.log('🏷️ already includes?', cuisines.includes(trimmed));
+    if (trimmed && !cuisines.includes(trimmed)) {
+      const newCuisines = [...cuisines, trimmed];
       console.log('🏷️ Setting new cuisines:', newCuisines);
       setCuisines(newCuisines);
       setCuisineInput('');
     } else {
-      console.log('🏷️ Tags NOT added - all empty or duplicates');
-      setCuisineInput('');
+      console.log('🏷️ Tag NOT added - either empty or duplicate');
     }
   };
   
@@ -529,16 +485,9 @@ Return ONLY the JSON, no other text.`;
   };
   
   const addProteinTag = (tag: string) => {
-    // Split by comma to handle multiple tags at once
-    const tags = tag.split(',').map(t => t.trim()).filter(t => t);
-    
-    // Add each tag that's not already in the list
-    const newTags = tags.filter(t => !proteinTypes.includes(t));
-    
-    if (newTags.length > 0) {
-      setProteinTypes([...proteinTypes, ...newTags]);
-      setProteinInput('');
-    } else {
+    const trimmed = tag.trim();
+    if (trimmed && !proteinTypes.includes(trimmed)) {
+      setProteinTypes([...proteinTypes, trimmed]);
       setProteinInput('');
     }
   };
@@ -548,16 +497,9 @@ Return ONLY the JSON, no other text.`;
   };
   
   const addMealTypeTag = (tag: string) => {
-    // Split by comma to handle multiple tags at once
-    const tags = tag.split(',').map(t => t.trim()).filter(t => t);
-    
-    // Add each tag that's not already in the list
-    const newTags = tags.filter(t => !mealTypes.includes(t));
-    
-    if (newTags.length > 0) {
-      setMealTypes([...mealTypes, ...newTags]);
-      setMealTypeInput('');
-    } else {
+    const trimmed = tag.trim();
+    if (trimmed && !mealTypes.includes(trimmed)) {
+      setMealTypes([...mealTypes, trimmed]);
       setMealTypeInput('');
     }
   };
@@ -567,8 +509,7 @@ Return ONLY the JSON, no other text.`;
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, addFn: (tag: string) => void, value: string) => {
-    // Trigger on Enter, Space, or Comma
-    if ((e.key === ' ' || e.key === 'Enter' || e.key === ',') && value.trim()) {
+    if ((e.key === ' ' || e.key === 'Enter') && value.trim()) {
       e.preventDefault();
       addFn(value);
     }
@@ -727,10 +668,10 @@ Return ONLY the JSON, no other text.`;
   
   const renderStepIndicator = () => {
     const steps: { key: Step; label: string; number: number }[] = [
-      { key: 'image', label: t('edit.imageStepNumber'), number: 1 },
-      { key: 'recipe', label: t('edit.recipeStepNumber'), number: 2 },
-      { key: 'calories', label: t('edit.caloriesStepNumber'), number: 3 },
-      { key: 'tags', label: t('edit.tagsStepNumber'), number: 4 },
+      { key: 'image', label: 'Image', number: 1 },
+      { key: 'recipe', label: 'Recipe', number: 2 },
+      { key: 'calories', label: 'Calories', number: 3 },
+      { key: 'tags', label: 'Tags', number: 4 },
     ];
     
     return (
@@ -763,10 +704,10 @@ Return ONLY the JSON, no other text.`;
       <DialogContent className="max-w-md p-6 gap-4" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <DialogHeader>
           <DialogTitle>
-            {currentStep === 'image' && t('edit.selectImageTitle')}
-            {currentStep === 'recipe' && t('edit.recipeStepTitle')}
-            {currentStep === 'calories' && t('edit.caloriesStepTitle')}
-            {currentStep === 'tags' && t('edit.tagsStepTitle')}
+            {currentStep === 'image' && 'Select Recipe Image'}
+            {currentStep === 'recipe' && 'Confirm Recipe'}
+            {currentStep === 'calories' && 'Confirm Calories'}
+            {currentStep === 'tags' && 'Add Tags'}
           </DialogTitle>
         </DialogHeader>
         
@@ -786,7 +727,7 @@ Return ONLY the JSON, no other text.`;
                 // URL extraction: Show image grid selector
                 <>
                   <p className="text-sm text-gray-600 mb-2">
-                    {t('edit.selectImageFromFound', { count: availableImages.length })}
+                    Select a recipe image (from {availableImages.length} found images)
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     {availableImages.map((imgUrl, index) => (
@@ -853,7 +794,7 @@ Return ONLY the JSON, no other text.`;
                 // Uploaded image - show cropper
                 <>
                   <p className="text-sm text-gray-600 mb-2">
-                    {t('edit.cropInstructions')}
+                    Move the picture to position the square crop area where you want
                   </p>
                   
                   <div 
@@ -874,14 +815,14 @@ Return ONLY the JSON, no other text.`;
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full text-gray-500">
                         <Camera className="w-12 h-12 opacity-50 mb-2" />
-                        <p className="text-sm">{t('edit.noImageToCrop')}</p>
-                        <p className="text-xs mt-1">{t('edit.uploadImagePrompt')}</p>
+                        <p className="text-sm">No image to crop</p>
+                        <p className="text-xs mt-1">Upload a recipe card image below</p>
                       </div>
                     )}
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">{t('edit.zoom')}</label>
+                    <label className="text-sm font-medium">Zoom</label>
                     <input
                       type="range"
                       min={1}
@@ -899,12 +840,11 @@ Return ONLY the JSON, no other text.`;
               {/* Upload Button - only show for manual entry/screenshot */}
               {availableImages.length <= 1 && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">{t('edit.chooseFile')}</label>
                   <input
                     id="recipe-card-upload"
                     type="file"
                     accept="image/*"
-                    style={{ display: 'none' }}
+                    className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
@@ -921,7 +861,7 @@ Return ONLY the JSON, no other text.`;
                       }
                     }}
                   />
-                  <label htmlFor="recipe-card-upload" className="block">
+                  <label htmlFor="recipe-card-upload">
                     <Button
                       type="button"
                       variant="outline"
@@ -930,7 +870,7 @@ Return ONLY the JSON, no other text.`;
                     >
                       <span>
                         <Camera className="w-4 h-4 mr-2" />
-                        {imageToCrop ? t('edit.changeImage') : t('edit.uploadImage')}
+                        {imageToCrop ? 'Change Recipe Card Image' : 'Upload Recipe Card Image'}
                       </span>
                     </Button>
                   </label>
@@ -944,18 +884,18 @@ Return ONLY the JSON, no other text.`;
             <div className="space-y-4">
               {/* Recipe Name */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t('edit.recipeName')}</label>
+                <label className="text-sm font-medium">Recipe Name</label>
                 <Input
                   value={recipeName}
                   onChange={(e) => setRecipeName(e.target.value)}
-                  placeholder={t('edit.recipeNamePlaceholder')}
+                  placeholder="Enter recipe name"
                 />
               </div>
               
               {/* Ingredients */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">{t('edit.ingredients')}</label>
+                  <label className="text-sm font-medium">Ingredients</label>
                   <Button
                     type="button"
                     variant="ghost"
@@ -963,26 +903,26 @@ Return ONLY the JSON, no other text.`;
                     onClick={addIngredient}
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    {t('edit.addIngredient')}
+                    Add
                   </Button>
                 </div>
                 <div className="space-y-2">
                   {ingredients.map((ing, index) => (
                     <div key={ing.id} className="flex gap-2 items-start">
                       <Input
-                        placeholder={t('edit.amountPlaceholder')}
+                        placeholder="Amount"
                         value={ing.amount}
                         onChange={(e) => updateIngredient(ing.id, 'amount', e.target.value)}
                         className="w-20"
                       />
                       <Input
-                        placeholder={t('edit.unitPlaceholder')}
+                        placeholder="Unit"
                         value={ing.unit}
                         onChange={(e) => updateIngredient(ing.id, 'unit', e.target.value)}
                         className="w-20"
                       />
                       <Input
-                        placeholder={t('edit.ingredientPlaceholder')}
+                        placeholder="Ingredient"
                         value={ing.name}
                         onChange={(e) => updateIngredient(ing.id, 'name', e.target.value)}
                         className="flex-1"
@@ -1005,7 +945,7 @@ Return ONLY the JSON, no other text.`;
               {/* Instructions */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">{t('edit.cookingSteps')}</label>
+                  <label className="text-sm font-medium">Cooking Steps</label>
                   <Button
                     type="button"
                     variant="ghost"
@@ -1013,7 +953,7 @@ Return ONLY the JSON, no other text.`;
                     onClick={addInstruction}
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    {t('edit.addIngredient')}
+                    Add
                   </Button>
                 </div>
                 <div className="space-y-2">
@@ -1021,7 +961,7 @@ Return ONLY the JSON, no other text.`;
                     <div key={index} className="flex gap-2 items-start">
                       <span className="text-sm text-muted-foreground mt-2">{index + 1}.</span>
                       <Textarea
-                        placeholder={t('edit.stepPlaceholder')}
+                        placeholder="Step description"
                         value={inst}
                         onChange={(e) => updateInstruction(index, e.target.value)}
                         className="flex-1"
@@ -1049,11 +989,11 @@ Return ONLY the JSON, no other text.`;
             <div className="space-y-4">
               <div className="text-center mb-4">
                 <span className="text-4xl">🍽️</span>
-                <h3 className="font-semibold mt-2">{t('edit.caloriesStepTitle')}</h3>
+                <h3 className="font-semibold mt-2">Servings & Calories</h3>
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t('edit.totalServings')}</label>
+                <label className="text-sm font-medium">Total Servings</label>
                 <Input
                   type="number"
                   value={servings}
@@ -1078,13 +1018,13 @@ Return ONLY the JSON, no other text.`;
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
-                    {t('edit.recalculateButton')}
+                    {calculationReasoning ? 'Recalculate' : 'Calculate'} Calories with AI
                   </>
                 )}
               </Button>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t('edit.caloriesPerServing')}</label>
+                <label className="text-sm font-medium">Calories per Serving</label>
                 <Input
                   type="number"
                   value={caloriesPerServing}
@@ -1095,7 +1035,7 @@ Return ONLY the JSON, no other text.`;
               
               {calculationReasoning ? (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">🤖 {t('edit.aiCalculationLogic')}</label>
+                  <label className="text-sm font-medium">🤖 AI Calculation Logic</label>
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-64 overflow-y-auto">
                     <pre className="text-xs whitespace-pre-wrap font-mono text-gray-800 dark:text-gray-200"
                       style={{ 
@@ -1133,13 +1073,13 @@ Return ONLY the JSON, no other text.`;
             <div className="space-y-6">
               <div className="text-center mb-4">
                 <span className="text-4xl">🏷️</span>
-                <h3 className="font-semibold mt-2">{t('edit.addTagsTitle')}</h3>
-                <p className="text-xs text-gray-500 mt-1">{t('edit.addTagsSubtitle')}</p>
+                <h3 className="font-semibold mt-2">Add Tags</h3>
+                <p className="text-xs text-gray-500 mt-1">You can select multiple tags for each category</p>
               </div>
               
               {/* Cuisine */}
               <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-700">{t('edit.cuisine')}</label>
+                <label className="text-sm font-medium text-gray-700">Cuisine</label>
                 {console.log('🎨 Rendering cuisines:', cuisines)}
                 
                 {/* Input Field with Selected Tags Inside */}
@@ -1152,7 +1092,7 @@ Return ONLY the JSON, no other text.`;
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium"
                         style={{ backgroundColor: '#e9d5ff', color: '#1f2937' }}
                       >
-                        {translateTagDisplay(tag)}
+                        {tag}
                         <button
                           onClick={() => removeCuisineTag(tag)}
                           className="text-gray-600 hover:text-gray-900 text-base leading-none ml-1"
@@ -1172,11 +1112,30 @@ Return ONLY the JSON, no other text.`;
                     />
                   </div>
                 </div>
+                
+                {/* Suggested Cuisines */}
+                {cuisineSuggestions.filter(s => !cuisines.includes(s)).length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-2">Suggested cuisines:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {cuisineSuggestions.filter(s => !cuisines.includes(s)).map(suggestion => (
+                        <button
+                          key={suggestion}
+                          onClick={() => addCuisineTag(suggestion)}
+                          className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:opacity-80"
+                          style={{ backgroundColor: '#e9d5ff', color: '#1f2937' }}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Protein Type */}
               <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-700">{t('edit.proteinType')}</label>
+                <label className="text-sm font-medium text-gray-700">Protein Type</label>
                 
                 {/* Input Field with Selected Tags Inside */}
                 <div className="min-h-[44px] px-3 py-2 bg-white border border-gray-300 rounded-lg focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
@@ -1188,7 +1147,7 @@ Return ONLY the JSON, no other text.`;
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium"
                         style={{ backgroundColor: '#fed7aa', color: '#1f2937' }}
                       >
-                        {translateTagDisplay(tag)}
+                        {tag}
                         <button
                           onClick={() => removeProteinTag(tag)}
                           className="text-gray-600 hover:text-gray-900 text-base leading-none ml-1"
@@ -1208,11 +1167,30 @@ Return ONLY the JSON, no other text.`;
                     />
                   </div>
                 </div>
+                
+                {/* Suggested Proteins */}
+                {proteinSuggestions.filter(s => !proteinTypes.includes(s)).length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-2">Suggested proteins:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {proteinSuggestions.filter(s => !proteinTypes.includes(s)).map(suggestion => (
+                        <button
+                          key={suggestion}
+                          onClick={() => addProteinTag(suggestion)}
+                          className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:opacity-80"
+                          style={{ backgroundColor: '#fed7aa', color: '#1f2937' }}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Meal Type */}
               <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-700">{t('edit.mealType')}</label>
+                <label className="text-sm font-medium text-gray-700">Meal Type</label>
                 
                 {/* Input Field with Selected Tags Inside */}
                 <div className="min-h-[44px] px-3 py-2 bg-white border border-gray-300 rounded-lg focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
@@ -1224,7 +1202,7 @@ Return ONLY the JSON, no other text.`;
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium"
                         style={{ backgroundColor: '#bfdbfe', color: '#1f2937' }}
                       >
-                        {translateTagDisplay(tag)}
+                        {tag}
                         <button
                           onClick={() => removeMealTypeTag(tag)}
                           className="text-gray-600 hover:text-gray-900 text-base leading-none ml-1"
@@ -1244,6 +1222,25 @@ Return ONLY the JSON, no other text.`;
                     />
                   </div>
                 </div>
+                
+                {/* Suggested Meal Types */}
+                {mealTypeSuggestions.filter(s => !mealTypes.includes(s)).length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-2">Suggested meal types:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {mealTypeSuggestions.filter(s => !mealTypes.includes(s)).map(suggestion => (
+                        <button
+                          key={suggestion}
+                          onClick={() => addMealTypeTag(suggestion)}
+                          className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:opacity-80"
+                          style={{ backgroundColor: '#bfdbfe', color: '#1f2937' }}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1258,7 +1255,7 @@ Return ONLY the JSON, no other text.`;
               className="flex-1"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              {t('edit.backButton')}
+              Back
             </Button>
           )}
           
@@ -1267,7 +1264,7 @@ Return ONLY the JSON, no other text.`;
               onClick={handleNextStep}
               className="flex-1"
             >
-              {t('edit.nextButton')}
+              Next
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           ) : (
@@ -1279,10 +1276,10 @@ Return ONLY the JSON, no other text.`;
               {isSaving ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('edit.savingButton')}
+                  Saving...
                 </>
               ) : (
-                t('edit.saveButton')
+                '✓ Save Recipe'
               )}
             </Button>
           )}

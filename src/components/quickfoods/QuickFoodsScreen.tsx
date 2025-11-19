@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Search, Plus, Loader2, Languages } from 'lucide-react';
+import { Search, Plus, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
@@ -22,14 +21,11 @@ import {
 type Category = 'all' | 'fruit' | 'veggie' | 'dairy' | 'grain' | 'protein' | 'snack' | 'drink';
 
 export function QuickFoodsScreen() {
-  const { t, i18n } = useTranslation('quickfoods');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category>('fruit');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
   const [customQuickFoods, setCustomQuickFoods] = useState<QuickFood[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0); // Force re-render after translation
   
   // Form state
   const [foodName, setFoodName] = useState('');
@@ -74,33 +70,18 @@ export function QuickFoodsScreen() {
   }, []);
 
   const categories: { key: Category; label: string; emoji: string }[] = [
-    { key: 'fruit', label: t('categories.fruits'), emoji: '🍎' },
-    { key: 'veggie', label: t('categories.veggies'), emoji: '🥬' },
-    { key: 'grain', label: t('categories.grains'), emoji: '🌾' },
-    { key: 'protein', label: t('categories.protein'), emoji: '🥩' },
-    { key: 'dairy', label: t('categories.dairy'), emoji: '🥛' },
-    { key: 'snack', label: t('categories.snacks'), emoji: '🍪' },
-    { key: 'drink', label: t('categories.drinks'), emoji: '🥤' },
-    { key: 'all', label: t('categories.all'), emoji: '🍽️' },
+    { key: 'fruit', label: 'Fruits', emoji: '🍎' },
+    { key: 'veggie', label: 'Veggies', emoji: '🥬' },
+    { key: 'grain', label: 'Grains', emoji: '🌾' },
+    { key: 'protein', label: 'Protein', emoji: '🥩' },
+    { key: 'dairy', label: 'Dairy', emoji: '🥛' },
+    { key: 'snack', label: 'Snacks', emoji: '🍪' },
+    { key: 'drink', label: 'Drinks', emoji: '🥤' },
+    { key: 'all', label: 'All', emoji: '🍽️' },
   ];
 
-  // Load translations from localStorage and apply to default foods
-  const translationsMap = JSON.parse(localStorage.getItem('quickFoodsTranslations') || '{}');
-  const defaultFoodsWithTranslations = defaultQuickFoods.map(food => {
-    const translation = translationsMap[food.id];
-    if (translation) {
-      return {
-        ...food,
-        nameTranslated: translation.nameTranslated,
-        servingSizeTranslated: translation.servingSizeTranslated,
-        translatedTo: translation.translatedTo as 'en' | 'zh'
-      };
-    }
-    return food;
-  });
-
-  // Combine default (with translations) and custom quick foods
-  const allQuickFoods = [...defaultFoodsWithTranslations, ...customQuickFoods];
+  // Combine default and custom quick foods
+  const allQuickFoods = [...defaultQuickFoods, ...customQuickFoods];
 
   // Filter foods by selected category and search
   const filteredFoods = allQuickFoods.filter(food => {
@@ -231,8 +212,6 @@ Return ONLY valid JSON, no additional text or explanation.`;
       // Import Firebase
       const { collection, addDoc } = await import('firebase/firestore');
       const { db, auth } = await import('../../config/firebase');
-      // Import language detection
-      const { detectQuickFoodLanguage } = await import('../../utils/geminiRecipeParser');
       
       const user = auth.currentUser;
       if (!user) {
@@ -242,18 +221,6 @@ Return ONLY valid JSON, no additional text or explanation.`;
 
       // Extract the food name from the description (first few words)
       const extractedName = foodName.trim().split(/\s+/).slice(0, 5).join(' ');
-
-      // Detect language of the food name
-      let originalLanguage: 'en' | 'zh' = 'en';
-      try {
-        const detected = await detectQuickFoodLanguage(extractedName);
-        originalLanguage = detected.originalLanguage;
-        console.log('✅ Detected language for quick food:', originalLanguage);
-      } catch (error) {
-        console.warn('⚠️ Language detection failed, defaulting to English:', error);
-        // Fallback: simple check for Chinese characters
-        originalLanguage = /[\u4e00-\u9fa5]/.test(extractedName) ? 'zh' : 'en';
-      }
 
       const newQuickFood = {
         name: extractedName,
@@ -267,7 +234,6 @@ Return ONLY valid JSON, no additional text or explanation.`;
           fat: parseFloat(fat) || 0,
           fiber: parseFloat(fiber) || 0,
         },
-        originalLanguage, // NEW: Store detected language
         isCustom: true,
         userId: user.uid,
         createdAt: new Date(),
@@ -279,127 +245,12 @@ Return ONLY valid JSON, no additional text or explanation.`;
       // Add to local state immediately
       setCustomQuickFoods(prev => [...prev, { id: docRef.id, ...newQuickFood } as QuickFood]);
       
-      alert(t('messages.foodSaved'));
+      alert('Quick food saved!');
       setIsAddModalOpen(false);
       resetForm();
     } catch (error) {
       console.error('Error saving quick food:', error);
-      alert(t('messages.saveFailed'));
-    }
-  };
-
-  const handleTranslateQuickFoods = async () => {
-    setIsTranslating(true);
-    try {
-      const { collection, getDocs, query, where, doc, updateDoc } = await import('firebase/firestore');
-      const { db, auth } = await import('../../config/firebase');
-      const { translateQuickFoods } = await import('../../utils/geminiRecipeParser');
-      
-      const user = auth.currentUser;
-      if (!user) {
-        alert('You must be logged in to translate quick foods');
-        return;
-      }
-
-      // Determine target language based on current UI language
-      // If user is in Chinese mode, translate everything to Chinese
-      // If user is in English mode, translate everything to English
-      const targetLanguage: 'en' | 'zh' = i18n.language === 'zh' ? 'zh' : 'en';
-
-      console.log(`🔄 Current UI language: ${i18n.language}`);
-      console.log(`🔄 Target language: ${targetLanguage}`);
-      console.log(`📊 Total foods: ${allQuickFoods.length}`);
-
-      // Filter foods that need translation (don't have translation or translation is outdated)
-      const foodsToTranslate = allQuickFoods.filter(food => {
-        // If no translation exists, translate it
-        if (!food.nameTranslated || !food.servingSizeTranslated) return true;
-        
-        // If translation is to a different language, translate it
-        if (food.translatedTo !== targetLanguage) return true;
-        
-        return false;
-      });
-
-      console.log(`📝 Foods needing translation: ${foodsToTranslate.length}`);
-
-      if (foodsToTranslate.length === 0) {
-        alert('All quick foods are already translated!');
-        return;
-      }
-
-      // Call AI to translate
-      const translations = await translateQuickFoods(
-        foodsToTranslate.map(f => ({
-          id: f.id,
-          name: f.name,
-          servingSize: f.servingSize,
-          originalLanguage: f.originalLanguage
-        })),
-        targetLanguage
-      );
-
-      console.log(`✅ Received ${translations.length} translations`);
-
-      // Separate custom foods (can be saved to Firestore) from default foods (only local state)
-      const customFoodsToUpdate = foodsToTranslate.filter(f => f.isCustom && f.userId === user.uid);
-      const defaultFoodsTranslations = translations.filter(t => 
-        !foodsToTranslate.find(f => f.id === t.id)?.isCustom
-      );
-
-      console.log(`💾 Custom foods to save: ${customFoodsToUpdate.length}`);
-      console.log(`📋 Default foods (local only): ${defaultFoodsTranslations.length}`);
-
-      // Update Firestore ONLY for custom foods
-      if (customFoodsToUpdate.length > 0) {
-        const quickFoodsRef = collection(db, 'quickFoods');
-        const updatePromises = translations
-          .filter(t => customFoodsToUpdate.find(f => f.id === t.id))
-          .map(async (translation) => {
-            const foodRef = doc(db, 'quickFoods', translation.id);
-            await updateDoc(foodRef, {
-              nameTranslated: translation.nameTranslated,
-              servingSizeTranslated: translation.servingSizeTranslated,
-              translatedTo: targetLanguage,
-              lastTranslated: new Date()
-            });
-          });
-
-        await Promise.all(updatePromises);
-        console.log('✅ Custom foods saved to Firestore');
-        
-        // Reload custom quick foods
-        const q = query(quickFoodsRef, where('userId', '==', user.uid));
-        const querySnapshot = await getDocs(q);
-        const updatedFoods: QuickFood[] = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as QuickFood));
-        
-        setCustomQuickFoods(updatedFoods);
-      }
-
-      // Store translations in localStorage for default foods
-      const translationsMap: Record<string, { nameTranslated: string; servingSizeTranslated: string; translatedTo: string }> = {};
-      translations.forEach(t => {
-        translationsMap[t.id] = {
-          nameTranslated: t.nameTranslated,
-          servingSizeTranslated: t.servingSizeTranslated,
-          translatedTo: targetLanguage
-        };
-      });
-      localStorage.setItem('quickFoodsTranslations', JSON.stringify(translationsMap));
-      console.log('✅ Default foods translations saved to localStorage');
-      
-      // Force a re-render by updating the refresh key
-      setRefreshKey(prev => prev + 1);
-      
-      alert(`Successfully translated ${translations.length} quick foods to ${targetLanguage === 'en' ? 'English' : 'Chinese'}!`);
-    } catch (error) {
-      console.error('❌ Translation error:', error);
-      alert('Failed to translate quick foods. Please try again.');
-    } finally {
-      setIsTranslating(false);
+      alert('Failed to save quick food. Please try again.');
     }
   };
 
@@ -409,30 +260,9 @@ Return ONLY valid JSON, no additional text or explanation.`;
       <div className="sticky top-0 z-50 bg-background border-b">
         <div className="max-w-md mx-auto w-full px-6 py-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h1>{t('title')}</h1>
+            <h1>Quick Foods</h1>
             
             <div className="flex items-center gap-2">
-              {/* Translate Button */}
-              <Button 
-                onClick={handleTranslateQuickFoods} 
-                size="sm" 
-                variant="outline"
-                className="shrink-0"
-                disabled={isTranslating}
-              >
-                {isTranslating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {t('common:messages.translating', { ns: 'common' })}
-                  </>
-                ) : (
-                  <>
-                    <Languages className="w-4 h-4 mr-2" />
-                    {t('common:buttons.translate', { ns: 'common' })}
-                  </>
-                )}
-              </Button>
-              
               {/* Add Button */}
               <Button 
                 onClick={() => setIsAddModalOpen(true)} 
@@ -440,7 +270,7 @@ Return ONLY valid JSON, no additional text or explanation.`;
                 className="shrink-0"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                {t('common:buttons.add', { ns: 'common' })}
+                Add
               </Button>
               <UserButton />
             </div>
@@ -448,14 +278,14 @@ Return ONLY valid JSON, no additional text or explanation.`;
           
           {/* Description */}
           <p className="text-muted-foreground">
-            {t('subtitle')}
+            Add grab-and-go items to supplement your meals
           </p>
 
           {/* Search Bar */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder={t('searchPlaceholder')}
+              placeholder="Search foods..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -510,21 +340,17 @@ Return ONLY valid JSON, no additional text or explanation.`;
 
                       {/* Food Info */}
                       <div className="text-center space-y-1">
-                        <h4 className="font-medium text-sm leading-tight">
-                          {food.nameTranslated || food.name}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">
-                          {food.servingSizeTranslated || food.servingSize}
-                        </p>
-                        <p className="text-sm font-semibold text-primary">{food.calories} {t('nutrition.cal')}</p>
+                        <h4 className="font-medium text-sm leading-tight">{food.name}</h4>
+                        <p className="text-xs text-muted-foreground">{food.servingSize}</p>
+                        <p className="text-sm font-semibold text-primary">{food.calories} cal</p>
                       </div>
 
                       {/* Nutrition Summary */}
                       <div className="text-xs text-muted-foreground text-center space-y-0.5">
-                        <div>{t('nutrition.protein')}: {food.nutrition.protein}{t('nutrition.grams')}</div>
-                        <div>{t('nutrition.carbs')}: {food.nutrition.carbs}{t('nutrition.grams')}</div>
-                        <div>{t('nutrition.fat')}: {food.nutrition.fat}{t('nutrition.grams')}</div>
-                        <div>{t('nutrition.fiber')}: {food.nutrition.fiber}{t('nutrition.grams')}</div>
+                        <div>Protein: {food.nutrition.protein}g</div>
+                        <div>Carbs: {food.nutrition.carbs}g</div>
+                        <div>Fat: {food.nutrition.fat}g</div>
+                        <div>Fiber: {food.nutrition.fiber}g</div>
                       </div>
                     </CardContent>
                   </Card>
@@ -549,17 +375,17 @@ Return ONLY valid JSON, no additional text or explanation.`;
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t('addModal.title')}</DialogTitle>
+            <DialogTitle>Add Quick Food</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {/* Food Description */}
             <div className="space-y-2">
-              <Label htmlFor="foodName">{t('addModal.describeFoodLabel')}</Label>
+              <Label htmlFor="foodName">Describe your food</Label>
               <div className="space-y-2">
                 <textarea
                   id="foodName"
-                  placeholder={t('addModal.describeFoodPlaceholder')}
+                  placeholder="e.g., a cup of brown rice, 1 medium apple, 100g grilled chicken breast"
                   value={foodName}
                   onChange={(e) => setFoodName(e.target.value)}
                   className="w-full min-h-[100px] p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
@@ -573,32 +399,32 @@ Return ONLY valid JSON, no additional text or explanation.`;
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      {t('addModal.analyzingButton')}
+                      Analyzing with AI...
                     </>
                   ) : (
                     <>
-                      {t('addModal.autoFillButton')}
+                      🤖 Auto-Fill with AI
                     </>
                   )}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {t('addModal.describeFoodHint')}
+                Describe the food and serving size, then click the button to auto-fill nutrition data
               </p>
             </div>
 
             {isLoading && (
               <div className="text-center py-6 text-muted-foreground">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" />
-                <p className="font-medium">{t('addModal.analyzingMessage')}</p>
-                <p className="text-xs">{t('addModal.analyzingSubtext')}</p>
+                <p className="font-medium">Analyzing your food with AI...</p>
+                <p className="text-xs">This may take a few seconds</p>
               </div>
             )}
 
             {/* Category - only show after AI fills data */}
             {(emoji || servingSize || calories) && (
               <div className="space-y-2">
-                <Label htmlFor="category">{t('addModal.categoryRequired')}</Label>
+                <Label htmlFor="category">Category *</Label>
                 <Select value={foodCategory} onValueChange={(value) => setFoodCategory(value as Category)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -619,15 +445,15 @@ Return ONLY valid JSON, no additional text or explanation.`;
               <div className="space-y-4 p-4 bg-secondary/30 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-lg">✨</span>
-                  <p className="text-sm font-medium">{t('addModal.aiResultsHeader')}</p>
+                  <p className="text-sm font-medium">AI Generated Results - Edit if needed</p>
                 </div>
 
                 {/* Emoji */}
                 <div className="space-y-2">
-                  <Label htmlFor="emoji">{t('addModal.emojiLabel')}</Label>
+                  <Label htmlFor="emoji">Emoji</Label>
                   <Input
                     id="emoji"
-                    placeholder={t('addModal.emojiPlaceholder')}
+                    placeholder="🍎"
                     value={emoji}
                     onChange={(e) => setEmoji(e.target.value)}
                     className="text-2xl"
@@ -637,10 +463,10 @@ Return ONLY valid JSON, no additional text or explanation.`;
 
                 {/* Serving Size */}
                 <div className="space-y-2">
-                  <Label htmlFor="servingSize">{t('addModal.servingSizeLabel')}</Label>
+                  <Label htmlFor="servingSize">Serving Size</Label>
                   <Input
                     id="servingSize"
-                    placeholder={t('addModal.servingSizePlaceholder')}
+                    placeholder="e.g., 1 medium, 100g, 1 cup"
                     value={servingSize}
                     onChange={(e) => setServingSize(e.target.value)}
                   />
@@ -648,11 +474,11 @@ Return ONLY valid JSON, no additional text or explanation.`;
 
                 {/* Calories */}
                 <div className="space-y-2">
-                  <Label htmlFor="calories">{t('addModal.caloriesLabel')}</Label>
+                  <Label htmlFor="calories">Calories *</Label>
                   <Input
                     id="calories"
                     type="number"
-                    placeholder={t('addModal.caloriesPlaceholder')}
+                    placeholder="95"
                     value={calories}
                     onChange={(e) => setCalories(e.target.value)}
                   />
@@ -661,48 +487,48 @@ Return ONLY valid JSON, no additional text or explanation.`;
                 {/* Nutrition Grid */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="protein">{t('addModal.proteinLabel')}</Label>
+                    <Label htmlFor="protein">Protein (g)</Label>
                     <Input
                       id="protein"
                       type="number"
                       step="0.1"
-                      placeholder={t('addModal.proteinPlaceholder')}
+                      placeholder="0.5"
                       value={protein}
                       onChange={(e) => setProtein(e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="carbs">{t('addModal.carbsLabel')}</Label>
+                    <Label htmlFor="carbs">Carbs (g)</Label>
                     <Input
                       id="carbs"
                       type="number"
                       step="0.1"
-                      placeholder={t('addModal.carbsPlaceholder')}
+                      placeholder="25"
                       value={carbs}
                       onChange={(e) => setCarbs(e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="fat">{t('addModal.fatLabel')}</Label>
+                    <Label htmlFor="fat">Fat (g)</Label>
                     <Input
                       id="fat"
                       type="number"
                       step="0.1"
-                      placeholder={t('addModal.fatPlaceholder')}
+                      placeholder="0.3"
                       value={fat}
                       onChange={(e) => setFat(e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="fiber">{t('addModal.fiberLabel')}</Label>
+                    <Label htmlFor="fiber">Fiber (g)</Label>
                     <Input
                       id="fiber"
                       type="number"
                       step="0.1"
-                      placeholder={t('addModal.fiberPlaceholder')}
+                      placeholder="4"
                       value={fiber}
                       onChange={(e) => setFiber(e.target.value)}
                     />
@@ -721,14 +547,14 @@ Return ONLY valid JSON, no additional text or explanation.`;
                 }}
                 className="flex-1"
               >
-                {t('addModal.cancelButton')}
+                Cancel
               </Button>
               <Button
                 onClick={handleSaveFood}
                 disabled={!foodName.trim() || !calories}
                 className="flex-1"
               >
-                {t('addModal.saveButton')}
+                Save Food
               </Button>
             </div>
           </div>

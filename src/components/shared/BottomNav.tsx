@@ -1,16 +1,14 @@
 import { Home, ChefHat, ShoppingCart, Apple, User } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 
 export function BottomNav() {
-  const { t } = useTranslation('navigation');
   const { currentScreen, setCurrentScreen } = useApp();
 
   const navItems = [
-    { id: 'home', label: t('tabs.home'), icon: Home, screen: 'home' },
-    { id: 'recipes', label: t('tabs.recipes'), icon: ChefHat, screen: 'recipes' },
-    { id: 'quickfoods', label: t('tabs.quickFoods'), icon: Apple, screen: 'quick-foods' },
-    { id: 'shopping', label: t('tabs.shopping'), icon: ShoppingCart, screen: 'shopping-list' },
+    { id: 'home', label: 'Home', icon: Home, screen: 'home' },
+    { id: 'recipes', label: 'Recipes', icon: ChefHat, screen: 'recipes' },
+    { id: 'quickfoods', label: 'Quick Foods', icon: Apple, screen: 'quick-foods' },
+    { id: 'shopping', label: 'Shopping', icon: ShoppingCart, screen: 'shopping-list' },
   ];
 
   return (

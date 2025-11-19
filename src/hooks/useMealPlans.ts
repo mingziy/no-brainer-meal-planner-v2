@@ -167,24 +167,16 @@ export function useMealPlans(userId: string | null) {
         availablePlans: plans.map(p => ({
           id: p.id,
           weekLabel: p.weekLabel,
-          weekStartDate: p.weekStartDate instanceof Date && !isNaN(p.weekStartDate.getTime()) ? p.weekStartDate.toISOString() : 'Invalid Date',
-          weekStartTime: p.weekStartDate instanceof Date ? p.weekStartDate.getTime() : 'N/A',
-          matches: p.weekStartDate instanceof Date && p.weekStartDate.getTime() === thisWeekStart.getTime()
+          weekStartDate: p.weekStartDate.toISOString(),
+          weekStartTime: p.weekStartDate.getTime(),
+          matches: p.weekStartDate.getTime() === thisWeekStart.getTime()
         }))
       });
       
       // Find all plans for this week, then get the most recently created one
-      const thisWeekPlans = plans.filter(p => {
-        const planTime = p.weekStartDate instanceof Date ? p.weekStartDate.getTime() : 0;
-        const matches = planTime === thisWeekStart.getTime();
-        console.log('🔍 Checking plan:', p.id, {
-          planWeekStart: p.weekStartDate,
-          planTime,
-          thisWeekStartTime: thisWeekStart.getTime(),
-          matches
-        });
-        return matches;
-      });
+      const thisWeekPlans = plans.filter(p => 
+        p.weekStartDate.getTime() === thisWeekStart.getTime()
+      );
       
       const thisWeekPlan = thisWeekPlans.length > 0 
         ? thisWeekPlans.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
@@ -243,55 +235,11 @@ export function useMealPlans(userId: string | null) {
     console.log('💾 Saving meal plan...', { userId, planId: 'id' in plan ? plan.id : 'new', weekStart: plan.weekStartDate });
 
     try {
-      // Helper function to remove undefined values recursively
-      const removeUndefined = (obj: any): any => {
-        if (obj === null) return null;
-        if (obj === undefined) return null;
-        if (Array.isArray(obj)) {
-          // Keep arrays, just clean their contents
-          return obj.map(item => removeUndefined(item)).filter(item => item !== null && item !== undefined);
-        }
-        // Preserve Date objects and Firebase Timestamps
-        if (obj instanceof Date) return obj;
-        if (obj?.toDate && typeof obj.toDate === 'function') return obj; // Firebase Timestamp
-        if (typeof obj === 'object') {
-          const cleaned: any = {};
-          Object.keys(obj).forEach(key => {
-            const value = obj[key];
-            if (value !== undefined) {
-              // Special handling for arrays - keep even if empty
-              if (Array.isArray(value)) {
-                cleaned[key] = value.map(item => removeUndefined(item));
-              } else {
-                cleaned[key] = removeUndefined(value);
-              }
-            }
-          });
-          return cleaned;
-        }
-        return obj;
-      };
-      
-      // Remove id from plan data for Firebase (it's used as document ID, not a field)
-      const { id, ...planDataWithoutId } = plan as any;
-      
-      // Convert Date objects to Firestore Timestamps
-      const planDataRaw = {
-        ...planDataWithoutId,
+      const planData = {
+        ...plan,
         userId,
-        weekStartDate: plan.weekStartDate instanceof Date ? Timestamp.fromDate(plan.weekStartDate) : plan.weekStartDate,
-        weekEndDate: plan.weekEndDate instanceof Date ? Timestamp.fromDate(plan.weekEndDate) : plan.weekEndDate,
         updatedAt: Timestamp.now(),
       };
-      
-      // Remove all undefined values
-      const planData = removeUndefined(planDataRaw);
-      
-      console.log('📦 Plan data after cleaning:', {
-        days: planData.days?.length,
-        shoppingList: planData.shoppingList?.length,
-        sample: planData.days?.[0]
-      });
 
       // Check if a plan already exists for this week (to avoid duplicates)
       const planWeekStart = new Date(plan.weekStartDate);
@@ -307,15 +255,9 @@ export function useMealPlans(userId: string | null) {
         const planRef = doc(db, 'mealPlans', plan.id);
         await updateDoc(planRef, planData);
         
-        // Create full updated plan with all fields
-        const updatedPlan: WeeklyPlan = {
-          ...plan,
-          updatedAt: new Date(),
-        } as WeeklyPlan;
-        
         // Update local state
-        setMealPlans(prev => prev.map(p => p.id === plan.id ? updatedPlan : p));
-        setCurrentPlan(updatedPlan);
+        setMealPlans(prev => prev.map(p => p.id === plan.id ? { ...plan, updatedAt: new Date() } as WeeklyPlan : p));
+        setCurrentPlan({ ...plan, updatedAt: new Date() } as WeeklyPlan);
         
         console.log('✅ Meal plan updated:', plan.id);
         return plan.id;
@@ -342,12 +284,8 @@ export function useMealPlans(userId: string | null) {
         // Create new plan (no plan exists for this week yet)
         console.log('🆕 Creating new plan for week:', plan.weekLabel);
         const plansRef = collection(db, 'mealPlans');
-        
-        // Remove id field when creating new document (Firebase doesn't allow undefined values)
-        const { id, ...planDataWithoutId } = planData;
-        
         const docRef = await addDoc(plansRef, {
-          ...planDataWithoutId,
+          ...planData,
           createdAt: Timestamp.now(),
         });
         

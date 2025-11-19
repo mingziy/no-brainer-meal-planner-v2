@@ -416,7 +416,7 @@ function MealSection({ title, recipes, quickFoods = [], onRecipeClick }: MealSec
               <div key={`${food.id}-${index}`} className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full"></span>
                 <span className="text-base">{food.emoji}</span>
-                <span>{food.nameTranslated || food.name}</span>
+                <span>{food.name}</span>
                 <span className="text-xs">({food.calories} cal)</span>
               </div>
             ))}

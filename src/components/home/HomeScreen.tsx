@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Calendar, ChevronLeft, ChevronRight, Edit, Save, X, Plus, Sparkles, RotateCcw, PlusCircle, Pencil } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -20,6 +19,7 @@ import { UserButton } from '../auth/UserButton';
 import { Recipe, RecipeCategory, QuickFood, ShoppingItem } from '../../types';
 import { defaultQuickFoods } from '../../data/quickFoods';
 import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
+import { useTranslation } from 'react-i18next';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner';
 type ViewMode = '3-day' | 'full-week';
@@ -35,32 +35,8 @@ interface DayMealPlan {
   dinnerQuickFoods: QuickFood[];
 }
 
-// Helper function to get display name based on user's preference
-const getRecipeDisplayName = (recipe: Recipe): string => {
-  if (recipe.preferredDisplayLanguage === 'translated' && recipe.nameTranslated) {
-    return recipe.nameTranslated;
-  }
-  return recipe.name;
-};
-
-// English day names for internal storage/lookup (never changes)
-const englishDayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-// Helper function to get translated day names for display
-const getTranslatedDayNames = (t: any): string[] => {
-  return [
-    t('days.monday'),
-    t('days.tuesday'),
-    t('days.wednesday'),
-    t('days.thursday'),
-    t('days.friday'),
-    t('days.saturday'),
-    t('days.sunday')
-  ];
-};
-
 export function HomeScreen() {
-  const { t, i18n } = useTranslation('navigation');
+  const { i18n } = useTranslation();
   const { 
     userProfile, 
     recipes,
@@ -71,8 +47,6 @@ export function HomeScreen() {
     setPlanningWeekOffset,
     setIsAddRecipeModalOpen,
     setPendingMealType,
-    setSelectedRecipe,
-    setIsRecipeDetailsModalOpen,
   } = useApp();
   
   // Check if current language is Chinese
@@ -136,25 +110,12 @@ export function HomeScreen() {
     };
   };
   
-  // Helper to enrich recipe data with full details from recipes collection
-  const enrichRecipeData = (minimalRecipes: any[]): Recipe[] => {
-    if (!minimalRecipes) return [];
-    return minimalRecipes.map(minimalRecipe => {
-      const fullRecipe = recipes.find(r => r.id === minimalRecipe.id);
-      if (fullRecipe) {
-        return fullRecipe;
-      }
-      // If recipe not found in collection, return minimal data
-      return minimalRecipe as Recipe;
-    }).filter(Boolean);
-  };
-
   // Get the days to display based on view mode and edit state
   const getDisplayDays = (): DayMealPlan[] => {
     if (isEditing) {
       // Edit mode: show both weeks starting from Monday of this week
       const days: DayMealPlan[] = [];
-      const translatedDayNames = getTranslatedDayNames(t);
+      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       
       // Calculate Monday of this week
       const mondayOfThisWeek = new Date(today);
@@ -165,17 +126,16 @@ export function HomeScreen() {
       for (let i = 0; i < 14; i++) {
         const date = new Date(mondayOfThisWeek);
         date.setDate(mondayOfThisWeek.getDate() + i);
-        const englishDayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-        const dayIndex = englishDayNames.indexOf(englishDayName);
-        const translatedDayName = translatedDayNames[dayIndex];
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const dayIndex = dayNames.indexOf(dayName);
         
         // Determine if this date is in this week or next week
         const weekPlan = i < 7 ? (editedPlans?.thisWeek || []) : (editedPlans?.nextWeek || []);
         const dayPlan = weekPlan[dayIndex];
         
-        // Always push the day, even if no plan exists (use translated name for display)
-        days.push(dayPlan ? { ...dayPlan, day: translatedDayName, date } : {
-          day: translatedDayName,
+        // Always push the day, even if no plan exists
+        days.push(dayPlan ? { ...dayPlan, date } : {
+          day: dayName,
           date,
           breakfast: [],
           lunch: [],
@@ -190,20 +150,19 @@ export function HomeScreen() {
     } else if (viewMode === 'full-week') {
       // Full week view: show Monday-Sunday of current week
       const days: DayMealPlan[] = [];
-      const translatedDayNames = getTranslatedDayNames(t);
+      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       
-      englishDayNames.forEach((englishDayName, index) => {
-        const translatedDayName = translatedDayNames[index];
-        const dayPlan = getDayPlanFromWeek(thisWeekPlan, englishDayName);
+      dayNames.forEach((dayName, index) => {
+        const dayPlan = getDayPlanFromWeek(thisWeekPlan, dayName);
         // Calculate actual date for this day
         const date = new Date(today);
         const currentDayIndex = (todayDayOfWeek + 6) % 7; // Convert Sunday=0 to Monday=0
         const dayOffset = index - currentDayIndex;
         date.setDate(today.getDate() + dayOffset);
         
-        // Always push the day, even if no plan exists (use translated name for display)
-        days.push(dayPlan ? { ...dayPlan, day: translatedDayName, date } : {
-          day: translatedDayName,
+        // Always push the day, even if no plan exists
+        days.push(dayPlan ? { ...dayPlan, date } : {
+          day: dayName,
           date,
           breakfast: [],
           lunch: [],
@@ -339,13 +298,11 @@ export function HomeScreen() {
   
   // Initialize edited plans when entering edit mode
   const handleEnterEditMode = () => {
-    // Use English names for data lookup
-    const translatedDayNames = getTranslatedDayNames(t);
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     
     // Initialize this week's plan
-    const thisWeek: DayMealPlan[] = englishDayNames.map((englishDayName, index) => {
-      const translatedDayName = translatedDayNames[index];
-      const dayPlan = getDayPlanFromWeek(thisWeekPlan, englishDayName);
+    const thisWeek: DayMealPlan[] = dayNames.map((dayName, index) => {
+      const dayPlan = getDayPlanFromWeek(thisWeekPlan, dayName);
       if (dayPlan) return dayPlan;
       
       const date = new Date(today);
@@ -354,7 +311,7 @@ export function HomeScreen() {
       date.setDate(today.getDate() + dayOffset);
       
       return {
-        day: translatedDayName,
+        day: dayName,
         date,
         breakfast: [],
         lunch: [],
@@ -366,9 +323,8 @@ export function HomeScreen() {
     });
     
     // Initialize next week's plan
-    const nextWeek: DayMealPlan[] = englishDayNames.map((englishDayName, index) => {
-      const translatedDayName = translatedDayNames[index];
-      const dayPlan = getDayPlanFromWeek(nextWeekPlan, englishDayName);
+    const nextWeek: DayMealPlan[] = dayNames.map((dayName, index) => {
+      const dayPlan = getDayPlanFromWeek(nextWeekPlan, dayName);
       if (dayPlan) return dayPlan;
       
       const date = new Date(today);
@@ -377,7 +333,7 @@ export function HomeScreen() {
       date.setDate(today.getDate() + dayOffset);
       
       return {
-        day: translatedDayName,
+        day: dayName,
         date,
         breakfast: [],
         lunch: [],
@@ -547,177 +503,73 @@ export function HomeScreen() {
     if (!editedPlans) return;
     
     try {
-      const savePromises: Promise<any>[] = [];
+      // Close edit window immediately
+      setIsEditing(false);
+      setEditedPlans(null);
+
+      // Save this week's plan with shopping list generation in background
+      if (thisWeekPlan) {
+        // Generate shopping list for this week
+        console.log('🛒 Generating shopping list for this week...');
+        generateShoppingListFromPlan(editedPlans.thisWeek)
+          .then(async (shoppingList) => {
+            const updatedThisWeek = {
+              ...thisWeekPlan,
+              days: editedPlans.thisWeek.map(day => ({
+                day: day.day,
+                breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                snacks: [] as any[],
+                breakfastQuickFoods: day.breakfastQuickFoods,
+                lunchQuickFoods: day.lunchQuickFoods,
+                dinnerQuickFoods: day.dinnerQuickFoods
+              })),
+              shoppingList,
+            };
+            await saveMealPlan(updatedThisWeek);
+            console.log('✅ This week plan saved with', shoppingList.length, 'items in shopping list');
+          })
+          .catch((error) => {
+            console.error('❌ Error generating shopping list for this week:', error);
+            // Save without shopping list if generation fails
+            const updatedThisWeek = {
+              ...thisWeekPlan,
+              days: editedPlans.thisWeek.map(day => ({
+                day: day.day,
+                breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                snacks: [] as any[],
+                breakfastQuickFoods: day.breakfastQuickFoods,
+                lunchQuickFoods: day.lunchQuickFoods,
+                dinnerQuickFoods: day.dinnerQuickFoods
+              })),
+              shoppingList: thisWeekPlan.shoppingList || [],
+            };
+            saveMealPlan(updatedThisWeek);
+          });
+      }
       
-      // Calculate this week's date range
-      const getWeekStart = (date: Date) => {
-        const d = new Date(date);
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
-        d.setDate(diff);
-        d.setHours(0, 0, 0, 0);
-        return d;
-      };
-      
-      const getWeekEnd = (startDate: Date) => {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + 6); // Sunday
-        d.setHours(23, 59, 59, 999);
-        return d;
-      };
-      
-      const thisWeekStart = getWeekStart(today);
-      const thisWeekEnd = getWeekEnd(thisWeekStart);
-      const nextWeekStart = new Date(thisWeekStart);
-      nextWeekStart.setDate(thisWeekStart.getDate() + 7);
-      const nextWeekEnd = getWeekEnd(nextWeekStart);
-      
-      // Save this week's plan (create new if doesn't exist)
-      console.log('💾 Saving this week\'s plan...');
-      const saveThisWeek = (async () => {
-        try {
-          const shoppingList = await generateShoppingListFromPlan(editedPlans.thisWeek);
-          // Simplify shopping list to reduce document size
-          const simplifiedShoppingList = shoppingList.map(item => ({ 
-            id: item.id, 
-            name: item.name, 
-            quantity: item.quantity, 
-            category: item.category, 
-            checked: item.checked 
-          }));
-          
-          const updatedThisWeek = thisWeekPlan ? {
-            id: thisWeekPlan.id,
-            userId: thisWeekPlan.userId || userProfile?.id,
-            cuisine: thisWeekPlan.cuisine,
-            weekStartDate: thisWeekPlan.weekStartDate,
-            weekEndDate: thisWeekPlan.weekEndDate,
-            weekLabel: thisWeekPlan.weekLabel,
-            days: editedPlans.thisWeek.map(day => ({
-              day: day.day,
-              breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              lunch: day.lunch.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              dinner: day.dinner.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              snacks: [] as any[],
-              breakfastQuickFoods: (day.breakfastQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-              lunchQuickFoods: (day.lunchQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-              dinnerQuickFoods: (day.dinnerQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories }))
-            })),
-            shoppingList: simplifiedShoppingList,
-          } : {
-            // Create new plan
-            userId: userProfile?.id,
-            cuisine: 'American',
-            weekStartDate: thisWeekStart,
-            weekEndDate: thisWeekEnd,
-            weekLabel: `${thisWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${thisWeekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-            days: editedPlans.thisWeek.map(day => ({
-              day: day.day,
-              breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              lunch: day.lunch.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              dinner: day.dinner.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              snacks: [] as any[],
-              breakfastQuickFoods: (day.breakfastQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-              lunchQuickFoods: (day.lunchQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-              dinnerQuickFoods: (day.dinnerQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories }))
-            })),
-            shoppingList: simplifiedShoppingList,
-          };
-          await saveMealPlan(updatedThisWeek);
-          console.log('✅ This week plan saved with', simplifiedShoppingList.length, 'items in shopping list');
-        } catch (error) {
-          console.error('❌ Error saving this week:', error);
-          // Save without shopping list if generation fails
-          const updatedThisWeek = thisWeekPlan ? {
-            id: thisWeekPlan.id,
-            userId: thisWeekPlan.userId,
-            cuisine: thisWeekPlan.cuisine,
-            weekStartDate: thisWeekPlan.weekStartDate,
-            weekEndDate: thisWeekPlan.weekEndDate,
-            weekLabel: thisWeekPlan.weekLabel,
-            days: editedPlans.thisWeek.map(day => ({
-              day: day.day,
-              breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              lunch: day.lunch.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              dinner: day.dinner.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              snacks: [] as any[],
-              breakfastQuickFoods: (day.breakfastQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-              lunchQuickFoods: (day.lunchQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-              dinnerQuickFoods: (day.dinnerQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories }))
-            })),
-            shoppingList: thisWeekPlan.shoppingList || [],
-          } : {
-            userId: userProfile?.id,
-            cuisine: 'American',
-            weekStartDate: thisWeekStart,
-            weekEndDate: thisWeekEnd,
-            weekLabel: `${thisWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${thisWeekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-            days: editedPlans.thisWeek.map(day => ({
-              day: day.day,
-              breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              lunch: day.lunch.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              dinner: day.dinner.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-              snacks: [] as any[],
-              breakfastQuickFoods: (day.breakfastQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-              lunchQuickFoods: (day.lunchQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-              dinnerQuickFoods: (day.dinnerQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories }))
-            })),
-            shoppingList: [],
-          };
-          await saveMealPlan(updatedThisWeek);
-        }
-      })();
-      savePromises.push(saveThisWeek);
-      
-      // Save next week's plan (if it has content)
+      // Save next week's plan (if it has content) with shopping list generation in background
       const hasNextWeekContent = editedPlans.nextWeek.some(day => 
         day.breakfast.length > 0 || day.lunch.length > 0 || day.dinner.length > 0
       );
       
       if (hasNextWeekContent) {
-        console.log('💾 Saving next week\'s plan...');
+        // Calculate next week dates
         const nextWeekStart = new Date(today);
-        nextWeekStart.setDate(today.getDate() - todayDayOfWeek + 8);
+        nextWeekStart.setDate(today.getDate() - todayDayOfWeek + 8); // Next Monday
         const nextWeekEnd = new Date(nextWeekStart);
         nextWeekEnd.setDate(nextWeekStart.getDate() + 6);
         
-        const saveNextWeek = (async () => {
-          try {
-            const shoppingList = await generateShoppingListFromPlan(editedPlans.nextWeek);
-            // Simplify shopping list to reduce document size
-            const simplifiedShoppingList = shoppingList.map(item => ({ 
-              id: item.id, 
-              name: item.name, 
-              quantity: item.quantity, 
-              category: item.category, 
-              checked: item.checked 
-            }));
-            
-            const updatedNextWeek: any = {
-              cuisine: 'Mixed',
-              weekStartDate: nextWeekStart,
-              weekEndDate: nextWeekEnd,
-              weekLabel: `${nextWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${nextWeekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-              days: editedPlans.nextWeek.map(day => ({
-                day: day.day,
-                breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-                lunch: day.lunch.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-                dinner: day.dinner.map(r => ({ id: r.id, name: r.name, caloriesPerServing: r.caloriesPerServing })) as any,
-                snacks: [] as any[],
-                breakfastQuickFoods: (day.breakfastQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-                lunchQuickFoods: (day.lunchQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories })),
-                dinnerQuickFoods: (day.dinnerQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories }))
-              })),
-              shoppingList: simplifiedShoppingList,
-            };
-            if (nextWeekPlan?.id) {
-              updatedNextWeek.id = nextWeekPlan.id;
-            }
-            await saveMealPlan(updatedNextWeek);
-            console.log('✅ Next week plan saved with', simplifiedShoppingList.length, 'items in shopping list');
-          } catch (error) {
-            console.error('❌ Error saving next week:', error);
-            const updatedNextWeek: any = {
+        // Generate shopping list for next week
+        console.log('🛒 Generating shopping list for next week...');
+        generateShoppingListFromPlan(editedPlans.nextWeek)
+          .then(async (shoppingList) => {
+            const updatedNextWeek = {
+              ...(nextWeekPlan || {}),
+              id: nextWeekPlan?.id,
               cuisine: 'Mixed',
               weekStartDate: nextWeekStart,
               weekEndDate: nextWeekEnd,
@@ -728,35 +580,42 @@ export function HomeScreen() {
                 lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
                 dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
                 snacks: [] as any[],
-                breakfastQuickFoods: (day.breakfastQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories, servingSize: f.servingSize, category: f.category, nameTranslated: f.nameTranslated, servingSizeTranslated: f.servingSizeTranslated })),
-                lunchQuickFoods: (day.lunchQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories, servingSize: f.servingSize, category: f.category, nameTranslated: f.nameTranslated, servingSizeTranslated: f.servingSizeTranslated })),
-                dinnerQuickFoods: (day.dinnerQuickFoods || []).map(f => ({ id: f.id, name: f.name, emoji: f.emoji, calories: f.calories, servingSize: f.servingSize, category: f.category, nameTranslated: f.nameTranslated, servingSizeTranslated: f.servingSizeTranslated }))
+                breakfastQuickFoods: day.breakfastQuickFoods,
+                lunchQuickFoods: day.lunchQuickFoods,
+                dinnerQuickFoods: day.dinnerQuickFoods
+              })),
+              shoppingList,
+            };
+            await saveMealPlan(updatedNextWeek as any);
+            console.log('✅ Next week plan saved with', shoppingList.length, 'items in shopping list');
+          })
+          .catch((error) => {
+            console.error('❌ Error generating shopping list for next week:', error);
+            // Save without shopping list if generation fails
+            const updatedNextWeek = {
+              ...(nextWeekPlan || {}),
+              id: nextWeekPlan?.id,
+              cuisine: 'Mixed',
+              weekStartDate: nextWeekStart,
+              weekEndDate: nextWeekEnd,
+              weekLabel: `${nextWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${nextWeekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+              days: editedPlans.nextWeek.map(day => ({
+                day: day.day,
+                breakfast: day.breakfast.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                lunch: day.lunch.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                dinner: day.dinner.map(r => ({ id: r.id, name: r.name, image: r.image, caloriesPerServing: r.caloriesPerServing })) as any,
+                snacks: [] as any[],
+                breakfastQuickFoods: day.breakfastQuickFoods,
+                lunchQuickFoods: day.lunchQuickFoods,
+                dinnerQuickFoods: day.dinnerQuickFoods
               })),
               shoppingList: nextWeekPlan?.shoppingList || [],
             };
-            if (nextWeekPlan?.id) {
-              updatedNextWeek.id = nextWeekPlan.id;
-            }
-            await saveMealPlan(updatedNextWeek);
-          }
-        })();
-        savePromises.push(saveNextWeek);
+            saveMealPlan(updatedNextWeek as any);
+          });
       }
-      
-      // Wait for all saves to complete
-      await Promise.all(savePromises);
-      console.log('✅ All meal plans saved successfully');
-      
-      // Close edit window only after successful save
-      setIsEditing(false);
-      setEditedPlans(null);
-      
-      // Force a small delay to ensure context updates propagate
-      setTimeout(() => {
-        console.log('📊 Refreshing UI with updated plans');
-      }, 100);
     } catch (error) {
-      console.error('❌ Error saving plans:', error);
+      console.error('Error saving plans:', error);
       alert('Failed to save. Please try again.');
     }
   };
@@ -909,23 +768,12 @@ export function HomeScreen() {
       )
     });
   };
-
-  // Handle recipe click to open details modal
-  const handleRecipeClick = (recipe: Recipe) => {
-    // Look up the full recipe from the recipes array to get all details
-    const fullRecipe = recipes.find(r => r.id === recipe.id) || recipe;
-    setSelectedRecipe(fullRecipe);
-    setIsRecipeDetailsModalOpen(true);
-  };
   
   // Get filtered recipes
   const getFilteredRecipes = (mealType: MealType) => {
     return recipes.filter(recipe => {
-      // Cross-language search: search both original and translated names
-      const searchLower = searchQuery.toLowerCase();
       const matchesSearch = searchQuery === '' || 
-        recipe.name.toLowerCase().includes(searchLower) ||
-        (recipe.nameTranslated && recipe.nameTranslated.toLowerCase().includes(searchLower));
+        recipe.name.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesMealType = 
         recipe.mealTypes?.some(mt => mt.toLowerCase() === mealType.toLowerCase()) ||
@@ -958,11 +806,9 @@ export function HomeScreen() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl">
-              {userProfile?.name ? `${t('greetings.hi')} ${userProfile.name}!` : t('greetings.hiThere')}
-            </h1>
+            <h1 className="text-2xl">Hi {userProfile?.name || 'there'}!</h1>
             <p className="text-muted-foreground text-sm">
-              {isEditing ? t('sections.editingMealPlan') : t('sections.mealPlanGlance')}
+              {isEditing ? 'Editing your meal plan' : 'Your meal plan at a glance'}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -974,14 +820,14 @@ export function HomeScreen() {
                   onClick={handleCancel}
                   className="px-3 py-1.5 text-sm border border-gray-200 rounded-md hover:bg-gray-50"
                 >
-                  {t('actions.cancel')}
+                  Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 flex items-center gap-1"
                 >
                   <Save className="w-4 h-4" />
-                  {t('actions.save')}
+                  Save
                 </button>
               </>
             )}
@@ -996,14 +842,14 @@ export function HomeScreen() {
               className="flex-1 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary/90 flex items-center justify-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              {t('actions.autoFill')}
+              Auto-Fill
             </button>
             <button
               onClick={() => setIsResetDialogOpen(true)}
               className="flex-1 py-1.5 border border-gray-200 rounded-md text-xs font-medium hover:bg-gray-50 flex items-center justify-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              {t('actions.reset')}
+              Reset
             </button>
           </div>
         )}
@@ -1029,7 +875,7 @@ export function HomeScreen() {
                displayDays[centeredCardIndex]?.date.toDateString() === today.toDateString() && ' 🌟'}
             </div>
             <div className="text-xs font-normal text-muted-foreground">
-              {displayDays[centeredCardIndex]?.date.toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric' })}
+              {displayDays[centeredCardIndex]?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </div>
           </div>
           
@@ -1083,12 +929,6 @@ export function HomeScreen() {
                 // Determine week offset for this day
                 const weekOffset = day.date > new Date(thisWeekPlan?.weekEndDate || 0) ? 1 : 0;
                 
-                // Get translated day names array to find the index
-                const translatedDayNames = getTranslatedDayNames(t);
-                // Find the index by matching the translated day name, then use English name for operations
-                const dayOfWeekIndex = translatedDayNames.indexOf(day.day);
-                const englishDayName = englishDayNames[dayOfWeekIndex];
-                
                 return (
                   <Card 
                     key={`${day.day}-${day.date.toDateString()}`}
@@ -1108,50 +948,41 @@ export function HomeScreen() {
                           {/* Edit Mode: Show full controls */}
                           <MealRowEditable
                             icon="🍳"
-                            label={t('sections.breakfast')}
+                            label="Breakfast"
                             recipes={day.breakfast}
                             quickFoods={day.breakfastQuickFoods}
-                            quickAddOnsLabel={t('sections.quickAddOns')}
-                            addRecipeLabel={t('actions.addRecipe')}
-                            addQuickFoodLabel={t('actions.addQuickFood')}
-                            onAdd={() => setAddingMeal({ weekOffset, dayIndex: dayOfWeekIndex, mealType: 'Breakfast' })}
-                            onAddQuickFood={() => setAddingQuickFood({ weekOffset, dayIndex: dayOfWeekIndex, mealType: 'Breakfast' })}
-                            onRemove={(index) => handleRemoveRecipe(weekOffset, dayOfWeekIndex, 'Breakfast', index)}
-                            onRemoveQuickFood={(index) => handleRemoveQuickFood(weekOffset, dayOfWeekIndex, 'Breakfast', index)}
+                            onAdd={() => setAddingMeal({ weekOffset, dayIndex: dayNames.indexOf(day.day), mealType: 'Breakfast' })}
+                            onAddQuickFood={() => setAddingQuickFood({ weekOffset, dayIndex: dayNames.indexOf(day.day), mealType: 'Breakfast' })}
+                            onRemove={(index) => handleRemoveRecipe(weekOffset, dayNames.indexOf(day.day), 'Breakfast', index)}
+                            onRemoveQuickFood={(index) => handleRemoveQuickFood(weekOffset, dayNames.indexOf(day.day), 'Breakfast', index)}
                           />
                           <MealRowEditable
                             icon="☀️"
-                            label={t('sections.lunch')}
+                            label="Lunch"
                             recipes={day.lunch}
                             quickFoods={day.lunchQuickFoods}
-                            quickAddOnsLabel={t('sections.quickAddOns')}
-                            addRecipeLabel={t('actions.addRecipe')}
-                            addQuickFoodLabel={t('actions.addQuickFood')}
-                            onAdd={() => setAddingMeal({ weekOffset, dayIndex: dayOfWeekIndex, mealType: 'Lunch' })}
-                            onAddQuickFood={() => setAddingQuickFood({ weekOffset, dayIndex: dayOfWeekIndex, mealType: 'Lunch' })}
-                            onRemove={(index) => handleRemoveRecipe(weekOffset, dayOfWeekIndex, 'Lunch', index)}
-                            onRemoveQuickFood={(index) => handleRemoveQuickFood(weekOffset, dayOfWeekIndex, 'Lunch', index)}
+                            onAdd={() => setAddingMeal({ weekOffset, dayIndex: dayNames.indexOf(day.day), mealType: 'Lunch' })}
+                            onAddQuickFood={() => setAddingQuickFood({ weekOffset, dayIndex: dayNames.indexOf(day.day), mealType: 'Lunch' })}
+                            onRemove={(index) => handleRemoveRecipe(weekOffset, dayNames.indexOf(day.day), 'Lunch', index)}
+                            onRemoveQuickFood={(index) => handleRemoveQuickFood(weekOffset, dayNames.indexOf(day.day), 'Lunch', index)}
                           />
                           <MealRowEditable
                             icon="🌙"
-                            label={t('sections.dinner')}
+                            label="Dinner"
                             recipes={day.dinner}
                             quickFoods={day.dinnerQuickFoods}
-                            quickAddOnsLabel={t('sections.quickAddOns')}
-                            addRecipeLabel={t('actions.addRecipe')}
-                            addQuickFoodLabel={t('actions.addQuickFood')}
-                            onAdd={() => setAddingMeal({ weekOffset, dayIndex: dayOfWeekIndex, mealType: 'Dinner' })}
-                            onAddQuickFood={() => setAddingQuickFood({ weekOffset, dayIndex: dayOfWeekIndex, mealType: 'Dinner' })}
-                            onRemove={(index) => handleRemoveRecipe(weekOffset, dayOfWeekIndex, 'Dinner', index)}
-                            onRemoveQuickFood={(index) => handleRemoveQuickFood(weekOffset, dayOfWeekIndex, 'Dinner', index)}
+                            onAdd={() => setAddingMeal({ weekOffset, dayIndex: dayNames.indexOf(day.day), mealType: 'Dinner' })}
+                            onAddQuickFood={() => setAddingQuickFood({ weekOffset, dayIndex: dayNames.indexOf(day.day), mealType: 'Dinner' })}
+                            onRemove={(index) => handleRemoveRecipe(weekOffset, dayNames.indexOf(day.day), 'Dinner', index)}
+                            onRemoveQuickFood={(index) => handleRemoveQuickFood(weekOffset, dayNames.indexOf(day.day), 'Dinner', index)}
                           />
                         </>
                       ) : (
                         <>
                           {/* View Mode: Clean read-only display */}
-                          <MealRowReadOnly icon="🍳" label={t('sections.breakfast')} recipes={enrichRecipeData(day.breakfast)} quickFoods={day.breakfastQuickFoods} quickAddOnsLabel={t('sections.quickAddOns')} onRecipeClick={handleRecipeClick} />
-                          <MealRowReadOnly icon="☀️" label={t('sections.lunch')} recipes={enrichRecipeData(day.lunch)} quickFoods={day.lunchQuickFoods} quickAddOnsLabel={t('sections.quickAddOns')} onRecipeClick={handleRecipeClick} />
-                          <MealRowReadOnly icon="🌙" label={t('sections.dinner')} recipes={enrichRecipeData(day.dinner)} quickFoods={day.dinnerQuickFoods} quickAddOnsLabel={t('sections.quickAddOns')} onRecipeClick={handleRecipeClick} />
+                          <MealRowReadOnly icon="🍳" label="Breakfast" recipes={day.breakfast} quickFoods={day.breakfastQuickFoods} />
+                          <MealRowReadOnly icon="☀️" label="Lunch" recipes={day.lunch} quickFoods={day.lunchQuickFoods} />
+                          <MealRowReadOnly icon="🌙" label="Dinner" recipes={day.dinner} quickFoods={day.dinnerQuickFoods} />
                         </>
                       )}
           </CardContent>
@@ -1220,7 +1051,7 @@ export function HomeScreen() {
                           {recipe.image ? (
                             <img 
                               src={recipe.image} 
-                              alt={getRecipeDisplayName(recipe)}
+                              alt={recipe.name}
                               className="w-10 h-10 rounded object-cover"
                             />
                           ) : (
@@ -1229,7 +1060,7 @@ export function HomeScreen() {
                             </div>
                           )}
                           <div>
-                            <p className="font-medium text-sm">{getRecipeDisplayName(recipe)}</p>
+                            <p className="font-medium text-sm">{recipe.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {recipe.caloriesPerServing} cal
                             </p>
@@ -1311,9 +1142,9 @@ export function HomeScreen() {
                         <div className="flex items-center gap-2">
                           <span className="text-2xl">{food.emoji}</span>
                           <div>
-                            <p className="font-medium text-sm">{food.nameTranslated || food.name}</p>
+                            <p className="font-medium text-sm">{food.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {food.servingSizeTranslated || food.servingSize} • {food.calories} cal
+                              {food.servingSize} • {food.calories} cal
                             </p>
                           </div>
                         </div>
@@ -1334,15 +1165,15 @@ export function HomeScreen() {
       <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('dialogs.resetTitle')}</AlertDialogTitle>
+            <AlertDialogTitle>Reset All Meal Plans?</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('dialogs.resetDescription')}
+              This will clear all meals from this week and next week's plans. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('actions.cancel')}</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleReset}>
-              {t('actions.resetAll')}
+              Reset All
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1357,11 +1188,9 @@ interface MealRowReadOnlyProps {
   label: string;
   recipes: Recipe[];
   quickFoods?: QuickFood[];
-  quickAddOnsLabel: string;
-  onRecipeClick?: (recipe: Recipe) => void;
 }
 
-function MealRowReadOnly({ icon, label, recipes, quickFoods = [], quickAddOnsLabel, onRecipeClick }: MealRowReadOnlyProps) {
+function MealRowReadOnly({ icon, label, recipes, quickFoods = [] }: MealRowReadOnlyProps) {
   return (
     <div className="border-b border-gray-200 last:border-b-0 pb-3 last:pb-0 px-2">
       <div className="flex items-center gap-1.5 mb-2">
@@ -1374,15 +1203,11 @@ function MealRowReadOnly({ icon, label, recipes, quickFoods = [], quickAddOnsLab
           <p className="text-sm text-muted-foreground">No recipes</p>
         ) : (
           recipes.map((recipe) => (
-            <div 
-              key={recipe.id} 
-              className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer transition-colors"
-              onClick={() => onRecipeClick?.(recipe)}
-            >
+            <div key={recipe.id} className="flex items-center gap-2 p-2 rounded">
               {recipe.image ? (
                 <img 
                   src={recipe.image} 
-                  alt={getRecipeDisplayName(recipe)}
+                  alt={recipe.name}
                   className="w-10 h-10 rounded object-cover flex-shrink-0"
                 />
               ) : (
@@ -1390,17 +1215,17 @@ function MealRowReadOnly({ icon, label, recipes, quickFoods = [], quickAddOnsLab
                   <span className="text-lg">🍽️</span>
                 </div>
               )}
-              <span className="text-sm">• {getRecipeDisplayName(recipe)}</span>
+              <span className="text-sm">• {recipe.name}</span>
             </div>
           ))
         )}
         
         {quickFoods.length > 0 && (
           <div className="pl-4 space-y-1 pt-2 border-t">
-            <p className="text-xs font-medium text-muted-foreground mb-1">{quickAddOnsLabel}</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Quick Add-ons:</p>
             {quickFoods.map((food, index) => (
               <div key={`${food.id}-${index}`} className="text-xs text-muted-foreground">
-                {food.emoji} {food.nameTranslated || food.name}
+                {food.emoji} {food.name}
               </div>
             ))}
           </div>
@@ -1416,16 +1241,13 @@ interface MealRowEditableProps {
   label: string;
   recipes: Recipe[];
   quickFoods?: QuickFood[];
-  quickAddOnsLabel: string;
-  addRecipeLabel: string;
-  addQuickFoodLabel: string;
   onAdd: () => void;
   onAddQuickFood: () => void;
   onRemove: (index: number) => void;
   onRemoveQuickFood: (index: number) => void;
 }
 
-function MealRowEditable({ icon, label, recipes, quickFoods = [], quickAddOnsLabel, addRecipeLabel, addQuickFoodLabel, onAdd, onAddQuickFood, onRemove, onRemoveQuickFood }: MealRowEditableProps) {
+function MealRowEditable({ icon, label, recipes, quickFoods = [], onAdd, onAddQuickFood, onRemove, onRemoveQuickFood }: MealRowEditableProps) {
   return (
     <div className="border-b border-gray-200 last:border-b-0 pb-3 last:pb-0 px-2">
       <div className="flex items-center gap-1.5 mb-2">
@@ -1469,16 +1291,16 @@ function MealRowEditable({ icon, label, recipes, quickFoods = [], quickAddOnsLab
             onClick={onAdd}
           >
             <Plus className="w-3 h-3" />
-            {addRecipeLabel}
+            Add Recipe
           </button>
         </div>
         
         {quickFoods.length > 0 && (
           <div className="pl-4 space-y-1 pt-2 border-t">
-            <p className="text-xs font-medium text-muted-foreground mb-1">{quickAddOnsLabel}</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Quick Add-ons:</p>
             {quickFoods.map((food, index) => (
               <div key={`${food.id}-${index}`} className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{food.emoji} {food.nameTranslated || food.name}</span>
+                <span>{food.emoji} {food.name}</span>
                 <button
                   className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
                   onClick={() => onRemoveQuickFood(index)}
@@ -1495,9 +1317,11 @@ function MealRowEditable({ icon, label, recipes, quickFoods = [], quickAddOnsLab
           onClick={onAddQuickFood}
         >
           <Plus className="w-3 h-3" />
-          {addQuickFoodLabel}
+          Add Quick Food
         </button>
       </div>
     </div>
   );
 }
+
+const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];

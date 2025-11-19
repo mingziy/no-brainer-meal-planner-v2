@@ -467,7 +467,7 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
                       <p className="text-xs font-medium text-muted-foreground mb-1">Quick Add-ons:</p>
                       {breakfastQuickFoods.map((food, index) => (
                         <div key={index} className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{food.emoji} {food.nameTranslated || food.name}</span>
+                          <span>{food.emoji} {food.name}</span>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -553,7 +553,7 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
                       <p className="text-xs font-medium text-muted-foreground mb-1">Quick Add-ons:</p>
                       {lunchQuickFoods.map((food, index) => (
                         <div key={index} className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{food.emoji} {food.nameTranslated || food.name}</span>
+                          <span>{food.emoji} {food.name}</span>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -639,7 +639,7 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
                       <p className="text-xs font-medium text-muted-foreground mb-1">Quick Add-ons:</p>
                       {dinnerQuickFoods.map((food, index) => (
                         <div key={index} className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{food.emoji} {food.nameTranslated || food.name}</span>
+                          <span>{food.emoji} {food.name}</span>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -852,9 +852,9 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
                           <div className="flex items-center gap-2">
                             <span className="text-2xl">{food.emoji}</span>
                             <div>
-                              <p className="font-medium text-sm">{food.nameTranslated || food.name}</p>
+                              <p className="font-medium text-sm">{food.name}</p>
                               <p className="text-xs text-muted-foreground">
-                                {food.servingSizeTranslated || food.servingSize} • {food.calories} cal
+                                {food.servingSize} • {food.calories} cal
                               </p>
                             </div>
                           </div>
