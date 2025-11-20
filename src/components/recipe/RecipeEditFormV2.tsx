@@ -39,6 +39,8 @@ export function RecipeEditFormV2() {
   
   // Step 0: Image selection
   const [availableImages, setAvailableImages] = useState<string[]>([]);
+  const [imageExtractionFailed, setImageExtractionFailed] = useState(false);
+  const [failedImageCount, setFailedImageCount] = useState(0);
   const [showCropper, setShowCropper] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string>('');
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -116,13 +118,20 @@ export function RecipeEditFormV2() {
         // URL extraction: use all extracted images
         images.push(...extractedImages);
         console.log('🌐 URL extraction detected, using', extractedImages.length, 'images');
+        setImageExtractionFailed(false);
       } else if ((recipe as any).originalImageForCropping) {
         // Screenshot upload: use the uploaded image for cropping
         images.push((recipe as any).originalImageForCropping);
         console.log('📸 Screenshot upload detected');
+        setImageExtractionFailed(false);
       } else if (recipe.image) {
         images.push(recipe.image);
         console.log('🖼️ Single image detected');
+        setImageExtractionFailed(false);
+      } else if (isFromUrlExtraction) {
+        // URL extraction attempted but no images found
+        console.warn('⚠️ URL extraction failed - no images extracted');
+        setImageExtractionFailed(true);
       }
       setAvailableImages(images);
       
@@ -179,6 +188,8 @@ export function RecipeEditFormV2() {
     
     // Reset all form state
     setAvailableImages([]);
+    setImageExtractionFailed(false);
+    setFailedImageCount(0);
     setShowCropper(false);
     setImageToCrop('');
     setCrop({ x: 0, y: 0 });
@@ -722,6 +733,69 @@ Return ONLY the JSON, no other text.`;
           {/* STEP 0: Image Selection */}
           {currentStep === 'image' && (
             <div className="space-y-4">
+              {/* Show error message if image extraction failed or all images failed to load */}
+              {(imageExtractionFailed || (availableImages.length > 0 && failedImageCount >= availableImages.length)) && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="text-yellow-600 text-xl">⚠️</div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-yellow-900 mb-2">Image Extraction Failed</h4>
+                      <p className="text-sm text-yellow-800 mb-3">
+                        We couldn't extract images from this URL (the website blocked access with a 403 Forbidden error).
+                      </p>
+                      {/* Upload button prominently displayed in error box */}
+                      <input
+                        id="recipe-image-upload-error"
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const imageUrl = event.target?.result as string;
+                              setImageToCrop(imageUrl);
+                              setAvailableImages([imageUrl]);
+                              setImageExtractionFailed(false);
+                              setCrop({ x: 0, y: 0 });
+                              setZoom(1);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <div className="flex gap-2">
+                        <label htmlFor="recipe-image-upload-error" className="flex-1">
+                          <Button
+                            type="button"
+                            variant="default"
+                            className="w-full"
+                            asChild
+                          >
+                            <span>
+                              <Camera className="w-4 h-4 mr-2" />
+                              Upload Image
+                            </span>
+                          </Button>
+                        </label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setImageExtractionFailed(false);
+                            setImageToCrop('');
+                            setRecipeImage('');
+                          }}
+                        >
+                          Skip
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Check if this is URL extraction (multiple images to select from) */}
               {availableImages.length > 1 ? (
                 // URL extraction: Show image grid selector
@@ -752,7 +826,16 @@ Return ONLY the JSON, no other text.`;
                           loading="eager"
                           onError={(e) => {
                             console.error('Failed to load image:', imgUrl);
-                            e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=400&fit=crop';
+                            setFailedImageCount(prev => prev + 1);
+                            // Show a gray placeholder instead of sample food image
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent && !parent.querySelector('.image-placeholder')) {
+                              const placeholder = document.createElement('div');
+                              placeholder.className = 'image-placeholder w-full h-full flex items-center justify-center bg-gray-200 text-gray-500';
+                              placeholder.innerHTML = '<div class="text-center"><div class="text-2xl mb-1">🖼️</div><div class="text-xs">Failed to load</div></div>';
+                              parent.appendChild(placeholder);
+                            }
                           }}
                           onLoad={() => console.log('Image loaded successfully:', imgUrl.substring(0, 50))}
                         />

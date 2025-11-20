@@ -20,6 +20,7 @@ import { Recipe, RecipeCategory, QuickFood, ShoppingItem } from '../../types';
 import { defaultQuickFoods } from '../../data/quickFoods';
 import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
 import { useTranslation } from 'react-i18next';
+import { RecipeDetailsModal } from '../recipe/RecipeDetailsModal';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner';
 type ViewMode = '3-day' | 'full-week';
@@ -36,7 +37,7 @@ interface DayMealPlan {
 }
 
 export function HomeScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation('navigation');
   const { 
     userProfile, 
     recipes,
@@ -61,9 +62,21 @@ export function HomeScreen() {
   const [selectedQuickFoodCategory, setSelectedQuickFoodCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [savingProgress, setSavingProgress] = useState<{ show: boolean; step: string; progress: number } | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [centeredCardIndex, setCenteredCardIndex] = useState<number>(0);
+  
+  // Handler to open recipe details - looks up full recipe data
+  const handleRecipeClick = (minimalRecipe: Recipe) => {
+    const fullRecipe = recipes.find(r => r.id === minimalRecipe.id);
+    if (fullRecipe) {
+      setSelectedRecipe(fullRecipe);
+    } else {
+      console.warn('Full recipe not found for:', minimalRecipe.id);
+      setSelectedRecipe(minimalRecipe); // Fallback to minimal data
+    }
+  };
   
   const today = new Date();
   const todayDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
@@ -991,6 +1004,7 @@ export function HomeScreen() {
                             onAddQuickFood={() => setAddingQuickFood({ weekOffset, dayIndex: dayNames.indexOf(day.day), mealType: 'Breakfast' })}
                             onRemove={(index) => handleRemoveRecipe(weekOffset, dayNames.indexOf(day.day), 'Breakfast', index)}
                             onRemoveQuickFood={(index) => handleRemoveQuickFood(weekOffset, dayNames.indexOf(day.day), 'Breakfast', index)}
+                            onRecipeClick={handleRecipeClick}
                           />
                           <MealRowEditable
                             icon="☀️"
@@ -1001,6 +1015,7 @@ export function HomeScreen() {
                             onAddQuickFood={() => setAddingQuickFood({ weekOffset, dayIndex: dayNames.indexOf(day.day), mealType: 'Lunch' })}
                             onRemove={(index) => handleRemoveRecipe(weekOffset, dayNames.indexOf(day.day), 'Lunch', index)}
                             onRemoveQuickFood={(index) => handleRemoveQuickFood(weekOffset, dayNames.indexOf(day.day), 'Lunch', index)}
+                            onRecipeClick={handleRecipeClick}
                           />
                           <MealRowEditable
                             icon="🌙"
@@ -1011,14 +1026,15 @@ export function HomeScreen() {
                             onAddQuickFood={() => setAddingQuickFood({ weekOffset, dayIndex: dayNames.indexOf(day.day), mealType: 'Dinner' })}
                             onRemove={(index) => handleRemoveRecipe(weekOffset, dayNames.indexOf(day.day), 'Dinner', index)}
                             onRemoveQuickFood={(index) => handleRemoveQuickFood(weekOffset, dayNames.indexOf(day.day), 'Dinner', index)}
+                            onRecipeClick={handleRecipeClick}
                           />
                         </>
                       ) : (
                         <>
                           {/* View Mode: Clean read-only display */}
-                          <MealRowReadOnly icon="🍳" label="Breakfast" recipes={day.breakfast} quickFoods={day.breakfastQuickFoods} />
-                          <MealRowReadOnly icon="☀️" label="Lunch" recipes={day.lunch} quickFoods={day.lunchQuickFoods} />
-                          <MealRowReadOnly icon="🌙" label="Dinner" recipes={day.dinner} quickFoods={day.dinnerQuickFoods} />
+                          <MealRowReadOnly icon="🍳" label="Breakfast" recipes={day.breakfast} quickFoods={day.breakfastQuickFoods} onRecipeClick={handleRecipeClick} />
+                          <MealRowReadOnly icon="☀️" label="Lunch" recipes={day.lunch} quickFoods={day.lunchQuickFoods} onRecipeClick={handleRecipeClick} />
+                          <MealRowReadOnly icon="🌙" label="Dinner" recipes={day.dinner} quickFoods={day.dinnerQuickFoods} onRecipeClick={handleRecipeClick} />
                         </>
                       )}
           </CardContent>
@@ -1256,6 +1272,14 @@ export function HomeScreen() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Recipe Details Modal */}
+      {selectedRecipe && (
+        <RecipeDetailsModal
+          recipe={selectedRecipe}
+          onClose={() => setSelectedRecipe(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1266,9 +1290,10 @@ interface MealRowReadOnlyProps {
   label: string;
   recipes: Recipe[];
   quickFoods?: QuickFood[];
+  onRecipeClick?: (recipe: Recipe) => void;
 }
 
-function MealRowReadOnly({ icon, label, recipes, quickFoods = [] }: MealRowReadOnlyProps) {
+function MealRowReadOnly({ icon, label, recipes, quickFoods = [], onRecipeClick }: MealRowReadOnlyProps) {
   return (
     <div className="border-b border-gray-200 last:border-b-0 pb-3 last:pb-0 px-2">
       <div className="flex items-center gap-1.5 mb-2">
@@ -1281,7 +1306,11 @@ function MealRowReadOnly({ icon, label, recipes, quickFoods = [] }: MealRowReadO
           <p className="text-sm text-muted-foreground">No recipes</p>
         ) : (
           recipes.map((recipe) => (
-            <div key={recipe.id} className="flex items-center gap-2 p-2 rounded">
+            <div 
+              key={recipe.id} 
+              className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer transition-colors"
+              onClick={() => onRecipeClick?.(recipe)}
+            >
               {recipe.image ? (
                 <img 
                   src={recipe.image} 
@@ -1323,9 +1352,10 @@ interface MealRowEditableProps {
   onAddQuickFood: () => void;
   onRemove: (index: number) => void;
   onRemoveQuickFood: (index: number) => void;
+  onRecipeClick?: (recipe: Recipe) => void;
 }
 
-function MealRowEditable({ icon, label, recipes, quickFoods = [], onAdd, onAddQuickFood, onRemove, onRemoveQuickFood }: MealRowEditableProps) {
+function MealRowEditable({ icon, label, recipes, quickFoods = [], onAdd, onAddQuickFood, onRemove, onRemoveQuickFood, onRecipeClick }: MealRowEditableProps) {
   return (
     <div className="border-b border-gray-200 last:border-b-0 pb-3 last:pb-0 px-2">
       <div className="flex items-center gap-1.5 mb-2">
@@ -1340,7 +1370,10 @@ function MealRowEditable({ icon, label, recipes, quickFoods = [], onAdd, onAddQu
           ) : (
             recipes.map((recipe, index) => (
               <div key={recipe.id} className="flex items-center justify-between p-2 hover:bg-accent/50 rounded">
-                <div className="flex items-center gap-2 flex-1">
+                <div 
+                  className="flex items-center gap-2 flex-1 cursor-pointer"
+                  onClick={() => onRecipeClick?.(recipe)}
+                >
                   {recipe.image ? (
                     <img 
                       src={recipe.image} 
@@ -1356,7 +1389,10 @@ function MealRowEditable({ icon, label, recipes, quickFoods = [], onAdd, onAddQu
                 </div>
                 <button
                   className="p-1 hover:bg-gray-200 rounded flex-shrink-0"
-                  onClick={() => onRemove(index)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(index);
+                  }}
                 >
                   <X className="w-4 h-4" />
                 </button>
