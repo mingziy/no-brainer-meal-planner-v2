@@ -58,7 +58,7 @@ export function RecipeLibraryScreen() {
   // Define protein source categories for sidebar
   const proteinCategories: Array<{ key: string; label: string; emoji: string }> = [
     { key: 'All', label: 'All Recipes', emoji: '🍽️' },
-    { key: 'Chicken', label: 'Chicken', emoji: '🍗' },
+    { key: 'Poultry', label: 'Poultry', emoji: '🍗' },
     { key: 'Beef', label: 'Beef', emoji: '🥩' },
     { key: 'Pork', label: 'Pork', emoji: '🍖' },
     { key: 'Seafood', label: 'Seafood', emoji: '🦐' },
@@ -128,6 +128,13 @@ export function RecipeLibraryScreen() {
           const catLower = cat.toLowerCase();
           return catLower.includes('vegetarian') || catLower.includes('vegan');
         }));
+    } else if (selectedCategory === 'Poultry') {
+      // Poultry includes: chicken, turkey, duck, quail, etc.
+      const poultryProteins = ['chicken', 'turkey', 'duck', 'quail', 'poultry', 'fowl'];
+      matchesCategory = getProteinTypes(recipe).some(pt => {
+        const ptLower = pt.toLowerCase();
+        return poultryProteins.some(pp => ptLower.includes(pp));
+      });
     } else if (selectedCategory === 'Seafood') {
       // Seafood includes: fish, shrimp, shellfish, crab, lobster, etc.
       matchesCategory = getProteinTypes(recipe).some(pt => {

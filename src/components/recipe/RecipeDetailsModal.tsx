@@ -35,6 +35,8 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
 
   const [showOriginalText, setShowOriginalText] = useState(false);
   const [showNutritionReasoning, setShowNutritionReasoning] = useState(false);
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
+  const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set());
 
   if (!selectedRecipe) return null;
   
@@ -64,6 +66,30 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
     } catch (error) {
       console.error('Error toggling favorite:', error);
     }
+  };
+
+  const toggleIngredient = (ingredientId: string) => {
+    setCheckedIngredients(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(ingredientId)) {
+        newSet.delete(ingredientId);
+      } else {
+        newSet.add(ingredientId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleStep = (stepIndex: number) => {
+    setCheckedSteps(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(stepIndex)) {
+        newSet.delete(stepIndex);
+      } else {
+        newSet.add(stepIndex);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -298,14 +324,27 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
             <div className="border rounded-lg p-4">
               <h3 className="font-semibold mb-3">{t('details.ingredients')}</h3>
               <ul className="space-y-2">
-                {displayIngredients.map((ingredient) => (
-                  <li key={ingredient.id} className="text-sm flex items-start">
-                    <span className="mr-2">•</span>
-                    <span>
-                      {ingredient.amount} {ingredient.unit} {ingredient.name}
-                    </span>
-                  </li>
-                ))}
+                {displayIngredients.map((ingredient) => {
+                  const isChecked = checkedIngredients.has(ingredient.id);
+                  return (
+                    <li 
+                      key={ingredient.id} 
+                      className="text-sm flex items-start gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded transition-colors"
+                      onClick={() => toggleIngredient(ingredient.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleIngredient(ingredient.id)}
+                        className="mt-0.5 w-4 h-4 cursor-pointer accent-green-600"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className={isChecked ? 'line-through text-gray-400' : ''}>
+                        {ingredient.amount} {ingredient.unit} {ingredient.name}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 
@@ -313,14 +352,30 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
             <div className="border rounded-lg p-4">
               <h3 className="font-semibold mb-3">{t('details.instructions')}</h3>
               <ol className="space-y-3">
-                {displayInstructions.map((instruction, index) => (
-                  <li key={index} className="text-sm flex gap-3">
-                    <span className="font-semibold text-primary shrink-0">
-                      {index + 1}.
-                    </span>
-                    <span>{instruction}</span>
-                  </li>
-                ))}
+                {displayInstructions.map((instruction, index) => {
+                  const isChecked = checkedSteps.has(index);
+                  return (
+                    <li 
+                      key={index} 
+                      className="text-sm flex gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded transition-colors"
+                      onClick={() => toggleStep(index)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleStep(index)}
+                        className="mt-0.5 w-4 h-4 cursor-pointer accent-green-600 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className="font-semibold text-primary shrink-0">
+                        {index + 1}.
+                      </span>
+                      <span className={isChecked ? 'line-through text-gray-400' : ''}>
+                        {instruction}
+                      </span>
+                    </li>
+                  );
+                })}
               </ol>
             </div>
         </div>

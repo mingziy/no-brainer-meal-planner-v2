@@ -101,7 +101,7 @@ export function RecipeEditForm() {
   // Base options for each category group (seed values)
   const baseCategoryGroups = {
     'Meal Type': ['Breakfast', 'Lunch', 'Dinner', 'Snack'] as RecipeCategory[],
-    'Protein Type': ['Chicken', 'Beef', 'Pork', 'Fish', 'Shellfish', 'Turkey', 'Lamb', 'Tofu', 'Eggs'] as RecipeCategory[],
+    'Protein Type': ['Poultry', 'Beef', 'Pork', 'Fish', 'Shellfish', 'Lamb', 'Tofu', 'Eggs'] as RecipeCategory[],
     'Dietary': ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Low-Carb', 'Keto'] as RecipeCategory[],
     'Cooking Method': ['One-Pot', 'Slow-Cooker', 'Air-Fryer', 'Instant-Pot', 'No-Cook', 'Batch-Cook Friendly'] as RecipeCategory[],
     'Time': ['Quick', '30-Min', 'Make-Ahead', 'Freezer-Friendly'] as RecipeCategory[],
@@ -140,7 +140,7 @@ export function RecipeEditForm() {
           const catLower = cat.toLowerCase();
           
           // Protein-like words (most specific first)
-          if (/^(chicken|beef|pork|fish|shellfish|turkey|lamb|tofu|eggs|duck|salmon|shrimp|crab|lobster|venison|goat|rabbit|quail|tuna|cod|halibut|tilapia|scallops|clams|mussels|oysters)$/i.test(catLower)) {
+          if (/^(poultry|chicken|turkey|duck|beef|pork|fish|shellfish|lamb|tofu|eggs|salmon|shrimp|crab|lobster|venison|goat|rabbit|quail|tuna|cod|halibut|tilapia|scallops|clams|mussels|oysters)$/i.test(catLower)) {
             learned['Protein Type'].add(cat);
           }
           // Dietary-like words

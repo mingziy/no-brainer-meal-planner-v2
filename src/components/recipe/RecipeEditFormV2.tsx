@@ -866,7 +866,23 @@ Return ONLY the JSON, no other text.`;
                       src={imageToCrop} 
                       alt="Recipe" 
                       className="w-full h-full object-cover"
-                      crossOrigin="anonymous"
+                      // Only add crossOrigin for non-AI-chatbot extractions
+                      // AI chatbot images come from external sites with CORS restrictions
+                      {...((draftRecipe as any)?.sourceUrl && availableImages.length === 1 ? {} : { crossOrigin: 'anonymous' })}
+                      onError={(e) => {
+                        console.error('Failed to load external image:', imageToCrop);
+                        // Fallback for AI chatbot extraction images that fail
+                        if ((draftRecipe as any)?.sourceUrl && availableImages.length === 1) {
+                          e.currentTarget.style.display = 'none';
+                          const parent = e.currentTarget.parentElement;
+                          if (parent && !parent.querySelector('.image-fallback')) {
+                            const placeholder = document.createElement('div');
+                            placeholder.className = 'image-fallback w-full h-full flex items-center justify-center bg-gray-200 text-gray-500';
+                            placeholder.innerHTML = '<div class="text-center"><div class="text-4xl mb-2">🖼️</div><div class="text-sm font-medium">Image preview unavailable</div><div class="text-xs mt-1">Image will be processed when you save</div></div>';
+                            parent.appendChild(placeholder);
+                          }
+                        }
+                      }}
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
