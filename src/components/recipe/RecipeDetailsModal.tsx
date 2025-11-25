@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import {
   Dialog,
@@ -19,7 +18,6 @@ interface RecipeDetailsModalProps {
 }
 
 export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }: RecipeDetailsModalProps = {}) {
-  const { t, i18n } = useTranslation('recipe');
   const {
     selectedRecipe: contextRecipe,
     isRecipeDetailsModalOpen,
@@ -40,20 +38,9 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
 
   if (!selectedRecipe) return null;
   
-  // Bilingual support: use Chinese version if available and current language is Chinese
-  const isChineseMode = i18n.language === 'zh';
-  const displayName = (isChineseMode && selectedRecipe.nameZh) ? selectedRecipe.nameZh : selectedRecipe.name;
-  const displayIngredients = (isChineseMode && selectedRecipe.ingredientsZh) ? selectedRecipe.ingredientsZh : selectedRecipe.ingredients;
-  const displayInstructions = (isChineseMode && selectedRecipe.instructionsZh) ? selectedRecipe.instructionsZh : selectedRecipe.instructions;
-  
-  console.log('🔍 Recipe Details Display:', {
-    currentLanguage: i18n.language,
-    isChineseMode,
-    hasChineseName: !!selectedRecipe.nameZh,
-    displayingName: displayName,
-    englishName: selectedRecipe.name,
-    chineseName: selectedRecipe.nameZh
-  });
+  const displayName = selectedRecipe.name;
+  const displayIngredients = selectedRecipe.ingredients;
+  const displayInstructions = selectedRecipe.instructions;
 
   const handleEdit = () => {
     setIsRecipeDetailsModalOpen(false);

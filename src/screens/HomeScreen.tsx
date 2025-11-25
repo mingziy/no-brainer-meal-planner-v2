@@ -19,7 +19,6 @@ import { UserButton } from '../auth/UserButton';
 import { Recipe, RecipeCategory, QuickFood, ShoppingItem } from '../../types';
 import { defaultQuickFoods } from '../../data/quickFoods';
 import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
-import { useTranslation } from 'react-i18next';
 import { RecipeDetailsModal } from '../recipe/RecipeDetailsModal';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner';
@@ -37,7 +36,6 @@ interface DayMealPlan {
 }
 
 export function HomeScreen() {
-  const { t, i18n } = useTranslation('navigation');
   const { 
     userProfile, 
     recipes,
@@ -49,9 +47,6 @@ export function HomeScreen() {
     setIsAddRecipeModalOpen,
     setPendingMealType,
   } = useApp();
-  
-  // Check if current language is Chinese
-  const isChineseMode = i18n.language === 'zh';
   
   const [isEditing, setIsEditing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('full-week'); // Default to show all cards

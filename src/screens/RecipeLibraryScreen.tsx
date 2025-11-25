@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { Recipe, RecipeCategory, RecipeCuisine } from '../../types';
 import { Input } from '../ui/input';
@@ -12,7 +11,6 @@ import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { BottomNav } from '../shared/BottomNav';
 import { UserButton } from '../auth/UserButton';
 export function RecipeLibraryScreen() {
-  const { t, i18n } = useTranslation('recipe');
   const {
     recipes,
     setSelectedRecipe,
@@ -282,8 +280,6 @@ export function RecipeLibraryScreen() {
                       recipe={recipe}
                       onClick={() => handleRecipeClick(recipe)}
                       onDelete={deleteRecipe}
-                      t={t}
-                      currentLanguage={i18n.language}
                     />
                   ))}
                 </div>
@@ -302,13 +298,10 @@ interface RecipeCardProps {
   recipe: Recipe;
   onClick: () => void;
   onDelete: (recipeId: string) => Promise<void>;
-  t: any; // i18n translation function
-  currentLanguage: string; // Current language for bilingual support
 }
 
-function RecipeCard({ recipe, onClick, onDelete, t, currentLanguage }: RecipeCardProps) {
-  // Bilingual support: use Chinese name if available and language is Chinese
-  const displayName = (currentLanguage === 'zh' && recipe.nameZh) ? recipe.nameZh : recipe.name;
+function RecipeCard({ recipe, onClick, onDelete }: RecipeCardProps) {
+  const displayName = recipe.name;
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     
