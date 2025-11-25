@@ -9,10 +9,7 @@ import { UserButton } from '../auth/UserButton';
 import { useEffect, useState } from 'react';
 import { ShoppingItem, WeeklyPlan, QuickFood, Recipe } from '../../types';
 import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
-import { useTranslation } from 'react-i18next';
-
 export function ShoppingListScreen() {
-  const { i18n } = useTranslation();
   const { 
     shoppingList, 
     setShoppingList,
@@ -29,9 +26,6 @@ export function ShoppingListScreen() {
   const [selectedWeekPlanId, setSelectedWeekPlanId] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<WeeklyPlan | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  
-  // Check if current language is Chinese
-  const isChineseMode = i18n.language === 'zh';
   
   // Get current week's start date for comparison
   const getCurrentWeekStart = () => {
@@ -141,13 +135,6 @@ export function ShoppingListScreen() {
     }
   }, [mealPlans, getThisWeekPlan]);
   
-  // Regenerate shopping list when language changes
-  useEffect(() => {
-    if (!selectedPlan) return;
-    
-    console.log('🌐 Language changed, regenerating shopping list for:', isChineseMode ? 'Chinese' : 'English');
-    handleRegenerateShoppingList();
-  }, [isChineseMode]);
   
   // Update shopping list when selected plan changes
   useEffect(() => {
