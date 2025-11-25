@@ -15,3 +15,5 @@ src/config/firebase.ts
 build/
 .vite/
 firebase-debug.log
+NATURAL_CHATBOT_COMPLETE.md
+functions/.runtimeconfig.json
