@@ -14,3 +14,4 @@ src/config/firebase.ts
 # Build files
 build/
 .vite/
+firebase-debug.log
