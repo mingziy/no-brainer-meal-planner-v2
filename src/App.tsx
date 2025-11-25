@@ -1,7 +1,7 @@
 import { AppProvider, useApp } from './context/AppContext';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { SignInScreen } from './components/auth/SignInScreen';
-import { HomeScreen } from './components/home/HomeScreen';
+import { HomeScreen } from './screens/HomeScreen';
 import { RecipeLibraryScreen } from './components/recipe/RecipeLibraryScreen';
 import { AddRecipeModal } from './components/recipe/AddRecipeModal';
 import { RecipeDetailsModal } from './components/recipe/RecipeDetailsModal';
