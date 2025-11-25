@@ -3,6 +3,7 @@ import { UserProfile, WeeklyPlan, ShoppingItem, PrepTask, Recipe, RecipeCategory
 import { useAuth } from '../hooks/useAuth';
 import { useRecipes } from '../hooks/useRecipes';
 import { useMealPlans } from '../hooks/useMealPlans';
+import { useShoppingList } from '../hooks/useShoppingList';
 import { User } from 'firebase/auth';
 
 interface AppContextType {
@@ -37,6 +38,8 @@ interface AppContextType {
   setUserProfile: (profile: UserProfile) => void;
   shoppingList: ShoppingItem[];
   setShoppingList: (items: ShoppingItem[]) => void;
+  saveShoppingList: (items: ShoppingItem[]) => Promise<void>;
+  shoppingListLoading: boolean;
   prepTasks: PrepTask[];
   setPrepTasks: (tasks: PrepTask[]) => void;
   currentScreen: string;
@@ -95,9 +98,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getPlanByWeekStart,
   } = useMealPlans(user?.uid || null);
 
+  // Firebase Shopping List
+  const {
+    shoppingList,
+    setShoppingList,
+    saveShoppingList,
+    loading: shoppingListLoading
+  } = useShoppingList(user?.uid || null);
+
   // Local state (not synced to Firebase yet)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([]);
   const [prepTasks, setPrepTasks] = useState<PrepTask[]>([]);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [planningWeekOffset, setPlanningWeekOffset] = useState(0); // 0 = this week, 1 = next week
@@ -140,11 +150,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getThisWeekPlan,
         getNextWeekPlan,
         getPlanByWeekStart,
+        // Shopping List (Firebase)
+        shoppingList,
+        setShoppingList,
+        saveShoppingList,
+        shoppingListLoading,
         // Local state
         userProfile,
         setUserProfile,
-        shoppingList,
-        setShoppingList,
         prepTasks,
         setPrepTasks,
         currentScreen,

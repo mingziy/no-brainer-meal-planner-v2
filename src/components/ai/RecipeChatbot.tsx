@@ -58,6 +58,7 @@ export default function RecipeChatbot() {
   const [input, setInput] = useState('');
   const [ideas, setIdeas] = useState<RecipeIdea[]>([]);
   const [recipeCards, setRecipeCards] = useState<RecipeCard[]>([]);
+  const [currentSearchTerms, setCurrentSearchTerms] = useState<string[]>([]); // Track current search terms for refresh
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const [showScrapedModal, setShowScrapedModal] = useState(false);
   const [aiProcessedRecipe, setAiProcessedRecipe] = useState<any>(null);
@@ -264,6 +265,8 @@ export default function RecipeChatbot() {
       console.log('[RecipeChatbot] Failed recipes:', failedRecipes);
 
       setRecipeCards(cards);
+      // Store the search terms for refresh functionality
+      setCurrentSearchTerms(selectedIdeas.map((i) => i.name));
       
       // Build message based on results
       let message = '';
@@ -363,18 +366,57 @@ Failed to match: ${failedRecipes.map(r => `"${r}"`).join(', ')}
     }
   };
 
-  const handleGetAnotherOne = async (card: RecipeCard) => {
+  const handleRefreshAllCards = async () => {
+    console.log('[RecipeChatbot] Refreshing all recipe cards');
     setLoading(true);
+    
     try {
-      const getAnother = httpsCallable(functions, 'chatbotGetAnotherRecipe');
-      const result: any = await getAnother({ recipeName: card.title });
-      const newCard: RecipeCard = result.data.recipe;
+      // Use the stored current search terms instead of old ideas state
+      if (currentSearchTerms.length === 0) {
+        console.log('[RecipeChatbot] No current search terms to refresh');
+        return;
+      }
 
-      // Replace the card
-      setRecipeCards((prev) => prev.map((c) => (c.url === card.url ? newCard : c)));
+      console.log('[RecipeChatbot] Refreshing with terms:', currentSearchTerms);
+
+      // Call the fetch previews function again with the current search terms
+      const fetchPreviews = httpsCallable(functions, 'chatbotFetchPreviews');
+      const result: any = await fetchPreviews({ recipeNames: currentSearchTerms });
+      
+      const newRecipes: RecipeCard[] = result.data.recipes || [];
+      const failedRecipes: string[] = result.data.failedRecipes || [];
+
+      // Update recipe cards with new results
+      setRecipeCards(newRecipes);
+
+      // Show message about failed recipes if any
+      if (failedRecipes.length > 0) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'bot',
+            content: `⚠️ Couldn't find good matches for: ${failedRecipes.join(', ')}. Try other recipe ideas or be more specific.`,
+          },
+        ]);
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'bot',
+          content: `✨ Refreshed ${newRecipes.length} recipe${newRecipes.length !== 1 ? 's' : ''}! These are new options from different sources.`,
+        },
+      ]);
+
     } catch (error: any) {
-      console.error('Error getting another recipe:', error);
-      alert(`Failed to get another recipe: ${error.message}`);
+      console.error('Error refreshing recipes:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'bot',
+          content: `❌ Failed to refresh recipes: ${error.message}. Please try again.`,
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -493,17 +535,22 @@ Failed to match: ${failedRecipes.map(r => `"${r}"`).join(', ')}
   return (
     <>
       {/* Main Chat Container */}
-      <div className="flex flex-col h-screen bg-gray-50 max-w-md mx-auto">
-        {/* Header */}
-        <div className="bg-white border-b px-4 py-3 flex items-center gap-2 flex-shrink-0">
-          <MessageSquare className="w-5 h-5 text-blue-600" />
-          <h1 className="font-semibold text-lg">Recipe Assistant</h1>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header - Fixed */}
+        <div className="fixed top-0 left-0 right-0 bg-white border-b z-50">
+          <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-blue-600" />
+            <h1 className="font-semibold text-lg">Recipe Assistant</h1>
+          </div>
         </div>
 
-        {/* Chat Messages - with bottom padding for input + nav */}
+        {/* Chat Messages - Scrollable content with padding for fixed header, input, and nav */}
         <div 
-          className="flex-1 overflow-y-auto px-4 py-4"
-          style={{ paddingBottom: '120px' }} // Space for input (56px) + nav (48px) + extra (16px)
+          className="px-4 py-4 max-w-md mx-auto"
+          style={{ 
+            paddingTop: '72px', // Header height (56px) + extra (16px)
+            paddingBottom: '136px' // Input (56px) + nav (48px) + extra (32px)
+          }}
         >
           <div className="space-y-4 w-full">
           {messages.map((msg, idx) => (
@@ -594,18 +641,24 @@ Failed to match: ${failedRecipes.map(r => `"${r}"`).join(', ')}
                       <Download className="w-4 h-4 mr-2" />
                       Export to Recipe
                     </Button>
-                    <Button
-                      onClick={() => handleGetAnotherOne(card)}
-                      disabled={loading}
-                      variant="outline"
-                      className="w-full text-sm"
-                    >
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Get Another One
-                    </Button>
                   </div>
                 </Card>
               ))}
+            </div>
+          )}
+
+          {/* Refresh Results Button */}
+          {recipeCards.length > 0 && (
+            <div className="mt-4 w-full">
+              <Button
+                onClick={handleRefreshAllCards}
+                disabled={loading}
+                variant="outline"
+                className="w-full"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh All Results
+              </Button>
             </div>
           )}
 
@@ -619,41 +672,36 @@ Failed to match: ${failedRecipes.map(r => `"${r}"`).join(', ')}
           )}
 
           <div ref={chatEndRef} />
+          </div>
         </div>
+
+        {/* Input Area - Fixed above BottomNav */}
+        <div 
+          className="fixed left-0 right-0 bg-white border-t z-40"
+          style={{ bottom: '48px' }} // h-12 = 48px (height of BottomNav)
+        >
+          <div className="max-w-md mx-auto px-4 py-3 flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="What would you like to cook?"
+              disabled={loading}
+              className="flex-1 text-base"
+              style={{ fontSize: '16px' }} // Prevents zoom on iOS
+            />
+            <Button onClick={handleSend} disabled={loading} className="flex-shrink-0">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Bottom Navigation - Fixed at bottom */}
+        <BottomNav />
       </div>
-    </div>
 
-    {/* Input Area - Fixed above BottomNav */}
-    <div 
-      className="bg-white border-t px-4 py-3"
-      style={{ 
-        position: 'fixed',
-        bottom: '48px', // h-12 = 48px (height of BottomNav)
-        left: 0,
-        right: 0,
-        zIndex: 10
-      }}
-    >
-      <div className="max-w-md mx-auto flex gap-2">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="What would you like to cook?"
-          disabled={loading}
-          className="flex-1 text-sm"
-        />
-        <Button onClick={handleSend} disabled={loading} className="flex-shrink-0">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </Button>
-      </div>
-    </div>
-
-    {/* Bottom Navigation - Fixed at bottom */}
-    <BottomNav />
-
-    {/* Scraped Data Preview Modal */}
-    <Dialog open={showScrapedModal} onOpenChange={setShowScrapedModal}>
+      {/* Scraped Data Preview Modal */}
+      <Dialog open={showScrapedModal} onOpenChange={setShowScrapedModal}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] sm:max-h-[80vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Quick Preview</DialogTitle>
@@ -776,8 +824,8 @@ Failed to match: ${failedRecipes.map(r => `"${r}"`).join(', ')}
             </Button>
         </div>
       </DialogContent>
-    </Dialog>
-  </>
+      </Dialog>
+    </>
   );
 }
 

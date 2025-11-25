@@ -821,6 +821,12 @@ export function HomeScreen() {
   // Get filtered recipes
   const getFilteredRecipes = (mealType: MealType) => {
     return recipes.filter(recipe => {
+      // Safety check: skip recipes without name
+      if (!recipe || !recipe.name) {
+        console.warn('[HomeScreen] Recipe without name found:', recipe);
+        return false;
+      }
+      
       const matchesSearch = searchQuery === '' || 
         recipe.name.toLowerCase().includes(searchQuery.toLowerCase());
       

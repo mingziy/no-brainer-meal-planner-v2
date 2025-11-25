@@ -339,7 +339,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                         className="mt-0.5 w-4 h-4 cursor-pointer accent-green-600"
                         onClick={(e) => e.stopPropagation()}
                       />
-                      <span className={isChecked ? 'line-through text-gray-400' : ''}>
+                      <span className={`break-words ${isChecked ? 'line-through text-gray-400' : ''}`}>
                         {ingredient.amount} {ingredient.unit} {ingredient.name}
                       </span>
                     </li>
@@ -370,7 +370,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                       <span className="font-semibold text-primary shrink-0">
                         {index + 1}.
                       </span>
-                      <span className={isChecked ? 'line-through text-gray-400' : ''}>
+                      <span className={`break-words ${isChecked ? 'line-through text-gray-400' : ''}`}>
                         {instruction}
                       </span>
                     </li>

@@ -100,6 +100,12 @@ export function RecipeLibraryScreen() {
 
   // Filter recipes based on search and category
   const filteredRecipes = recipes.filter((recipe) => {
+    // Safety check: skip recipes without name
+    if (!recipe || !recipe.name) {
+      console.warn('[RecipeLibraryScreen] Recipe without name found:', recipe);
+      return false;
+    }
+    
     // Search filter
     const matchesSearch =
       searchQuery === '' ||

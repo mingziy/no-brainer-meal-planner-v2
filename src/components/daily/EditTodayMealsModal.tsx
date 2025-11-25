@@ -138,6 +138,12 @@ export function EditTodayMealsModal({ isOpen, onClose, dayPlan, dayName }: EditT
     const mealTypeFilter = mealType.charAt(0).toUpperCase() + mealType.slice(1);
     
     return recipes.filter(recipe => {
+      // Safety check: skip recipes without name
+      if (!recipe || !recipe.name) {
+        console.warn('[EditTodayMealsModal] Recipe without name found:', recipe);
+        return false;
+      }
+      
       const matchesSearch = searchQuery === '' || 
         recipe.name.toLowerCase().includes(searchQuery.toLowerCase());
       

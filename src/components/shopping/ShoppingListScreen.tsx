@@ -15,7 +15,8 @@ export function ShoppingListScreen() {
   const { i18n } = useTranslation();
   const { 
     shoppingList, 
-    setShoppingList, 
+    setShoppingList,
+    saveShoppingList, 
     setCurrentScreen, 
     currentWeeklyPlan,
     mealPlans,
@@ -180,12 +181,19 @@ export function ShoppingListScreen() {
     setSelectedPlan(plan);
   };
   
-  const toggleItem = (id: string) => {
-    setShoppingList(
-      shoppingList.map(item =>
-        item.id === id ? { ...item, checked: !item.checked } : item
-      )
+  const toggleItem = async (id: string) => {
+    const updatedList = shoppingList.map(item =>
+      item.id === id ? { ...item, checked: !item.checked } : item
     );
+    setShoppingList(updatedList);
+    
+    // Save to Firestore
+    try {
+      await saveShoppingList(updatedList);
+      console.log('[ShoppingListScreen] Shopping list saved after toggle');
+    } catch (error) {
+      console.error('[ShoppingListScreen] Error saving shopping list:', error);
+    }
   };
 
   const handleExportList = () => {
@@ -489,6 +497,14 @@ Return ONLY the English translations, one per line, no explanations, no numberin
       
       await saveMealPlan(updatedPlan);
       setShoppingList(newShoppingList);
+      
+      // Also save to user's shopping list collection
+      try {
+        await saveShoppingList(newShoppingList);
+        console.log('✅ Shopping list saved to Firestore');
+      } catch (saveError) {
+        console.error('❌ Error saving shopping list to Firestore:', saveError);
+      }
       
       console.log('✅ Shopping list regenerated with', newShoppingList.length, 'items');
       alert(`Shopping list regenerated! ${newShoppingList.length} items (plurals converted to singular)`);

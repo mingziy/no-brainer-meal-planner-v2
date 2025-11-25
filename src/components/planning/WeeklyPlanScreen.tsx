@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Component, ReactNode } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -18,6 +18,45 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog';
+
+// Error Boundary Component
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('[WeeklyPlanScreen ErrorBoundary] Caught error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <Card className="max-w-md w-full p-6">
+            <h2 className="text-xl font-semibold text-red-600 mb-4">Something went wrong</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {this.state.error?.message || 'An unexpected error occurred'}
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Reload Page
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
@@ -40,6 +79,16 @@ const getRandomQuickFoods = (count: number): QuickFood[] => {
 };
 
 export function WeeklyPlanScreen() {
+  console.log('[WeeklyPlanScreen] Component rendering...');
+  
+  const appContext = useApp();
+  console.log('[WeeklyPlanScreen] AppContext:', {
+    hasRecipes: !!appContext.recipes,
+    recipesLength: appContext.recipes?.length,
+    recipesType: typeof appContext.recipes,
+    isArray: Array.isArray(appContext.recipes)
+  });
+  
   const { 
     recipes, 
     setIsAddRecipeModalOpen, 
@@ -57,7 +106,7 @@ export function WeeklyPlanScreen() {
     formatWeekLabel,
     getThisWeekPlan,
     getNextWeekPlan
-  } = useApp();
+  } = appContext;
   
   // Scroll to top immediately when component mounts or planningWeekOffset changes
   useEffect(() => {
@@ -686,6 +735,12 @@ export function WeeklyPlanScreen() {
   
   // Filter recipes based on search and meal type
   const getFilteredRecipes = (mealType: MealType) => {
+    // Guard clause: return empty array if recipes is undefined/null
+    if (!recipes || !Array.isArray(recipes)) {
+      console.error('[WeeklyPlanScreen] recipes is not an array:', recipes);
+      return [];
+    }
+    
     const mealTypeFilter = mealType.charAt(0).toUpperCase() + mealType.slice(1);
     
     return recipes.filter(recipe => {
@@ -852,19 +907,27 @@ export function WeeklyPlanScreen() {
       {/* Recipe Picker Modal */}
       {addingMeal && (
         <Dialog open={!!addingMeal} onOpenChange={() => {
+          console.log('[WeeklyPlanScreen] Closing recipe picker modal');
           setAddingMeal(null);
           setSearchQuery('');
         }}>
           <DialogContent className="max-w-md p-6 gap-4" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <DialogHeader>
-              <DialogTitle>Add Recipe to {addingMeal.mealType}</DialogTitle>
+              <DialogTitle>Add Recipe to {addingMeal?.mealType || 'Meal'}</DialogTitle>
             </DialogHeader>
 
             <input
               type="text"
               placeholder="Search recipes..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                console.log('[WeeklyPlanScreen] Search query changed:', e.target.value);
+                try {
+                  setSearchQuery(e.target.value);
+                } catch (error) {
+                  console.error('[WeeklyPlanScreen] Error setting search query:', error);
+                }
+              }}
               className="w-full px-3 py-2 border rounded-md"
             />
 
@@ -872,7 +935,12 @@ export function WeeklyPlanScreen() {
             <Button
               variant="default"
               className="w-full"
-              onClick={() => handleCreateRecipe(addingMeal.dayIndex, addingMeal.mealType)}
+              onClick={() => {
+                console.log('[WeeklyPlanScreen] Create New Recipe clicked');
+                if (addingMeal) {
+                  handleCreateRecipe(addingMeal.dayIndex, addingMeal.mealType);
+                }
+              }}
             >
               <PlusCircle className="w-4 h-4 mr-2" />
               Create New Recipe
@@ -885,12 +953,28 @@ export function WeeklyPlanScreen() {
               minHeight: 0
             }}>
               <div className="space-y-2">
-                {getFilteredRecipes(addingMeal.mealType).length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No recipes found
-                  </p>
-                ) : (
-                  getFilteredRecipes(addingMeal.mealType).map(recipe => (
+                {(() => {
+                  try {
+                    console.log('[WeeklyPlanScreen] Filtering recipes for:', addingMeal?.mealType);
+                    if (!addingMeal) {
+                      return (
+                        <p className="text-sm text-muted-foreground text-center py-8">
+                          No meal type selected
+                        </p>
+                      );
+                    }
+                    const filteredRecipes = getFilteredRecipes(addingMeal.mealType);
+                    console.log('[WeeklyPlanScreen] Filtered recipes count:', filteredRecipes.length);
+                    
+                    if (filteredRecipes.length === 0) {
+                      return (
+                        <p className="text-sm text-muted-foreground text-center py-8">
+                          No recipes found
+                        </p>
+                      );
+                    }
+                    
+                    return filteredRecipes.map(recipe => (
                     <Card
                       key={recipe.id}
                       className="cursor-pointer hover:bg-accent/50"
@@ -908,8 +992,16 @@ export function WeeklyPlanScreen() {
                         </Button>
                       </CardContent>
                     </Card>
-                  ))
-                )}
+                    ));
+                  } catch (error) {
+                    console.error('[WeeklyPlanScreen] Error rendering recipes:', error);
+                    return (
+                      <p className="text-sm text-red-500 text-center py-8">
+                        Error loading recipes. Please try again.
+                      </p>
+                    );
+                  }
+                })()}
               </div>
             </div>
           </DialogContent>

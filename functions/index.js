@@ -209,19 +209,34 @@ exports.chatbotFetchPreviews = onCall({
       const recipes = [];
       const failedRecipes = [];
       
-      for (const recipeName of recipeNames) {
+      // Process recipes in parallel for faster results
+      // For each recipe name, potentially fetch multiple variations if using broader term
+      const promises = recipeNames.map(async (recipeName) => {
         try {
+          console.log(`[chatbotFetchPreviews] Starting search for: ${recipeName}`);
           const recipe = await searchAndScrapeRecipe(recipeName);
           if (recipe) {
-            recipes.push(recipe);
+            console.log(`[chatbotFetchPreviews] ✅ Found recipe for: ${recipeName}`);
+            return { success: true, recipes: [recipe] };
           } else {
             // No matching recipe found
             console.log(`[chatbotFetchPreviews] ❌ No match for: ${recipeName}`);
-            failedRecipes.push(recipeName);
+            return { success: false, recipeName };
           }
         } catch (error) {
-          console.error(`[chatbotFetchPreviews] Error fetching ${recipeName}:`, error);
-          failedRecipes.push(recipeName);
+          console.error(`[chatbotFetchPreviews] Error fetching ${recipeName}:`, error.message);
+          return { success: false, recipeName };
+        }
+      });
+      
+      const results = await Promise.all(promises);
+      
+      // Separate successes from failures
+      for (const result of results) {
+        if (result.success) {
+          recipes.push(...result.recipes);
+        } else {
+          failedRecipes.push(result.recipeName);
         }
       }
       
@@ -239,95 +254,232 @@ exports.chatbotFetchPreviews = onCall({
   });
 
 /**
+ * Helper: Extract broader search term by removing specific modifiers
+ * Examples: 
+ *   "Mashed Sweet Potato with Marshmallow" -> "Mashed Sweet Potato"
+ *   "Grilled Chicken with Lemon Herb Sauce" -> "Grilled Chicken"
+ *   "Chocolate Chip Cookies with Walnuts" -> "Chocolate Chip Cookies"
+ */
+function getBroaderSearchTerm(recipeName) {
+  // Remove common modifiers after "with", "topped with", "and", "in", "on"
+  const patterns = [
+    / with .+$/i,
+    / topped with .+$/i,
+    / and .+$/i,
+    / in .+$/i,
+    / on .+$/i,
+    / \(.+\)$/,  // Remove anything in parentheses
+  ];
+  
+  let broader = recipeName;
+  for (const pattern of patterns) {
+    broader = broader.replace(pattern, '');
+  }
+  
+  return broader.trim();
+}
+
+/**
  * Helper: Search and scrape a single recipe with relevance checking
+ * Now supports 7 recipe websites with randomized order
+ * Includes fallback to broader search term if specific search fails
  */
 async function searchAndScrapeRecipe(recipeName) {
   console.log(`[searchAndScrapeRecipe] Searching for: ${recipeName}`);
   
-  // Try Allrecipes first
-  try {
-    const allrecipesUrl = `https://www.allrecipes.com/search?q=${encodeURIComponent(recipeName)}`;
-    console.log(`[searchAndScrapeRecipe] Search URL: ${allrecipesUrl}`);
-    
-    const response = await axios.get(allrecipesUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      timeout: 10000
-    });
-    
-    const $ = cheerio.load(response.data);
-    
-    // Get top 5 recipe links to check
-    const recipeLinks = $('a[href*="/recipe/"]').slice(0, 5);
-    console.log(`[searchAndScrapeRecipe] Found ${recipeLinks.length} recipe links, checking relevance...`);
-    
-    if (recipeLinks.length === 0) {
-      throw new Error('No recipes found in search results');
+  // Define all recipe websites with their search patterns
+  const websites = [
+    {
+      name: 'Allrecipes',
+      searchUrl: (query) => `https://www.allrecipes.com/search?q=${encodeURIComponent(query)}`,
+      linkSelector: 'a[href*="/recipe/"]',
+      domain: 'allrecipes.com'
+    },
+    {
+      name: 'The Kitchn',
+      searchUrl: (query) => `https://www.thekitchn.com/search?q=${encodeURIComponent(query)}`,
+      linkSelector: 'a[href*="/recipe/"]',
+      domain: 'thekitchn.com'
+    },
+    {
+      name: 'Simply Recipes',
+      searchUrl: (query) => `https://www.simplyrecipes.com/?s=${encodeURIComponent(query)}`,
+      linkSelector: 'a[href*="/recipes/"]',
+      domain: 'simplyrecipes.com'
     }
+  ];
+  
+  // Randomize the order of websites for variety
+  const shuffled = [...websites].sort(() => Math.random() - 0.5);
+  
+  // Try all 3 websites until we find a match
+  for (const site of shuffled) {
+    try {
+      console.log(`[searchAndScrapeRecipe] Trying ${site.name}...`);
+      const searchUrl = site.searchUrl(recipeName);
+      
+      const response = await axios.get(searchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        timeout: 8000 // Reduced timeout for faster failure
+      });
+      
+      const $ = cheerio.load(response.data);
+      
+      // Get top 3 recipe links to check (reduced from 5 for speed)
+      const recipeLinks = $(site.linkSelector).slice(0, 3);
+      console.log(`[searchAndScrapeRecipe] Found ${recipeLinks.length} recipe links on ${site.name}`);
+      
+      if (recipeLinks.length === 0) {
+        console.log(`[searchAndScrapeRecipe] No results on ${site.name}, trying next site...`);
+        continue;
+      }
+      
+      // Try each result until we find a match
+      for (let i = 0; i < recipeLinks.length; i++) {
+        const link = recipeLinks.eq(i);
+        const url = link.attr('href');
+        const fullUrl = url.startsWith('http') ? url : `https://www.${site.domain}${url}`;
+        
+        try {
+          // Scrape this recipe page
+          const recipeResponse = await axios.get(fullUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 8000 // Reduced timeout
+          });
+          
+          const $recipe = cheerio.load(recipeResponse.data);
+          
+          // Extract recipe title
+          const title = $recipe('meta[property="og:title"]').attr('content') || 
+                       $recipe('h1').first().text().trim() ||
+                       '';
+          
+          if (!title) {
+            continue;
+          }
+          
+          // Check if this recipe matches the search term
+          if (isRecipeRelevant(recipeName, title)) {
+            // ✅ Found a match!
+            console.log(`✅ MATCH FOUND on ${site.name}: "${title}"`);
+            
+            const image = $recipe('meta[property="og:image"]').attr('content') || '';
+            const description = $recipe('meta[property="og:description"]').attr('content') || 
+                               $recipe('meta[name="description"]').attr('content') || '';
+            
+            return {
+              title,
+              image,
+              description,
+              url: fullUrl,
+              siteName: site.name
+            };
+          }
+        } catch (err) {
+          console.error(`  ⚠️ Error scraping result on ${site.name}:`, err.message);
+          continue;
+        }
+      }
+      
+      console.log(`[searchAndScrapeRecipe] No match found on ${site.name}, trying next site...`);
+      
+    } catch (error) {
+      console.error(`[searchAndScrapeRecipe] ${site.name} search failed:`, error.message);
+      continue; // Try next site
+    }
+  }
+  
+  // ❌ No good match found with specific search term
+  console.log(`❌ NO MATCHING RECIPE FOUND for "${recipeName}" on any site`);
+  
+  // 🔄 FALLBACK: Try broader search term
+  const broaderTerm = getBroaderSearchTerm(recipeName);
+  
+  // Only retry if broader term is different from original
+  if (broaderTerm !== recipeName && broaderTerm.length > 0) {
+    console.log(`🔄 FALLBACK: Trying broader search term: "${broaderTerm}"`);
     
-    // Try each result until we find a match
-    for (let i = 0; i < recipeLinks.length; i++) {
-      const link = recipeLinks.eq(i);
-      const url = link.attr('href');
-      const fullUrl = url.startsWith('http') ? url : `https://www.allrecipes.com${url}`;
-      
-      console.log(`[searchAndScrapeRecipe] Checking result ${i + 1}/${recipeLinks.length}: ${fullUrl}`);
-      
+    // Try again with broader term (limit to first 2 sites for speed)
+    const fallbackSites = shuffled.slice(0, 2);
+    
+    for (const site of fallbackSites) {
       try {
-        // Scrape this recipe page
-        const recipeResponse = await axios.get(fullUrl, {
+        console.log(`[searchAndScrapeRecipe] Fallback search on ${site.name}...`);
+        const searchUrl = site.searchUrl(broaderTerm);
+        
+        const response = await axios.get(searchUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
           },
-          timeout: 10000
+          timeout: 8000
         });
         
-        const $recipe = cheerio.load(recipeResponse.data);
+        const $ = cheerio.load(response.data);
         
-        // Extract recipe title
-        const title = $recipe('meta[property="og:title"]').attr('content') || 
-                     $recipe('h1').first().text().trim() ||
-                     '';
+        // Get top 3 recipe links
+        const recipeLinks = $(site.linkSelector).slice(0, 3);
         
-        if (!title) {
-          console.log(`  ⚠️ Result ${i + 1}: No title found, skipping...`);
+        if (recipeLinks.length === 0) {
           continue;
         }
         
-        // Check if this recipe matches the search term
-        if (isRecipeRelevant(recipeName, title)) {
-          // ✅ Found a match!
-          console.log(`✅ MATCH FOUND at position ${i + 1}: "${title}"`);
+        // Try each result
+        for (let i = 0; i < recipeLinks.length; i++) {
+          const link = recipeLinks.eq(i);
+          const url = link.attr('href');
+          const fullUrl = url.startsWith('http') ? url : `https://www.${site.domain}${url}`;
           
-          const image = $recipe('meta[property="og:image"]').attr('content') || '';
-          const description = $recipe('meta[property="og:description"]').attr('content') || 
-                             $recipe('meta[name="description"]').attr('content') || '';
-          
-          return {
-            title,
-            image,
-            description,
-            url: fullUrl,
-            siteName: 'Allrecipes'
-          };
-        } else {
-          console.log(`  ❌ Result ${i + 1} doesn't match, trying next...`);
+          try {
+            const recipeResponse = await axios.get(fullUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              },
+              timeout: 8000
+            });
+            
+            const $recipe = cheerio.load(recipeResponse.data);
+            
+            const title = $recipe('meta[property="og:title"]').attr('content') || 
+                         $recipe('h1').first().text().trim() ||
+                         '';
+            
+            if (!title) {
+              continue;
+            }
+            
+            // For fallback, use looser matching - just check if broader term is in title
+            if (isRecipeRelevant(broaderTerm, title)) {
+              console.log(`✅ FALLBACK SUCCESS on ${site.name}: "${title}"`);
+              
+              const image = $recipe('meta[property="og:image"]').attr('content') || '';
+              const description = $recipe('meta[property="og:description"]').attr('content') || 
+                                 $recipe('meta[name="description"]').attr('content') || '';
+              
+              return {
+                title,
+                image,
+                description,
+                url: fullUrl,
+                siteName: site.name
+              };
+            }
+          } catch (err) {
+            continue;
+          }
         }
-      } catch (err) {
-        console.error(`  ⚠️ Error scraping result ${i + 1}:`, err.message);
-        continue; // Try next result
+      } catch (error) {
+        continue;
       }
     }
     
-    // ❌ No good match found in top 5 results
-    console.log(`❌ NO MATCHING RECIPE FOUND for "${recipeName}" in top ${recipeLinks.length} results`);
-    return null; // Return null to indicate no match
-    
-  } catch (error) {
-    console.error(`[searchAndScrapeRecipe] Allrecipes search failed:`, error.message);
-    return null;
+    console.log(`❌ FALLBACK FAILED: No match for broader term "${broaderTerm}"`);
   }
+  
+  return null;
 }
 
 /**
@@ -918,8 +1070,8 @@ ${JSON.stringify(scrapedData.nutrition, null, 2) || 'NOT PROVIDED - MUST ESTIMAT
     }
   ],
   "instructions": [
-    "Step 1: Preheat oven to 350°F and grease a baking pan.",
-    "Step 2: Mix flour and sugar in a large bowl."
+    "Preheat oven to 350°F and grease a baking pan.",
+    "Mix flour and sugar in a large bowl."
   ],
   "servings": 4,
   "caloriesPerServing": 350,
@@ -952,7 +1104,7 @@ ${JSON.stringify(scrapedData.nutrition, null, 2) || 'NOT PROVIDED - MUST ESTIMAT
 - ✅ \`caloriesPerServing\` MUST be a number greater than 0
 - ✅ \`nutrition.calories\` MUST equal \`caloriesPerServing\`
 - ✅ All nutrition values MUST be numbers (never 0 unless truly zero)
-- ✅ \`instructions\` MUST be array of strings (NOT objects)
+- ✅ \`instructions\` MUST be array of strings (NOT objects) WITHOUT "Step 1:", "Step 2:" prefixes - the app adds numbering automatically
 - ✅ \`ingredients\` MUST have id, amount, unit, name, category
 - ✅ Times MUST be in format "XX min" or "X hr" or "X hr XX min"
 - ✅ Include \`extractedImages\` array
