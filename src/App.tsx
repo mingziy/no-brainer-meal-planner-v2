@@ -1,4 +1,5 @@
 import { AppProvider, useApp } from './context/AppContext';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { SignInScreen } from './components/auth/SignInScreen';
 import { HomeScreen } from './components/home/HomeScreen';
 import { RecipeLibraryScreen } from './components/recipe/RecipeLibraryScreen';
@@ -72,8 +73,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
