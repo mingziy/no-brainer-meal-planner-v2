@@ -8,7 +8,7 @@ import { BottomNav } from '../shared/BottomNav';
 import { UserButton } from '../auth/UserButton';
 import { useEffect, useState } from 'react';
 import { ShoppingItem, WeeklyPlan, QuickFood, Recipe } from '../../types';
-import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
+import { aiClient } from '../../services/aiClient';
 export function ShoppingListScreen() {
   const { 
     shoppingList, 
@@ -388,7 +388,7 @@ Return ONLY the English translations, one per line, no explanations, no numberin
       let cleanedIngredients: Array<{ name: string; category: string }> = [];
       if (ingredientNames.length > 0) {
         try {
-          cleanedIngredients = await cleanIngredientNames(ingredientNames);
+          cleanedIngredients = await aiClient.cleanIngredientNames(ingredientNames);
         } catch (error) {
           console.error('❌ AI cleaning failed, using ingredient names:', error);
           cleanedIngredients = ingredientNames.map((name, index) => ({
