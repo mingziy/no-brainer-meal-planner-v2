@@ -6,13 +6,13 @@ import { RecipeLibraryScreen } from './screens/RecipeLibraryScreen';
 import { AddRecipeModal } from './components/recipe/AddRecipeModal';
 import { RecipeDetailsModal } from './components/recipe/RecipeDetailsModal';
 import { RecipeEditFormV2 } from './components/recipe/RecipeEditFormV2';
-import { WeeklyPlanScreen } from './components/planning/WeeklyPlanScreen';
-import { ShoppingListScreen } from './components/shopping/ShoppingListScreen';
-import { PrepHubScreen } from './components/shopping/PrepHubScreen';
-import { TodayScreen } from './components/daily/TodayScreen';
-import { ProfileScreen } from './components/profile/ProfileScreen';
-import { QuickFoodsScreen } from './components/quickfoods/QuickFoodsScreen';
-import RecipeChatbot from './components/ai/RecipeChatbot';
+import { WeeklyPlanScreen } from './screens/WeeklyPlanScreen';
+import { ShoppingListScreen } from './screens/ShoppingListScreen';
+import { PrepHubScreen } from './screens/PrepHubScreen';
+import { TodayScreen } from './screens/TodayScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
+import { QuickFoodsScreen } from './screens/QuickFoodsScreen';
+import { RecipeChatbotScreen } from './screens/RecipeChatbotScreen';
 
 function AppContent() {
   const { user, authLoading, currentScreen } = useApp();
@@ -43,7 +43,7 @@ function AppContent() {
       case 'quick-foods':
         return <QuickFoodsScreen />;
       case 'ai-chat':
-        return <RecipeChatbot />;
+        return <RecipeChatbotScreen />;
       case 'plan-setup':
       case 'weekly-review':
         return <WeeklyPlanScreen />;

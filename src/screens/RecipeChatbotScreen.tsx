@@ -46,7 +46,7 @@ interface Message {
   ideas?: RecipeIdea[];
 }
 
-export default function RecipeChatbot() {
+export function RecipeChatbotScreen() {
   const { setDraftRecipe, setIsRecipeEditFormOpen } = useApp();
   const [state, setState] = useState<ChatbotState>('idle');
   const [messages, setMessages] = useState<Message[]>([
