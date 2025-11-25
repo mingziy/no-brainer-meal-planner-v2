@@ -596,54 +596,8 @@ Return ONLY the JSON, no other text.`;
       if (recipe?.sourceUrl) {
         recipeData.sourceUrl = recipe.sourceUrl;
       }
-      if (recipe?.nameZh) {
-        recipeData.nameZh = recipe.nameZh;
-      }
-      if (recipe?.ingredientsZh && recipe.ingredientsZh.length > 0) {
-        recipeData.ingredientsZh = recipe.ingredientsZh;
-      }
-      if (recipe?.instructionsZh && recipe.instructionsZh.length > 0) {
-        recipeData.instructionsZh = recipe.instructionsZh;
-      }
       
       console.log('💾 Recipe data prepared:', JSON.stringify(recipeData, null, 2));
-      
-      // Check if recipe is in Chinese and translate to create bilingual version
-      const containsChinese = (text: string) => /[\u4e00-\u9fa5]/.test(text);
-      const hasChineseContent = containsChinese(recipeName) || 
-                                ingredients.some(ing => containsChinese(ing.name)) ||
-                                instructions.some(inst => containsChinese(inst));
-      
-      if (hasChineseContent && !recipe?.nameZh) {
-        // Recipe is in Chinese but doesn't have English translation yet
-        console.log('🌐 Detected Chinese recipe, creating bilingual version...');
-        try {
-          const { translateRecipeToEnglish } = await import('../../utils/geminiRecipeParser');
-          const translation = await translateRecipeToEnglish(
-            ingredients.filter(ing => ing.name.trim()),
-            instructions.filter(inst => inst.trim()),
-            recipeName
-          );
-          
-          // Store Chinese as the "Zh" version
-          recipeData.nameZh = recipeName;
-          recipeData.ingredientsZh = ingredients.filter(ing => ing.name.trim());
-          recipeData.instructionsZh = instructions.filter(inst => inst.trim());
-          
-          // Store English as the main version
-          recipeData.name = translation.nameEn;
-          recipeData.ingredients = translation.ingredientsEn;
-          recipeData.instructions = translation.instructionsEn;
-          
-          console.log('✅ Bilingual recipe created:', {
-            chinese: recipeName,
-            english: translation.nameEn
-          });
-        } catch (error) {
-          console.error('❌ Translation failed, saving as Chinese-only:', error);
-          // Keep original Chinese version if translation fails
-        }
-      }
       
       if (selectedRecipe?.id) {
         // Update existing recipe

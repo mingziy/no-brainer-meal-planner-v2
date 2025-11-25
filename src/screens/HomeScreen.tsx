@@ -411,10 +411,7 @@ export function HomeScreen() {
         const fullRecipe = recipes.find(r => r.id === recipe.id);
         if (!fullRecipe) return;
         
-        // Use language-appropriate ingredients
-        const ingredientsToUse = isChineseMode && fullRecipe.ingredientsZh 
-          ? fullRecipe.ingredientsZh 
-          : fullRecipe.ingredients;
+        const ingredientsToUse = fullRecipe.ingredients;
         
         if (!ingredientsToUse || ingredientsToUse.length === 0) return;
         

@@ -330,8 +330,6 @@ Return ONLY the English translations, one per line, no explanations, no numberin
       const quickFoodMap = new Map<string, QuickFood>();
       
       // Collect all unique ingredients from planned meals
-      console.log('🌏 Current language mode:', isChineseMode ? 'Chinese' : 'English');
-      
       selectedPlan.days.forEach(day => {
         const allRecipes = [...day.breakfast, ...day.lunch, ...day.dinner, ...(day.snacks || [])];
         
@@ -344,17 +342,10 @@ Return ONLY the English translations, one per line, no explanations, no numberin
           }
           
           console.log('📖 Processing recipe:', fullRecipe.name, {
-            hasEnglishIngredients: !!fullRecipe.ingredients?.length,
-            hasChineseIngredients: !!fullRecipe.ingredientsZh?.length,
-            isChineseMode,
-            englishCount: fullRecipe.ingredients?.length || 0,
-            chineseCount: fullRecipe.ingredientsZh?.length || 0
+            ingredientsCount: fullRecipe.ingredients?.length || 0
           });
           
-          // Use language-appropriate ingredients
-          const ingredientsToUse = isChineseMode && fullRecipe.ingredientsZh 
-            ? fullRecipe.ingredientsZh 
-            : fullRecipe.ingredients;
+          const ingredientsToUse = fullRecipe.ingredients;
           
           if (!ingredientsToUse || ingredientsToUse.length === 0) {
             console.log('⚠️ No ingredients found for recipe:', fullRecipe.name);
@@ -393,25 +384,14 @@ Return ONLY the English translations, one per line, no explanations, no numberin
       
       console.log('🔄 Regenerating shopping list with', ingredientNames.length, 'ingredients');
       
-      // Step 1: Translate Chinese ingredients to English if in English mode
-      let translatedNames = ingredientNames;
-      if (!isChineseMode) {
-        try {
-          translatedNames = await translateIngredientsToEnglish(ingredientNames);
-        } catch (error) {
-          console.error('❌ Translation failed, using original names:', error);
-          translatedNames = ingredientNames;
-        }
-      }
-      
-      // Step 2: Clean ingredient names and categorize using AI
+      // Clean ingredient names and categorize using AI
       let cleanedIngredients: Array<{ name: string; category: string }> = [];
-      if (translatedNames.length > 0) {
+      if (ingredientNames.length > 0) {
         try {
-          cleanedIngredients = await cleanIngredientNames(translatedNames);
+          cleanedIngredients = await cleanIngredientNames(ingredientNames);
         } catch (error) {
-          console.error('❌ AI cleaning failed, using translated names:', error);
-          cleanedIngredients = translatedNames.map((name, index) => ({
+          console.error('❌ AI cleaning failed, using ingredient names:', error);
+          cleanedIngredients = ingredientNames.map((name, index) => ({
             name,
             category: Array.from(ingredientMap.values())[index].category
           }));
