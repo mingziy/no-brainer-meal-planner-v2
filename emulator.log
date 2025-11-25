@@ -1,0 +1,153 @@
+i  emulators: Starting emulators: functions
+⚠  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect
+i  functions: Watching "/Users/mingziy/MealPlanner/figma-design/functions" for Cloud Functions...
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+⚠  functions: Please note that there will be breaking changes when you upgrade.
+⚠  functions: Your requested "node" version "20" doesn't match your global version "24". Using node@24 from host.
+i  functions: Loaded environment variables from .env.
+Serving at port 8859
+
+✅ Firebase Cloud Functions loaded successfully
+
+✔  functions: Loaded functions definitions from source: chatbotBrainstormIdeas, chatbotFetchPreviews, chatbotScrapeOnly, chatbotCleanAndSave, chatbotGetAnotherRecipe, aiRecipeChat.
+✔  functions[us-central1-chatbotBrainstormIdeas]: http function initialized (http://127.0.0.1:5001/meal-planer-v2/us-central1/chatbotBrainstormIdeas).
+✔  functions[us-central1-chatbotFetchPreviews]: http function initialized (http://127.0.0.1:5001/meal-planer-v2/us-central1/chatbotFetchPreviews).
+✔  functions[us-central1-chatbotScrapeOnly]: http function initialized (http://127.0.0.1:5001/meal-planer-v2/us-central1/chatbotScrapeOnly).
+✔  functions[us-central1-chatbotCleanAndSave]: http function initialized (http://127.0.0.1:5001/meal-planer-v2/us-central1/chatbotCleanAndSave).
+✔  functions[us-central1-chatbotGetAnotherRecipe]: http function initialized (http://127.0.0.1:5001/meal-planer-v2/us-central1/chatbotGetAnotherRecipe).
+✔  functions[us-central1-aiRecipeChat]: http function initialized (http://127.0.0.1:5001/meal-planer-v2/us-central1/aiRecipeChat).
+
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+│ i  View Emulator UI at http://127.0.0.1:4000/               │
+└─────────────────────────────────────────────────────────────┘
+
+┌───────────┬────────────────┬─────────────────────────────────┐
+│ Emulator  │ Host:Port      │ View in Emulator UI             │
+├───────────┼────────────────┼─────────────────────────────────┤
+│ Functions │ 127.0.0.1:5001 │ http://127.0.0.1:4000/functions │
+└───────────┴────────────────┴─────────────────────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4400
+  Other reserved ports: 4500
+
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
+i  functions: Loaded environment variables from .env.
+>  ✅ Firebase Cloud Functions loaded successfully
+i  functions: Beginning execution of "us-central1-chatbotBrainstormIdeas"
+i  functions: Finished "us-central1-chatbotBrainstormIdeas" in 2.198125ms
+i  functions: Beginning execution of "us-central1-chatbotBrainstormIdeas"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  [chatbotBrainstormIdeas] Query: thanksgiving recipe
+⚠  External network resource requested!
+   - URL: "https://api.openai.com/v1/chat/completions"
+ - Be careful, this may be a production service.
+>  [chatbotBrainstormIdeas] Error: AuthenticationError: 401 Incorrect API key provided: sk-proj-********************************************************************************************************************************************************FgYA. You can find your API key at https://platform.openai.com/account/api-keys.
+>      at APIError.generate (/Users/mingziy/MealPlanner/figma-design/functions/node_modules/openai/error.js:48:20)
+>      at OpenAI.makeStatusError (/Users/mingziy/MealPlanner/figma-design/functions/node_modules/openai/core.js:302:33)
+>      at OpenAI.makeRequest (/Users/mingziy/MealPlanner/figma-design/functions/node_modules/openai/core.js:346:30)
+>      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+>      at async /Users/mingziy/MealPlanner/figma-design/functions/index.js:135:22
+>      at async /Users/mingziy/MealPlanner/figma-design/functions/node_modules/firebase-functions/lib/common/providers/https.js:545:26
+>      at async runFunction (/opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:506:9)
+>      at async runHTTPS (/opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:531:5)
+>      at async /opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:694:21 {
+>    status: 401,
+>    headers: {
+>      'alt-svc': 'h3=":443"; ma=86400',
+>      'cf-cache-status': 'DYNAMIC',
+>      'cf-ray': '9a44bff0d8e5372b-SEA',
+>      connection: 'keep-alive',
+>      'content-length': '393',
+>      'content-type': 'text/plain',
+>      date: 'Tue, 25 Nov 2025 22:58:15 GMT',
+>      server: 'cloudflare',
+>      'set-cookie': '__cf_bm=hAoV2NjFfqfRL39S.thR3v_veXogHd8QdHebHDys.jM-1764111495-1.0.1.1-XJ2UG6fddi0vMHocY1jzzba7UftLoDYM5HjRrO1AkQHWU2sisnKpSHtN8BjMXz0.lOiJy13mdc6rbM4QGhJpYmMuDIZpI2l_jZQsZnRA1rQ; path=/; expires=Tue, 25-Nov-25 23:28:15 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=wPvt28hFrDZGQY4DGVPbw7gdFUBuLpB01G.IpeXVkqw-1764111495888-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+>      'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+>      'x-content-type-options': 'nosniff',
+>      'x-datadog-parent-id': '2770352384126712806',
+>      'x-datadog-sampling-priority': '0',
+>      'x-datadog-trace-id': '12860531766358072325',
+>      'x-envoy-upstream-service-time': '3',
+>      'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqRmdZQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfQp9',
+>      'x-openai-authorization-error': '401',
+>      'x-openai-ide-error-code': 'invalid_api_key',
+>      'x-openai-internal-caller': 'unknown_through_ide',
+>      'x-openai-proxy-wasm': 'v0.1',
+>      'x-request-id': 'req_a5f4df5623e340aa8d76b08b67d633c0'
+>    },
+>    request_id: 'req_a5f4df5623e340aa8d76b08b67d633c0',
+>    error: {
+>      message: 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************FgYA. You can find your API key at https://platform.openai.com/account/api-keys.',
+>      type: 'invalid_request_error',
+>      code: 'invalid_api_key',
+>      param: null
+>    },
+>    code: 'invalid_api_key',
+>    param: null,
+>    type: 'invalid_request_error'
+>  }
+>  {"severity":"ERROR","message":"Unhandled error Error: 401 Incorrect API key provided: sk-proj-********************************************************************************************************************************************************FgYA. You can find your API key at https://platform.openai.com/account/api-keys.\n    at /Users/mingziy/MealPlanner/figma-design/functions/index.js:191:11\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/mingziy/MealPlanner/figma-design/functions/node_modules/firebase-functions/lib/common/providers/https.js:545:26\n    at async runFunction (/opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:506:9)\n    at async runHTTPS (/opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:531:5)\n    at async /opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:694:21"}
+i  functions: Finished "us-central1-chatbotBrainstormIdeas" in 250.191959ms
+i  functions: Beginning execution of "us-central1-chatbotBrainstormIdeas"
+i  functions: Finished "us-central1-chatbotBrainstormIdeas" in 2.09975ms
+i  functions: Beginning execution of "us-central1-chatbotBrainstormIdeas"
+>  {"verifications":{"app":"MISSING","auth":"VALID"},"logging.googleapis.com/labels":{"firebase-log-type":"callable-request-verification"},"severity":"DEBUG","message":"Callable request verification passed"}
+>  [chatbotBrainstormIdeas] Query: thanksgiving recipe
+>  [chatbotBrainstormIdeas] Error: AuthenticationError: 401 Incorrect API key provided: sk-proj-********************************************************************************************************************************************************FgYA. You can find your API key at https://platform.openai.com/account/api-keys.
+>      at APIError.generate (/Users/mingziy/MealPlanner/figma-design/functions/node_modules/openai/error.js:48:20)
+>      at OpenAI.makeStatusError (/Users/mingziy/MealPlanner/figma-design/functions/node_modules/openai/core.js:302:33)
+>      at OpenAI.makeRequest (/Users/mingziy/MealPlanner/figma-design/functions/node_modules/openai/core.js:346:30)
+>      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+>      at async /Users/mingziy/MealPlanner/figma-design/functions/index.js:135:22
+>      at async /Users/mingziy/MealPlanner/figma-design/functions/node_modules/firebase-functions/lib/common/providers/https.js:545:26
+>      at async runFunction (/opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:506:9)
+>      at async runHTTPS (/opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:531:5)
+>      at async /opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:694:21 {
+>    status: 401,
+>    headers: {
+>      'alt-svc': 'h3=":443"; ma=86400',
+>      'cf-cache-status': 'DYNAMIC',
+>      'cf-ray': '9a44c0348bf21ef1-SEA',
+>      connection: 'keep-alive',
+>      'content-length': '393',
+>      'content-type': 'text/plain',
+>      date: 'Tue, 25 Nov 2025 22:58:26 GMT',
+>      server: 'cloudflare',
+>      'set-cookie': '__cf_bm=LgbH86eGUgEeN2OX76S55OoNTG3Jtz3K0fUctVjEKvo-1764111506-1.0.1.1-Anc_jKLqMUnTjb1hce6UcQynUKmFU9NJUMKoFz8mUJ3cgrs_PF3AcI671jt.soM.ytChEcNDAK7D60JR5mRA5asERgp3ZbZSABYm8Kc5Wlc; path=/; expires=Tue, 25-Nov-25 23:28:26 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=BisAz1TWO.0FU8gtxMO4UoT6vXBSp1AXxWKEAXQkeFc-1764111506735-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+>      'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+>      'x-content-type-options': 'nosniff',
+>      'x-datadog-parent-id': '7319578230991380845',
+>      'x-datadog-sampling-priority': '0',
+>      'x-datadog-trace-id': '4268538363305635645',
+>      'x-envoy-upstream-service-time': '30',
+>      'x-error-json': 'ewogICJlcnJvciI6IHsKICAgICJtZXNzYWdlIjogIkluY29ycmVjdCBBUEkga2V5IHByb3ZpZGVkOiBzay1wcm9qLSoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqRmdZQS4gWW91IGNhbiBmaW5kIHlvdXIgQVBJIGtleSBhdCBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYWNjb3VudC9hcGkta2V5cy4iLAogICAgInR5cGUiOiAiaW52YWxpZF9yZXF1ZXN0X2Vycm9yIiwKICAgICJjb2RlIjogImludmFsaWRfYXBpX2tleSIsCiAgICAicGFyYW0iOiBudWxsCiAgfQp9',
+>      'x-openai-authorization-error': '401',
+>      'x-openai-ide-error-code': 'invalid_api_key',
+>      'x-openai-internal-caller': 'unknown_through_ide',
+>      'x-openai-proxy-wasm': 'v0.1',
+>      'x-request-id': 'req_5a3641c7f959426cbdf98b4a2d190e76'
+>    },
+>    request_id: 'req_5a3641c7f959426cbdf98b4a2d190e76',
+>    error: {
+>      message: 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************FgYA. You can find your API key at https://platform.openai.com/account/api-keys.',
+>      type: 'invalid_request_error',
+>      code: 'invalid_api_key',
+>      param: null
+>    },
+>    code: 'invalid_api_key',
+>    param: null,
+>    type: 'invalid_request_error'
+>  }
+>  {"severity":"ERROR","message":"Unhandled error Error: 401 Incorrect API key provided: sk-proj-********************************************************************************************************************************************************FgYA. You can find your API key at https://platform.openai.com/account/api-keys.\n    at /Users/mingziy/MealPlanner/figma-design/functions/index.js:191:11\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async /Users/mingziy/MealPlanner/figma-design/functions/node_modules/firebase-functions/lib/common/providers/https.js:545:26\n    at async runFunction (/opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:506:9)\n    at async runHTTPS (/opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:531:5)\n    at async /opt/homebrew/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorRuntime.js:694:21"}
+i  functions: Finished "us-central1-chatbotBrainstormIdeas" in 191.337208ms
+ 
+i  emulators: Received SIGTERM for the first time. Starting a clean shutdown.
+i  emulators: Please wait for a clean shutdown or send the SIGTERM signal again to stop right now.
+i  emulators: Shutting down emulators.
+i  ui: Stopping Emulator UI
+i  functions: Stopping Functions Emulator
+i  eventarc: Stopping Eventarc Emulator
+i  tasks: Stopping Cloud Tasks Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
