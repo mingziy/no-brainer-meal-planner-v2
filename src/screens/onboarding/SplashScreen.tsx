@@ -1,6 +1,6 @@
 import { UtensilsCrossed } from 'lucide-react';
-import { Button } from '../ui/button';
-import { useApp } from '../../context/AppContext';
+import { Button } from '../components/ui/button';
+import { useApp } from '../context/AppContext';
 
 export function SplashScreen() {
   const { setCurrentScreen } = useApp();

@@ -1,8 +1,8 @@
 import { ChevronRight, Heart, Bell, User as UserIcon, LogOut } from 'lucide-react';
-import { Card, CardContent } from '../ui/card';
-import { useApp } from '../../context/AppContext';
+import { Card, CardContent } from '../components/ui/card';
+import { useApp } from '../context/AppContext';
 import { useAuth } from '../../hooks/useAuth';
-import { BottomNav } from '../shared/BottomNav';
+import { BottomNav } from '../components/shared/BottomNav';
 
 export function ProfileScreen() {
   const { userProfile, setCurrentScreen } = useApp();

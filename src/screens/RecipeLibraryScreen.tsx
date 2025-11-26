@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../context/AppContext';
 import { Recipe, RecipeCategory, RecipeCuisine } from '../../types';
-import { Input } from '../ui/input';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Card, CardContent } from '../ui/card';
-import { ScrollArea } from '../ui/scroll-area';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Card, CardContent } from '../components/ui/card';
+import { ScrollArea } from '../components/ui/scroll-area';
 import { Search, Plus, Heart, Clock, Trash2 } from 'lucide-react';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { BottomNav } from '../shared/BottomNav';
-import { UserButton } from '../auth/UserButton';
+import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { BottomNav } from '../components/shared/BottomNav';
+import { UserButton } from '../components/auth/UserButton';
 export function RecipeLibraryScreen() {
   const {
     recipes,

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Edit, Save, X, Plus, Sparkles, RotateCcw, PlusCircle, Pencil } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,14 +12,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '../ui/alert-dialog';
-import { useApp } from '../../context/AppContext';
-import { BottomNav } from '../shared/BottomNav';
-import { UserButton } from '../auth/UserButton';
+} from '../components/ui/alert-dialog';
+import { useApp } from '../context/AppContext';
+import { BottomNav } from '../components/shared/BottomNav';
+import { UserButton } from '../components/auth/UserButton';
 import { Recipe, RecipeCategory, QuickFood, ShoppingItem } from '../../types';
 import { defaultQuickFoods } from '../../data/quickFoods';
 import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
-import { RecipeDetailsModal } from '../recipe/RecipeDetailsModal';
+import { RecipeDetailsModal } from '../components/recipe/RecipeDetailsModal';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner';
 type ViewMode = '3-day' | 'full-week';

@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, Loader2, CheckSquare, Square, ExternalLink, Download, RefreshCw, CheckCircle } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card } from '../ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Card } from '../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../config/firebase';
-import { useApp } from '../../context/AppContext';
-import { BottomNav } from '../shared/BottomNav';
+import { functions } from '../config/firebase';
+import { useApp } from '../context/AppContext';
+import { BottomNav } from '../components/shared/BottomNav';
 
 // Types
 type ChatbotState = 'idle' | 'brainstorming' | 'selecting' | 'searching' | 'showing_options' | 'extracting';

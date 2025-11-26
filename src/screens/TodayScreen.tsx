@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { ChevronRight, Edit } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { useApp } from '../../context/AppContext';
-import { BottomNav } from '../shared/BottomNav';
-import { RecipeDetailsModal } from '../recipe/RecipeDetailsModal';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { useApp } from '../context/AppContext';
+import { BottomNav } from '../components/shared/BottomNav';
+import { RecipeDetailsModal } from '../components/recipe/RecipeDetailsModal';
 import { EditTodayMealsModal } from './EditTodayMealsModal';
 import { Recipe, QuickFood } from '../../types';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
 export function TodayScreen() {
   const { currentWeeklyPlan, userProfile, viewingDayOffset, pendingTodayMealSelection, getThisWeekPlan, getNextWeekPlan } = useApp();

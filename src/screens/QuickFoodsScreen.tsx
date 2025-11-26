@@ -1,22 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, Loader2 } from 'lucide-react';
-import { Card, CardContent } from '../ui/card';
-import { Input } from '../ui/input';
-import { Button } from '../ui/button';
-import { BottomNav } from '../shared/BottomNav';
-import { UserButton } from '../auth/UserButton';
+import { Card, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { BottomNav } from '../components/shared/BottomNav';
+import { UserButton } from '../components/auth/UserButton';
 import { defaultQuickFoods } from '../../data/quickFoods';
-import { ScrollArea } from '../ui/scroll-area';
+import { ScrollArea } from '../components/ui/scroll-area';
 import { QuickFood } from '../../types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Label } from '../ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { Label } from '../components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
+} from '../components/ui/select';
 
 type Category = 'all' | 'fruit' | 'veggie' | 'dairy' | 'grain' | 'protein' | 'snack' | 'drink';
 

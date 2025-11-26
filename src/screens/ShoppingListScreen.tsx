@@ -1,11 +1,11 @@
 import { Share2, RefreshCw } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Checkbox } from '../ui/checkbox';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { useApp } from '../../context/AppContext';
-import { BottomNav } from '../shared/BottomNav';
-import { UserButton } from '../auth/UserButton';
+import { Button } from '../components/ui/button';
+import { Checkbox } from '../components/ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { useApp } from '../context/AppContext';
+import { BottomNav } from '../components/shared/BottomNav';
+import { UserButton } from '../components/auth/UserButton';
 import { useEffect, useState } from 'react';
 import { ShoppingItem, WeeklyPlan, QuickFood, Recipe } from '../../types';
 import { aiClient } from '../../services/aiClient';

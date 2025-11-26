@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { CheckCircle2, Circle, ChevronRight } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
-import { useApp } from '../../context/AppContext';
-import { BottomNav } from '../shared/BottomNav';
+import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
+import { useApp } from '../context/AppContext';
+import { BottomNav } from '../components/shared/BottomNav';
 import { PrepTaskModal } from './PrepTaskModal';
 import { PrepTask } from '../../types';
 

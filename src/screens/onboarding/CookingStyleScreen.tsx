@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Button } from '../ui/button';
+import { Button } from '../components/ui/button';
 import { Clock, Beef, Leaf, Scale } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../context/AppContext';
 
 export function CookingStyleScreen() {
   const { setCurrentScreen, userProfile, setUserProfile } = useApp();

@@ -1,9 +1,9 @@
 import { useState, useEffect, Component, ReactNode } from 'react';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { useApp } from '../../context/AppContext';
-import { BottomNav } from '../shared/BottomNav';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { useApp } from '../context/AppContext';
+import { BottomNav } from '../components/shared/BottomNav';
 import { Plus, Calendar, Sparkles, RefreshCw, Save, RotateCcw, X, PlusCircle } from 'lucide-react';
 import { Recipe, RecipeCategory, ShoppingItem, QuickFood } from '../../types';
 import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
@@ -17,7 +17,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '../ui/alert-dialog';
+} from '../components/ui/alert-dialog';
 
 // Error Boundary Component
 class ErrorBoundary extends Component<
