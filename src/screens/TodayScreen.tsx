@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { useApp } from '../context/AppContext';
 import { BottomNav } from '../components/shared/BottomNav';
 import { RecipeDetailsModal } from '../components/recipe/RecipeDetailsModal';
-import { EditTodayMealsModal } from './EditTodayMealsModal';
+import { EditTodayMealsModal } from '../components/daily/EditTodayMealsModal';
 import { Recipe, QuickFood } from '../types';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 

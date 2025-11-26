@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { useApp } from '../context/AppContext';
 import { BottomNav } from '../components/shared/BottomNav';
-import { PrepTaskModal } from './PrepTaskModal';
+import { PrepTaskModal } from '../components/shopping/PrepTaskModal';
 import { PrepTask } from '../types';
 
 export function PrepHubScreen() {
