@@ -103,7 +103,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
               </Button>
               <Button variant="outline" size="sm" onClick={handleEdit}>
                 <Edit className="w-4 h-4 mr-2" />
-                {t('details.editButton')}
+                Edit Recipe
               </Button>
             </div>
           </div>
@@ -121,7 +121,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                   onClick={() => setShowOriginalText(true)}
                 >
                   <FileText className="w-4 h-4 mr-2" />
-                  {t('details.viewExtractedText')}
+                  View Extracted Text
                 </Button>
               )}
               {selectedRecipe.sourceUrl && (
@@ -136,7 +136,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                     rel="noopener noreferrer"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    {t('details.openOriginalWebsite')}
+                    Open Original Website
                   </a>
                 </Button>
               )}
@@ -147,7 +147,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                   onClick={() => setShowNutritionReasoning(true)}
                 >
                   <Calculator className="w-4 h-4 mr-2" />
-                  {t('details.viewNutritionCalculation')}
+                  View Nutrition Calculation
                 </Button>
               )}
             </div>
@@ -193,7 +193,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                   <ExternalLink className="w-4 h-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                      {t('details.source')}
+                      Source
                     </p>
                     <a
                       href={selectedRecipe.sourceUrl}
@@ -212,30 +212,30 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-1" />
-                <span>{t('library.prepTime')}: {selectedRecipe.prepTime} min</span>
+                <span>Prep Time: {selectedRecipe.prepTime} min</span>
               </div>
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-1" />
-                <span>{t('library.cookTime')}: {selectedRecipe.cookTime} min</span>
+                <span>Cook Time: {selectedRecipe.cookTime} min</span>
               </div>
             </div>
 
             {/* Nutrition Card */}
             <div className="p-5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg">
-              <h3 className="font-semibold text-lg mb-4 text-primary">{t('details.nutritionInfo')}</h3>
+              <h3 className="font-semibold text-lg mb-4 text-primary">Nutrition Info</h3>
               
               {/* Servings and Calories - Top Row */}
               {selectedRecipe.servings > 0 && (
                 <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-primary/20">
                   <div className="text-center bg-background/60 rounded-lg p-3">
-                    <p className="text-xs text-gray-600 mb-1">{t('details.servings')}</p>
+                    <p className="text-xs text-gray-600 mb-1">Servings</p>
                     <p className="text-5xl font-bold text-primary">{selectedRecipe.servings}</p>
                   </div>
                   {selectedRecipe.caloriesPerServing > 0 && (
                     <div className="text-center bg-background/60 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">{t('details.calories')}</p>
+                      <p className="text-xs text-gray-600 mb-1">Calories</p>
                       <p className="text-5xl font-bold text-primary">{selectedRecipe.caloriesPerServing}</p>
-                      <p className="text-xs text-gray-500">{t('details.perServing')}</p>
+                      <p className="text-xs text-gray-500">per serving</p>
                     </div>
                   )}
                 </div>
@@ -247,7 +247,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                 <div className="space-y-2 pr-4">
                   {/* Protein */}
                   <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
-                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.protein')}</span>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">Protein</span>
                     <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
                       <span className="font-bold text-primary">{selectedRecipe.nutrition.protein}g</span>
                       {selectedRecipe.nutrition.proteinDV && (
@@ -258,7 +258,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                   
                   {/* Fats */}
                   <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
-                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.fats')}</span>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">Fats</span>
                     <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
                       <span className="font-bold text-primary">{selectedRecipe.nutrition.fat}g</span>
                       {selectedRecipe.nutrition.fatDV && (
@@ -269,7 +269,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                   
                   {/* Iron */}
                   <div className="flex items-center justify-between py-2" style={{ gap: '12px' }}>
-                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.iron')}</span>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">Iron</span>
                     <span className="font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">{selectedRecipe.nutrition.iron}</span>
                   </div>
                 </div>
@@ -278,7 +278,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                 <div className="space-y-2 pl-4">
                   {/* Carbs */}
                   <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
-                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.carbs')}</span>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">Carbs</span>
                     <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
                       <span className="font-bold text-primary">{selectedRecipe.nutrition.carbs}g</span>
                       {selectedRecipe.nutrition.carbsDV && (
@@ -289,7 +289,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                   
                   {/* Fiber */}
                   <div className="flex items-center justify-between py-2 border-b border-gray-200" style={{ gap: '12px' }}>
-                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.fiber')}</span>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">Fiber</span>
                     <div className="flex items-baseline gap-1 whitespace-nowrap flex-shrink-0">
                       <span className="font-bold text-primary">{selectedRecipe.nutrition.fiber}g</span>
                       {selectedRecipe.nutrition.fiberDV && (
@@ -300,7 +300,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
                   
                   {/* Calcium */}
                   <div className="flex items-center justify-between py-2" style={{ gap: '12px' }}>
-                    <span className="text-gray-700 font-semibold flex-shrink-0">{t('details.calcium')}</span>
+                    <span className="text-gray-700 font-semibold flex-shrink-0">Calcium</span>
                     <span className="font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">{selectedRecipe.nutrition.calcium}</span>
                   </div>
                 </div>
@@ -309,7 +309,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
 
             {/* Ingredients List */}
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">{t('details.ingredients')}</h3>
+              <h3 className="font-semibold mb-3">Ingredients</h3>
               <ul className="space-y-2">
                 {displayIngredients.map((ingredient) => {
                   const isChecked = checkedIngredients.has(ingredient.id);
@@ -337,7 +337,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
 
             {/* Instructions */}
             <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3">{t('details.instructions')}</h3>
+              <h3 className="font-semibold mb-3">Instructions</h3>
               <ol className="space-y-3">
                 {displayInstructions.map((instruction, index) => {
                   const isChecked = checkedSteps.has(index);
@@ -373,7 +373,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
     <Dialog open={showOriginalText} onOpenChange={setShowOriginalText}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="original-text-description">
         <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
-          <DialogTitle>{t('details.originalRecipeText')}</DialogTitle>
+          <DialogTitle>Original Recipe Text</DialogTitle>
           <DialogDescription id="original-text-description">
             The raw text extracted from your uploaded image or pasted content.
           </DialogDescription>
@@ -386,7 +386,7 @@ export function RecipeDetailsModal({ recipe: recipeProp, onClose: onCloseProp }:
         
         <div className="sticky bottom-0 bg-background border-t pt-4 flex justify-end">
           <Button variant="outline" onClick={() => setShowOriginalText(false)}>
-            {t('details.close')}
+            Close
           </Button>
         </div>
       </DialogContent>

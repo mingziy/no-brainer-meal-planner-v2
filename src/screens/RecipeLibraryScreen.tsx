@@ -29,25 +29,6 @@ export function RecipeLibraryScreen() {
     userSignedIn: !!user
   });
   
-  // Helper function to translate category names
-  const translateCategory = (category: string): string => {
-    const categoryMap: { [key: string]: string } = {
-      'Korean': t('categories.korean'),
-      'Chinese': t('categories.chinese'),
-      'Italian': t('categories.italian'),
-      'American': t('categories.american'),
-      'Mexican': t('categories.mexican'),
-      'Japanese': t('categories.japanese'),
-      'Other': t('categories.other'),
-      'Kid-Friendly': t('categories.kidFriendly'),
-      'Breakfast': t('categories.breakfast'),
-      'Lunch': t('categories.lunch'),
-      'Dinner': t('categories.dinner'),
-      'Snack': t('categories.snack'),
-      'Batch-Cook Friendly': t('categories.batchCook'),
-    };
-    return categoryMap[category] || category;
-  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -190,7 +171,7 @@ export function RecipeLibraryScreen() {
       <div className="sticky top-0 z-50 bg-background border-b">
         <div className="max-w-md mx-auto w-full px-6 py-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">{t('library.title')}</h1>
+            <h1 className="text-2xl font-bold">Recipe Library</h1>
             <div className="flex items-center gap-2">
               <Button onClick={handleAddRecipe} size="sm" className="shrink-0">
                 <Plus className="w-4 h-4 mr-2" />
@@ -205,7 +186,7 @@ export function RecipeLibraryScreen() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               type="text"
-              placeholder={t('library.searchPlaceholder')}
+              placeholder="Search recipes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -269,8 +250,8 @@ export function RecipeLibraryScreen() {
               {/* Recipe Grid */}
               {filteredRecipes.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
-                  <p className="text-lg">{t('library.noRecipesFound')}</p>
-                  <p className="text-sm mt-2">{t('library.tryAdjusting')}</p>
+                  <p className="text-lg">No recipes found</p>
+                  <p className="text-sm mt-2">Try adjusting your search or filters</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -305,12 +286,12 @@ function RecipeCard({ recipe, onClick, onDelete }: RecipeCardProps) {
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     
-    if (confirm(t('library.deleteConfirm', { name: recipe.name }))) {
+    if (confirm(`Are you sure you want to delete "${recipe.name}"?`)) {
       try {
         await onDelete(recipe.id);
       } catch (error) {
         console.error('Error deleting recipe:', error);
-        alert(t('library.deleteFailed'));
+        alert('Failed to delete recipe. Please try again.');
       }
     }
   };
