@@ -153,17 +153,60 @@
 
 ---
 
+### Phase 5: Frontend Scraping Removal ✓
+**Branch:** `refactor/05-backend-only`  
+**Commits:** 1  
+**Status:** Merged to main
+
+**Changes:**
+- Documented client-side scraping in `AddRecipeModal.tsx`
+- Added deprecation warnings to scraping code
+- Created migration guide (`FRONTEND_SCRAPING_REMOVAL.md`)
+- Added feature flag for gradual migration
+- Verified `RecipeChatbotScreen` already uses backend
+
+**Files Added:**
+- `FRONTEND_SCRAPING_REMOVAL.md`
+
+**Files Modified:**
+- `src/components/recipe/AddRecipeModal.tsx`
+
+**Next Steps:**
+- Create `extractRecipeFromUrl` Firebase Function
+- Migrate `AddRecipeModal` to use backend
+- Remove CORS proxy logic
+
+---
+
+### Phase 6: Login-Required Mode ✓
+**Branch:** `refactor/06-login-required`  
+**Commits:** 1  
+**Status:** Merged to main
+
+**Changes:**
+- Verified authentication is already enforced in `App.tsx`
+- Confirmed no demo mode infrastructure exists
+- Verified all data operations use Firestore only
+- Documented current state in `LOGIN_REQUIRED_VERIFICATION.md`
+
+**Status:** ✅ Already implemented, no changes needed
+
+**Files Added:**
+- `LOGIN_REQUIRED_VERIFICATION.md`
+
+---
+
 ## 📊 Summary Statistics
 
-**Completed:** 4/10 phases  
-**Branches merged:** 4  
-**Total commits:** 10  
+**Completed:** 6/10 phases  
+**Branches merged:** 6  
+**Total commits:** 15  
 **Lines removed:** ~485  
-**Lines added:** ~913  
-**Net change:** +428 lines
+**Lines added:** ~1,313  
+**Net change:** +828 lines
 
-**Files created:** 6
-- ErrorBoundary, schemas, aiClient, privacy, AccountDeletionScreen, this report
+**Files created:** 10
+- ErrorBoundary, schemas, aiClient, privacy, AccountDeletionScreen, progress reports
 
 **Files deleted:** 4
 - i18n config, locales, LanguageSwitcher
@@ -173,9 +216,9 @@
 
 ---
 
-## 🔄 Remaining Phases (5-10)
+## 🔄 Remaining Phases (7-10)
 
-### Phase 5: Frontend Scraping Removal (PENDING)
+### Phase 7: Theme System (PENDING)
 - Remove all client-side HTML scraping
 - Add placeholders that call backend APIs
 - Update documentation
