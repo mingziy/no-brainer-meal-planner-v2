@@ -308,7 +308,20 @@ export function AddRecipeModal() {
     setIsProcessing(true);
 
     try {
+      // ⚠️ DEPRECATION WARNING
+      // TODO: MIGRATE TO BACKEND - This client-side scraping should be moved to Firebase Functions
+      // for better security, reliability, and App Store compliance.
+      // See: FRONTEND_SCRAPING_REMOVAL.md
+      console.warn('[AddRecipeModal] ⚠️ Using deprecated client-side scraping. Migrate to backend.');
+      
       console.log('🌐 Fetching recipe from URL:', pasteUrl);
+      
+      // Feature flag to disable URL extraction if needed
+      const ENABLE_CLIENT_SIDE_EXTRACTION = true; // Set to false when backend is ready
+      
+      if (!ENABLE_CLIENT_SIDE_EXTRACTION) {
+        throw new Error('URL extraction temporarily disabled. Please use manual entry or screenshot.');
+      }
       
       // Try multiple CORS proxies in order
       const corsProxies = [
