@@ -43,7 +43,7 @@ export function QuickFoodsScreen() {
     const loadCustomQuickFoods = async () => {
       try {
         const { collection, query, where, getDocs } = await import('firebase/firestore');
-        const { db, auth } = await import('../../config/firebase');
+        const { db, auth } = await import('../config/firebase');
         
         const user = auth.currentUser;
         if (!user) return;
