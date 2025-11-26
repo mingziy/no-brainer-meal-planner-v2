@@ -21,7 +21,7 @@ import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Upload, FileText, Edit, Loader2, Image as ImageIcon, Link, AlertTriangle } from 'lucide-react';
 import { parseRecipeText } from '../../utils/recipeParser';
-import { parseRecipeWithGemini, parseRecipeWithBilingualSupport, parseRecipeFromImage } from '../../utils/geminiRecipeParser';
+import { parseRecipeWithGemini, parseRecipeFromImage } from '../../utils/geminiRecipeParser';
 
 export function AddRecipeModal() {
   const { 
@@ -427,7 +427,7 @@ export function AddRecipeModal() {
       let parsedRecipe;
       try {
         console.log('🌏 Attempting bilingual AI parsing (English + Chinese)...');
-        parsedRecipe = await parseRecipeWithBilingualSupport(extractedText);
+        parsedRecipe = await parseRecipeWithGemini(extractedText, 60000);
         console.log('✅ Bilingual parsing successful! Recipe now has both EN and ZH versions.');
       } catch (error: any) {
         console.error('⚠️ AI parsing failed:', error.message);
