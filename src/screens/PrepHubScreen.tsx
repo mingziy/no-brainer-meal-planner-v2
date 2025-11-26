@@ -5,7 +5,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { useApp } from '../context/AppContext';
 import { BottomNav } from '../components/shared/BottomNav';
 import { PrepTaskModal } from './PrepTaskModal';
-import { PrepTask } from '../../types';
+import { PrepTask } from '../types';
 
 export function PrepHubScreen() {
   const { prepTasks, setPrepTasks, setCurrentScreen } = useApp();

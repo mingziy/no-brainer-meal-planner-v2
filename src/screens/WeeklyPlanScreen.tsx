@@ -5,9 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { useApp } from '../context/AppContext';
 import { BottomNav } from '../components/shared/BottomNav';
 import { Plus, Calendar, Sparkles, RefreshCw, Save, RotateCcw, X, PlusCircle } from 'lucide-react';
-import { Recipe, RecipeCategory, ShoppingItem, QuickFood } from '../../types';
-import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
-import { defaultQuickFoods } from '../../data/quickFoods';
+import { Recipe, RecipeCategory, ShoppingItem, QuickFood } from '../types';
+import { cleanIngredientNames } from '../utils/geminiRecipeParser';
+import { defaultQuickFoods } from '../data/quickFoods';
 import {
   AlertDialog,
   AlertDialogAction,

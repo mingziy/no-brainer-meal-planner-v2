@@ -7,8 +7,8 @@ import { useApp } from '../context/AppContext';
 import { BottomNav } from '../components/shared/BottomNav';
 import { UserButton } from '../components/auth/UserButton';
 import { useEffect, useState } from 'react';
-import { ShoppingItem, WeeklyPlan, QuickFood, Recipe } from '../../types';
-import { aiClient } from '../../services/aiClient';
+import { ShoppingItem, WeeklyPlan, QuickFood, Recipe } from '../types';
+import { aiClient } from '../services/aiClient';
 export function ShoppingListScreen() {
   const { 
     shoppingList, 

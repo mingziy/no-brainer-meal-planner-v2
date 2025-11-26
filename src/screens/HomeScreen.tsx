@@ -16,9 +16,9 @@ import {
 import { useApp } from '../context/AppContext';
 import { BottomNav } from '../components/shared/BottomNav';
 import { UserButton } from '../components/auth/UserButton';
-import { Recipe, RecipeCategory, QuickFood, ShoppingItem } from '../../types';
-import { defaultQuickFoods } from '../../data/quickFoods';
-import { cleanIngredientNames } from '../../utils/geminiRecipeParser';
+import { Recipe, RecipeCategory, QuickFood, ShoppingItem } from '../types';
+import { defaultQuickFoods } from '../data/quickFoods';
+import { cleanIngredientNames } from '../utils/geminiRecipeParser';
 import { RecipeDetailsModal } from '../components/recipe/RecipeDetailsModal';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner';

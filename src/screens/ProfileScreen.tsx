@@ -1,7 +1,7 @@
 import { ChevronRight, Heart, Bell, User as UserIcon, LogOut } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { useApp } from '../context/AppContext';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
 import { BottomNav } from '../components/shared/BottomNav';
 
 export function ProfileScreen() {

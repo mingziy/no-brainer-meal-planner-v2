@@ -5,9 +5,9 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { BottomNav } from '../components/shared/BottomNav';
 import { UserButton } from '../components/auth/UserButton';
-import { defaultQuickFoods } from '../../data/quickFoods';
+import { defaultQuickFoods } from '../data/quickFoods';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { QuickFood } from '../../types';
+import { QuickFood } from '../types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import {

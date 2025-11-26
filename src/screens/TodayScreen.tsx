@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { BottomNav } from '../components/shared/BottomNav';
 import { RecipeDetailsModal } from '../components/recipe/RecipeDetailsModal';
 import { EditTodayMealsModal } from './EditTodayMealsModal';
-import { Recipe, QuickFood } from '../../types';
+import { Recipe, QuickFood } from '../types';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
 export function TodayScreen() {
