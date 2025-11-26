@@ -31,10 +31,10 @@ CRITICAL RULES:
 6. Remove quality descriptors ONLY if they don't change the ingredient (e.g., "extra virgin" from olive oil, "fresh" from garlic)
 
 CATEGORIES (choose ONE for each ingredient):
-- produce: vegetables, fruits, herbs, mushrooms (蔬菜, 水果, 香料, 蘑菇)
-- meat: all meat, poultry, seafood, fish (肉类, 禽类, 海鲜, 鱼)
-- dairy: milk, cheese, eggs, yogurt, butter, cream (奶制品, 鸡蛋, 奶酪, 黄油)
-- pantry: grains, pasta, rice, oil, spices, sauces, condiments, flour (主食, 油, 调料, 酱料, 面粉)
+- produce: vegetables, fruits, herbs, mushrooms 
+- meat: all meat, poultry, seafood, fish 
+- dairy: milk, cheese, eggs, yogurt, butter, cream 
+- pantry: grains, pasta, rice, oil, spices, sauces, condiments, flour 
 
 OUTPUT FORMAT (CRITICAL):
 Each line must be: CLEANED_NAME | CATEGORY
@@ -43,10 +43,7 @@ Examples:
 - "garlic (minced)" → "garlic | produce"
 - "tomatoes, seeds removed" → "tomato | produce"
 - "cherry tomatoes" → "cherry tomato | produce"
-- "香菇" → "香菇 | produce"
-- "香葱, 切碎" → "香葱 | produce"
 - "chicken breast, boneless skinless" → "chicken breast | meat"
-- "鸡腿肉片" → "鸡腿肉 | meat"
 - "olive oil (extra virgin)" → "olive oil | pantry"
 - "食用油（用于油炸）" → "食用油 | pantry"
 - "eggs, beaten" → "egg | dairy"
