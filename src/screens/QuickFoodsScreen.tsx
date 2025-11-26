@@ -211,7 +211,7 @@ Return ONLY valid JSON, no additional text or explanation.`;
     try {
       // Import Firebase
       const { collection, addDoc } = await import('firebase/firestore');
-      const { db, auth } = await import('../../config/firebase');
+      const { db, auth } = await import('../config/firebase');
       
       const user = auth.currentUser;
       if (!user) {
