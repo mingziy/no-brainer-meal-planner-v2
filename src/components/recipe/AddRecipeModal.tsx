@@ -423,12 +423,12 @@ export function AddRecipeModal() {
         throw new Error('No meaningful text found in the URL');
       }
 
-      // Parse the extracted text with AI AND generate Chinese translation
+      // Parse the extracted text with AI
       let parsedRecipe;
       try {
-        console.log('🌏 Attempting bilingual AI parsing (English + Chinese)...');
+        console.log('🤖 Attempting AI recipe parsing...');
         parsedRecipe = await parseRecipeWithGemini(extractedText, 60000);
-        console.log('✅ Bilingual parsing successful! Recipe now has both EN and ZH versions.');
+        console.log('✅ Recipe parsing successful!');
       } catch (error: any) {
         console.error('⚠️ AI parsing failed:', error.message);
         setIsProcessing(false);

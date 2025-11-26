@@ -212,80 +212,12 @@ export function ShoppingListScreen() {
   };
 
   // Check if text contains Chinese characters
-  const containsChinese = (text: string): boolean => {
-    return /[\u4e00-\u9fa5]/.test(text);
-  };
-
-  // Translate Chinese ingredients to English using Gemini AI
-  const translateIngredientsToEnglish = async (ingredientNames: string[]): Promise<string[]> => {
-    const chineseIngredients = ingredientNames.filter(name => containsChinese(name));
-    
-    if (chineseIngredients.length === 0) {
-      return ingredientNames; // No translation needed
-    }
-
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        console.warn('⚠️ Gemini API key not configured, keeping Chinese ingredients as is');
-        return ingredientNames;
-      }
-
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-      const prompt = `Translate these Chinese ingredient names to English. Return ONLY the English translation, one per line, in the same order. Keep it simple and natural for a grocery shopping list.
-
-Chinese ingredients to translate:
-${chineseIngredients.join('\n')}
-
-Return ONLY the English translations, one per line, no explanations, no numbering.`;
-
-      console.log('🌐 Translating', chineseIngredients.length, 'Chinese ingredients to English...');
-      
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().trim();
-      
-      const translations = text.split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0);
-
-      if (translations.length !== chineseIngredients.length) {
-        console.warn('⚠️ Translation count mismatch, keeping originals');
-        return ingredientNames;
-      }
-
-      // Create a map of Chinese to English translations
-      const translationMap = new Map<string, string>();
-      chineseIngredients.forEach((chinese, index) => {
-        translationMap.set(chinese, translations[index]);
-      });
-
-      // Replace Chinese ingredients with English translations
-      const translatedNames = ingredientNames.map(name => {
-        if (containsChinese(name) && translationMap.has(name)) {
-          const translation = translationMap.get(name)!;
-          console.log('🌐 Translated:', name, '→', translation);
-          return translation;
-        }
-        return name;
-      });
-
-      console.log('✅ Translation complete:', chineseIngredients.length, 'ingredients translated');
-      return translatedNames;
-    } catch (error) {
-      console.error('❌ Error translating ingredients:', error);
-      return ingredientNames; // Fallback to original names
-    }
-  };
 
   // Categorize ingredient for shopping list
   const categorizeIngredient = (name: string): string => {
     const nameLower = name.toLowerCase();
     
-    // Produce (English + Chinese)
+    // Produce
     if (/vegetable|fruit|lettuce|tomato|onion|garlic|pepper|carrot|broccoli|spinach|kale|cabbage|potato|avocado|apple|banana|berry|lemon|lime|orange|herb|cilantro|parsley|basil/.test(nameLower)) {
       return 'produce';
     }

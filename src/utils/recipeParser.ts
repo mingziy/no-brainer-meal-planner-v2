@@ -47,7 +47,7 @@ export function parseRecipeText(text: string): Partial<Recipe> {
   let ingredientId = 1;
 
   for (const line of lines) {
-    // Support both English and Chinese keywords
+    // Support recipe keywords
     if (/^(ingredients?|食材|材料|原料):?$/i.test(line.trim())) {
       inIngredientsSection = true;
       continue;
@@ -58,7 +58,7 @@ export function parseRecipeText(text: string): Partial<Recipe> {
     }
     
     if (inIngredientsSection && line.trim()) {
-      // Try to parse amount, unit, and name (supports English and Chinese)
+      // Try to parse amount, unit, and name (international recipes)
       // Supports patterns like: "2 cups flour", "2杯 面粉", "200克 鸡肉", "适量 盐"
       const match = line.match(/^[•\-*]?\s*(\d+\.?\d*|适量|少许)?\s*([\u4e00-\u9fa5a-z]+)?\s*(.+?)$/i);
       if (match) {
@@ -85,7 +85,7 @@ export function parseRecipeText(text: string): Partial<Recipe> {
   let inInstructionsSection = false;
 
   for (const line of lines) {
-    // Support both English and Chinese keywords
+    // Support recipe keywords
     if (/^(instructions?|directions?|steps?|做法|步骤|制作方法|烹饪步骤):?$/i.test(line.trim())) {
       inInstructionsSection = true;
       continue;
@@ -103,7 +103,7 @@ export function parseRecipeText(text: string): Partial<Recipe> {
     }
   }
 
-  // Extract prep and cook times (supports English and Chinese)
+  // Extract prep and cook times (international recipes)
   let prepTime = 15; // default
   let cookTime = 30; // default
   
@@ -113,7 +113,7 @@ export function parseRecipeText(text: string): Partial<Recipe> {
   if (prepMatch) prepTime = parseInt(prepMatch[1]);
   if (cookMatch) cookTime = parseInt(cookMatch[1]);
 
-  // Detect cuisine (supports English and Chinese keywords)
+  // Detect cuisine (supports multiple cuisines)
   let cuisine: RecipeCuisine = 'Other';
   const textLower = text.toLowerCase();
   
@@ -133,7 +133,7 @@ export function parseRecipeText(text: string): Partial<Recipe> {
   if (textLower.includes('japanese') || textLower.includes('sushi') || textLower.includes('ramen') || textLower.includes('日式')) cuisine = 'Japanese';
   if (textLower.includes('american') || textLower.includes('burger') || textLower.includes('bbq')) cuisine = 'American';
 
-  // Detect categories (supports English and Chinese)
+  // Detect categories (international recipes)
   const categories: RecipeCategory[] = [];
   if (textLower.includes('breakfast') || textLower.includes('早餐')) categories.push('Breakfast');
   if (textLower.includes('lunch') || textLower.includes('午餐') || textLower.includes('中餐')) categories.push('Lunch');
@@ -146,7 +146,7 @@ export function parseRecipeText(text: string): Partial<Recipe> {
     categories.push('Dinner');
   }
 
-  // Estimate nutrition based on ingredients (supports English and Chinese)
+  // Estimate nutrition based on ingredients (international recipes)
   const hasProtein = ingredients.some(ing => 
     /chicken|beef|pork|fish|egg|tofu|bean|鸡|牛|猪|鱼|蛋|豆腐|肉/i.test(ing.name)
   );

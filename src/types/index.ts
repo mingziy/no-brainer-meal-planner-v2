@@ -210,11 +210,6 @@ export interface Recipe {
   sourceUrl?: string; // Original recipe URL for attribution and linking back
   nutritionCalculationReasoning?: string; // AI explanation of how servings/calories/nutrition were calculated
   
-  // Bilingual support - store both English and Chinese versions
-  nameZh?: string; // Chinese name
-  ingredientsZh?: Ingredient[]; // Chinese ingredients
-  instructionsZh?: string[]; // Chinese instructions
-  
   // Legacy fields (deprecated but kept for backwards compatibility)
   categories?: RecipeCategory[];
   prepTime?: number; // in minutes (deprecated)

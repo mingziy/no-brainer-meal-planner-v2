@@ -166,8 +166,7 @@ Required JSON structure:
 }
 
 IMPORTANT Rules:
-- **PRESERVE THE ORIGINAL LANGUAGE**: If the recipe is in Chinese, output Chinese text for name, ingredients, and instructions. If in English, use English.
-- **cuisine**: Identify the primary cuisine type (e.g., Chinese, Italian, Mexican, Japanese, Thai, Indian, Korean, American, French, Mediterranean, etc.)
+- **cuisine**: Identify the primary cuisine type (e.g., Italian, Mexican, Japanese, Thai, Indian, Korean, American, French, Mediterranean, Vietnamese, etc.)
 - **proteinType**: Identify the MAIN protein source. Examples:
   * Chicken dish → "Chicken"
   * Beef stir-fry → "Beef"
@@ -423,9 +422,8 @@ Format:
 {"name":"Recipe Name","cuisine":"Vietnamese","proteinTypes":["Chicken","Pork"],"mealType":"Lunch","servings":4,"caloriesPerServing":350,"nutritionCalculationReasoning":"Brief reasoning","nutrition":{"protein":30,"fiber":5,"fat":15,"carbs":40,"iron":"Moderate","calcium":"Moderate"},"ingredients":[{"id":"1","amount":"1","unit":"cup","name":"ingredient"}],"instructions":["Step 1"]}
 
 CRITICAL - Read recipe and calculate nutrition:
-1. Preserve original language (Chinese/English)
-2. Number ingredients from "1"
-3. **cuisine**: Identify from dish name (Vietnamese, Chinese, Italian, Japanese, Korean, Thai, Indian, Mexican, American, French, Mediterranean, Other)
+1. Number ingredients from "1"
+2. **cuisine**: Identify from dish name (Vietnamese, Italian, Japanese, Korean, Thai, Indian, Mexican, American, French, Mediterranean, Other)
 4. **proteinTypes**: ARRAY of proteins - if multiple, list ALL: ["Chicken","Pork"]
 5. **mealType**: When eaten? (Breakfast, Lunch, Dinner, Snack)
 6. **caloriesPerServing**: Estimate from ingredients
@@ -558,7 +556,7 @@ Return JSON only:`;
 
 /**
  * Generate recipe ideas based on user query
- * @param query - Natural language description (English or Chinese)
+ * @param query - Natural language description
  * @param count - Number of recipe ideas to generate (default: 5)
  */
 export async function generateRecipeIdeas(query: string, count: number = 5): Promise<string[]> {
@@ -581,8 +579,6 @@ Generate EXACTLY ${count} specific recipe names that match the request.
 Rules:
 - Return ONLY a JSON array of recipe names (strings)
 - Each recipe name should be specific (e.g., "Honey Garlic Chicken Thighs", not just "Chicken")
-- If query is in Chinese, respond in Chinese
-- If query is in English, respond in English
 - Match the user's dietary preferences, cooking style, and constraints
 - Be creative but practical
 
@@ -667,16 +663,12 @@ Popular recipe sites:
 - Serious Eats: https://www.seriouseats.com/[dish-name-recipe]
 - Food Network: https://www.foodnetwork.com/recipes/[chef]/[dish-name]
 - Bon Appetit: https://www.bonappetit.com/recipe/[dish-name]
-- Chinese (if dish is Chinese): 
-  - https://www.xiachufang.com/search/?keyword=${encodeURIComponent(dishName)}
-  - https://www.meishij.net/search/?q=${encodeURIComponent(dishName)}
 
 Instructions:
-1. If it's a Chinese dish (like 宫保鸡丁), use Chinese recipe sites
-2. For Western dishes, use AllRecipes, Simply Recipes, or Serious Eats
-3. Format the URL to match the site's pattern
-4. Use lowercase, hyphens for spaces
-5. Make it as specific as possible
+1. Use AllRecipes, Simply Recipes, or Serious Eats
+2. Format the URL to match the site's pattern
+3. Use lowercase, hyphens for spaces
+4. Make it as specific as possible
 
 Return ONLY the complete URL (starting with https://), nothing else.`;
 
