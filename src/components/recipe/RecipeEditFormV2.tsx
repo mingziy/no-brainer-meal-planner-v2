@@ -16,7 +16,7 @@ import { useRecipes } from '../../hooks/useRecipes';
 import { toast } from 'sonner';
 import Cropper from 'react-easy-crop';
 import type { Area } from 'react-easy-crop';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// AI functions imported from centralized service
 
 type Step = 'image' | 'recipe' | 'calories' | 'tags';
 
@@ -360,13 +360,6 @@ export function RecipeEditFormV2() {
   };
 
   const handleCalculateCaloriesWithAI = async () => {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    
-    if (!apiKey || apiKey === 'your_api_key_here') {
-      toast.error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in .env.local');
-      return;
-    }
-
     // Validate that we have recipe data
     if (!recipeName || ingredients.length === 0) {
       toast.error('Please add recipe name and ingredients first');
@@ -376,64 +369,14 @@ export function RecipeEditFormV2() {
     setIsCalculatingCalories(true);
     
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-      // Format ingredients and instructions for AI
-      const ingredientsText = ingredients
-        .filter(ing => ing.name.trim())
-        .map(ing => `${ing.amount} ${ing.unit} ${ing.name}`.trim())
-        .join('\n');
-      
-      const instructionsText = instructions
-        .filter(inst => inst.trim())
-        .map((inst, idx) => `${idx + 1}. ${inst}`)
-        .join('\n');
-
-      const prompt = `Calculate the complete nutrition information for this recipe. Return ONLY valid JSON (no markdown, no explanations).
-
-Recipe: ${recipeName}
-Servings: ${servings}
-
-Ingredients:
-${ingredientsText}
-
-${instructionsText ? `Instructions:\n${instructionsText}` : ''}
-
-Required JSON structure:
-{
-  "caloriesPerServing": 350,
-  "nutrition": {
-    "protein": 30,
-    "carbs": 40,
-    "fat": 15,
-    "fiber": 5,
-    "iron": "Moderate",
-    "calcium": "Moderate"
-  },
-  "nutritionCalculationReasoning": "Detailed explanation of your calculation including: 1) How you determined serving size, 2) How you calculated calories and macros per serving with specific values for each major ingredient, 3) Sources or reasoning (cite USDA data, nutrition databases, or standard values)"
-}
-
-IMPORTANT:
-- protein, carbs, fat, fiber: provide values in GRAMS per serving
-- iron, calcium: provide as "Low", "Moderate", or "High"
-- nutritionCalculationReasoning: explain your calculation methodology
-
-Return ONLY the JSON, no other text.`;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().trim();
-      
-      // Parse JSON response
-      let jsonText = text;
-      if (text.includes('```json')) {
-        jsonText = text.split('```json')[1].split('```')[0].trim();
-      } else if (text.includes('```')) {
-        jsonText = text.split('```')[1].split('```')[0].trim();
-      }
-
-      const parsed = JSON.parse(jsonText);
+      // Use centralized AI client
+      const { calculateRecipeNutrition } = await import('../../services/aiClient');
+      const parsed = await calculateRecipeNutrition(
+        recipeName,
+        ingredients,
+        instructions,
+        servings
+      );
       
       // Update calorie data
       setCaloriesPerServing(parsed.caloriesPerServing || 0);

@@ -112,62 +112,9 @@ export function QuickFoodsScreen() {
 
     setIsLoading(true);
     try {
-      // Check if API key exists
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      console.log('API Key exists:', !!apiKey);
-      
-      if (!apiKey) {
-        throw new Error('Gemini API key is not configured. Please add VITE_GEMINI_API_KEY to your .env file.');
-      }
-      
-      // Import Gemini AI
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      
-      console.log('Sending prompt to Gemini...');
-
-      const prompt = `Analyze this food description: "${foodName.trim()}"
-
-The user has described a food item including the serving size. Please extract and analyze:
-- The food name
-- The food category (fruit, veggie, dairy, grain, protein, snack, or drink)
-- The serving size mentioned (or use typical serving if not specified)
-- Calculate the approximate nutrition values
-
-Provide the following information in JSON format:
-{
-  "emoji": "appropriate emoji for this food (single emoji)",
-  "category": "one of: fruit, veggie, dairy, grain, protein, snack, drink",
-  "servingSize": "the serving size mentioned in the description (e.g., '1 cup', '100g', '1 medium')",
-  "calories": number (approximate calories for this serving),
-  "nutrition": {
-    "protein": number (grams),
-    "carbs": number (grams),
-    "fat": number (grams),
-    "fiber": number (grams)
-  }
-}
-
-Return ONLY valid JSON, no additional text or explanation.`;
-
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      let text = response.text().trim();
-      
-      console.log('Gemini response:', text);
-
-      // Clean up the response (remove markdown code blocks if present)
-      if (text.startsWith('```json')) {
-        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      } else if (text.startsWith('```')) {
-        text = text.replace(/```\n?/g, '');
-      }
-      
-      console.log('Cleaned response:', text);
-
-      const data = JSON.parse(text);
-      console.log('Parsed data:', data);
+      // Use centralized AI client
+      const { analyzeQuickFoodNutrition } = await import('../services/aiClient');
+      const data = await analyzeQuickFoodNutrition(foodName.trim());
       
       // Populate form with AI data
       setEmoji(data.emoji || '🍽️');

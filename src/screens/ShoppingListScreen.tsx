@@ -8,7 +8,7 @@ import { BottomNav } from '../components/shared/BottomNav';
 import { UserButton } from '../components/auth/UserButton';
 import { useEffect, useState } from 'react';
 import { ShoppingItem, WeeklyPlan, QuickFood, Recipe } from '../types';
-import { aiClient } from '../services/aiClient';
+import { cleanIngredientNames } from '../services/aiClient';
 export function ShoppingListScreen() {
   const { 
     shoppingList, 
@@ -320,7 +320,7 @@ export function ShoppingListScreen() {
       let cleanedIngredients: Array<{ name: string; category: string }> = [];
       if (ingredientNames.length > 0) {
         try {
-          cleanedIngredients = await aiClient.cleanIngredientNames(ingredientNames);
+          cleanedIngredients = await cleanIngredientNames(ingredientNames);
         } catch (error) {
           console.error('❌ AI cleaning failed, using ingredient names:', error);
           cleanedIngredients = ingredientNames.map((name, index) => ({
